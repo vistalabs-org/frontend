@@ -1,16 +1,23 @@
+import { config } from "@root/config";
+import { cookieToInitialState } from "@account-kit/core";
+import { headers } from "next/headers";
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+// import { Geist, Geist_Mono } from "next/font/google";
+import { Inter } from "next/font/google";
 import "./globals.css";
+import { Providers } from "./providers";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
+// const geistSans = Geist({
+//   variable: "--font-geist-sans",
+//   subsets: ["latin"],
+// });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
+// const geistMono = Geist_Mono({
+//   variable: "--font-geist-mono",
+//   subsets: ["latin"],
+// });
+
+const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: "Vista Markets",
@@ -24,11 +31,19 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+    // Persist state across pages
+  // https://accountkit.alchemy.com/react/ssr#persisting-the-account-state
+  const headerData = await headers();
+  const initialState = cookieToInitialState(
+    config,
+    headerData.get("cookie") ?? undefined
+  );
+
   return (
     <html lang="en">
       <head>
@@ -37,9 +52,10 @@ export default function RootLayout({
         <link rel="apple-touch-icon" href="/icons/icon-192x192.png" />
       </head>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={inter.className}
       >
-        {children}
+        <Providers initialState={initialState}>{children}</Providers>
+        {/* {children} */}
       </body>
     </html>
   );
