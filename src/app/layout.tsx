@@ -55,7 +55,6 @@ export default async function RootLayout({
         className={inter.className}
       >
         <Providers initialState={initialState}>{children}</Providers>
-        {/* {children} */}
       </body>
     </html>
   );
