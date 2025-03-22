@@ -6,15 +6,6 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { Providers } from "./providers";
-import Link from 'next/link';
-import {
-  useAuthModal,
-  useLogout,
-  useSignerStatus,
-  useUser,
-  useSmartAccountClient,
-  useSendUserOperation
-} from "@account-kit/react";
 import NavBar from "@/components/NavBar";
 
 const inter = Inter({ subsets: ["latin"] });
