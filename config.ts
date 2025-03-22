@@ -54,6 +54,8 @@ const uiConfig: AlchemyAccountsUIConfig = {
   
 const ALCHEMY_API_KEY = process.env.NEXT_PUBLIC_ALCHEMY_API_KEY;
 if (!ALCHEMY_API_KEY) throw "env var ALCHEMY_API_KEY missing"
+const GAS_MANAGER_POLICY_ID = process.env.NEXT_PUBLIC_GAS_MANAGER_POLICY_ID;
+if (!GAS_MANAGER_POLICY_ID) throw "env var GAS_MANAGER_POLICY_ID missing"
 
 export const config = createConfig(
     {
@@ -62,6 +64,7 @@ export const config = createConfig(
         ssr: true, // more about ssr: https://accountkit.alchemy.com/react/ssr
         storage: cookieStorage, // more about persisting state with cookies: https://accountkit.alchemy.com/react/ssr#persisting-the-account-state
         enablePopupOauth: true, // must be set to "true" if you plan on using popup rather than redirect in the social login flow
+        policyId: GAS_MANAGER_POLICY_ID
     },
     uiConfig
 );
