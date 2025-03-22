@@ -6,6 +6,16 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { Providers } from "./providers";
+import Link from 'next/link';
+import {
+  useAuthModal,
+  useLogout,
+  useSignerStatus,
+  useUser,
+  useSmartAccountClient,
+  useSendUserOperation
+} from "@account-kit/react";
+import NavBar from "@/components/NavBar";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -44,7 +54,16 @@ export default async function RootLayout({
       <body
         className={inter.className}
       >
-        <Providers initialState={initialState}>{children}</Providers>
+        <Providers initialState={initialState}>
+              <div className="app-container">
+          
+                <NavBar />
+          
+                <main className="main-content">
+                  {children}
+                </main>
+              </div>
+        </Providers>
       </body>
     </html>
   );
