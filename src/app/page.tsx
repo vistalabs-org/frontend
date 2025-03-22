@@ -1,12 +1,11 @@
 "use client";
-import Image from "next/image";
+import SendUserOperationButton from "@/components/SendUserOperationButton";
 import {
   useAuthModal,
   useLogout,
   useSignerStatus,
   useUser,
   useSmartAccountClient,
-  type UseSendUserOperationResult,
   useSendUserOperation
 } from "@account-kit/react";
 
@@ -71,6 +70,16 @@ export default function Home() {
               >
                 {isSendingUserOperation ? "Sending..." : "Send UO"}
               </button>
+              <SendUserOperationButton
+                client={client}
+                targetAddress="0xANOTHER_TARGET"
+                data="0x123456"
+                value={1000000000000000n}
+                className="btn btn-secondary w-full mt-2"
+                onSuccess={({ hash }) => alert(`Transaction successful: ${hash}`)}
+              >
+                Send 0.001 ETH
+              </SendUserOperationButton>
             </div>
           </div>
         ) : (
