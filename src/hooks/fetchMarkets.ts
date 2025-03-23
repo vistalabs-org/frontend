@@ -72,11 +72,10 @@ export const useMarketCount = () => {
 export function useAllMarkets(enabled = true) {
   const result = useReadContract({
     address: PREDICTION_MARKET_HOOK_ADDRESS,
-    abi: IMarketMakerHookAbi,
-    functionName: 'markets',
-    query: {
-      enabled,
-    },
+    abi: MarketHookAbi,
+    functionName: 'marketPoolIds',
+    args: [BigInt(0)],
+
   });
 
   // Only log changes when data or error actually change

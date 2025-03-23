@@ -3,9 +3,8 @@ import { createColorSet, withAccountKitUi } from "@account-kit/react/tailwind";
 
 export default withAccountKitUi({
   content: [
-    "./pages/**/*.{js,ts,jsx,tsx,mdx}",
-    "./components/**/*.{js,ts,jsx,tsx,mdx}",
-    "./app/**/*.{js,ts,jsx,tsx,mdx}",
+    "./src/components/**/*.{js,ts,jsx,tsx,mdx}",
+    "./src/app/**/*.{js,ts,jsx,tsx,mdx}",
   ],
   theme: {
     extend: {},
@@ -16,3 +15,17 @@ export default withAccountKitUi({
   },
   plugins: [],
 });
+
+
+// /** @type {import('tailwindcss').Config} */
+// export default {
+//   content: [
+//     "./src/pages/**/*.{js,ts,jsx,tsx,mdx}",
+//     "./src/components/**/*.{js,ts,jsx,tsx,mdx}",
+//     "./src/app/**/*.{js,ts,jsx,tsx,mdx}",
+//   ],
+//   theme: {
+//     extend: {},
+//   },
+//   plugins: [],
+// };

@@ -1,60 +1,54 @@
-"use client";
-
-// app/[id]/page.tsx
-import { useMarketByIndex } from '@/hooks/fetchMarkets';
-import { notFound } from 'next/navigation';
+// app/market/[id]/page.tsx
 import React from 'react';
+import { Metadata } from 'next';
+import { notFound } from 'next/navigation';
+import PredictionMarketPage from '@/components/PredictionMarketPage';
+import MarketChart from '@/components/MarketChart';
+import { getMarketData } from '@/lib/api'
 
-// Define the props type for the page
-type PageProps = {
+// Define the interface for the params
+interface MarketPageParams {
   params: {
     id: string;
   };
-};
-
-// Mock data for demonstration
-const mockData: Record<string, { id: string; title: string; description: string }> = {
-  '1': { id: '1', title: 'Item One', description: 'Description for item 1' },
-  '2': { id: '2', title: 'Item Two', description: 'Description for item 2' },
-  '3': { id: '3', title: 'Item Three', description: 'Description for item 3' },
-};
-
-// Async function to fetch data based on the ID
-async function getData(id: string) {
-  // In a real app, this would be an API call
-  // const res = await fetch(`https://api.example.com/items/${id}`);
-  // if (!res.ok) return null;
-  // return res.json();
-  
-  return mockData[id] || null;
 }
 
-// Generate static params for static generation
-// export async function generateStaticParams() {
-//   // Return an array of params to statically generate
-//   return Object.keys(mockData).map(id => ({ id }));
-// }
+// Generate metadata for the page
+export async function generateMetadata({ params }: MarketPageParams): Promise<Metadata> {
+  try {
+    const marketData = await getMarketData(params.id);
+    
+    return {
+      title: `${marketData.title} | Polymarket`,
+      description: `Trade on the outcome: ${marketData.title}`,
+      openGraph: {
+        title: `${marketData.title} | Polymarket`,
+        description: `Current probability: ${marketData.currentYesPrice}%. Trade now on Polymarket.`,
+        images: [marketData.icon],
+      },
+    };
+  } catch (error) {
+    return {
+      title: 'Market Not Found | Polymarket',
+      description: 'The requested prediction market could not be found.',
+    };
+  }
+}
 
-// Dynamic page component
-export default function DynamicPage({ params }: PageProps) {
-  const { id } = params;
-//   const data = await getData(id);
-    const { market, isLoading, isError } = useMarketByIndex(id);
-  
-  
-  // Handle case when data is not found
-  if (!market) {
+// The main component with server-side data fetching
+export default async function MarketPage({ params }: MarketPageParams) {
+  try {
+    const marketData = await getMarketData(params.id);
+    
+    return (
+      <main className="bg-gray-50 min-h-screen">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <PredictionMarketPage marketData={marketData} />
+        </div>
+      </main>
+    );
+  } catch (error) {
+    // If market doesn't exist, return 404
     notFound();
   }
-  
-  return (
-    <div className="container mx-auto p-6">
-      <h1 className="text-3xl font-bold mb-4">Item Details: {market.title}</h1>
-      <div className="bg-white shadow-md rounded p-6">
-        <p className="text-gray-700">ID: {id}</p>
-        <p className="text-gray-700 mt-2">{market.description}</p>
-        {/* Add more item details here */}
-      </div>
-    </div>
-  );
 }

@@ -10,7 +10,7 @@ export default function Home() {
   
   const stuff = useMarketCount()
   console.log(stuff)
-  // console.log(markets)
+  console.log("yo", markets)
 
   const chainId = useChainId()
   
