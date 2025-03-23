@@ -1,7 +1,9 @@
 // Import the ABI file and define types based on it
 import { useReadContract } from 'wagmi'
 import { useEffect, useState } from 'react'
-import marketsABI from '@/contracts/PredictionMarketHook_abi.json'
+import {MarketHookAbi} from '@/contracts/PredictionMarketHook_abi'
+import { PREDICTION_MARKET_HOOK_ADDRESS } from '@/app/constants'
+import { IMarketMakerHookAbi } from '@/contracts/IMarketMakerHook';
 
 // The ABI contains complex types for PoolKey and Market
 // Let's define TypeScript interfaces for these
@@ -29,49 +31,93 @@ interface Market {
   endTimestamp: bigint
 }
 
+export const useMarketCount = () => {
+
+  // Add a state to handle the case when the hook is called before the provider is ready
+  const [count, setCount] = useState<number>(0);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [hookError, setHookError] = useState<Error | null>(null);
+
+  const result = useReadContract({
+    address: PREDICTION_MARKET_HOOK_ADDRESS,
+    abi: IMarketMakerHookAbi,
+    functionName: 'marketCount',
+  });
+
+  useEffect(() => {
+    console.log(result.data)
+    if (result.data !== undefined) {
+      setCount(Number(result.data));
+      setLoading(false);
+    }
+    if (result.error) {
+      setHookError(result.error as Error);
+      setLoading(false);
+    }
+  }, [result.data, result.error]);
+
+  return {
+    marketCount: count,
+    isLoading: loading,
+    error: hookError,
+  };
+};
+
 /**
  * Custom hook for fetching all markets from the contract
  * 
- * @param contractAddress - The address of the contract
  * @param enabled - Whether the query should be enabled
  * @returns Object containing markets data and loading state
  */
-export function useAllMarkets(contractAddress: `0x${string}`, enabled = true) {
-  const { data, isLoading, isError, error } = useReadContract({
-    address: contractAddress,
-    abi: marketsABI,
-    functionName: 'getAllMarkets',
+export function useAllMarkets(enabled = true) {
+  const result = useReadContract({
+    address: PREDICTION_MARKET_HOOK_ADDRESS,
+    abi: IMarketMakerHookAbi,
+    functionName: 'markets',
     query: {
-        enabled,
-      },
-  })
+      enabled,
+    },
+  });
+
+  // Only log changes when data or error actually change
+  useEffect(() => {
+    console.log("Contract data:", result.data);
+    console.log("Contract error:", result.error);
+    // if (result.error) console.error("Contract error:", result.error);
+  }, [result.data, result.error]);
 
   return {
-    markets: data as Market[] | undefined,
-    isLoading,
-    isError,
-    error,
+    markets: result.data as Market[] | undefined,
+    isLoading: result.isLoading,
+    isError: result.isError,
+    error: result.error,
+  }
+}
+
+export function useMarketByIndex(offset: number|string) {
+  const result = usePaginatedMarkets(offset, 1);
+  return {
+    ...result,
+    market: result.markets ? result.markets[0] : undefined
   }
 }
 
 /**
  * Custom hook for fetching markets with pagination
  * 
- * @param contractAddress - The address of the contract
  * @param offset - The starting index for pagination
  * @param limit - The number of markets to fetch
  * @param enabled - Whether the query should be enabled
  * @returns Object containing paginated markets data and loading state
  */
 export function usePaginatedMarkets(
-  contractAddress: `0x${string}`, 
-  offset: number, 
+  offset: number | string, 
   limit: number, 
   enabled = true
 ) {
   const { data, isLoading, isError, error } = useReadContract({
-    address: contractAddress,
-    abi: marketsABI,
+    address: PREDICTION_MARKET_HOOK_ADDRESS,
+    abi: MarketHookAbi,
     functionName: 'getMarkets',
     args: [BigInt(offset), BigInt(limit)],
     query: {
@@ -90,11 +136,10 @@ export function usePaginatedMarkets(
 /**
  * Custom hook for infinite loading of markets
  * 
- * @param contractAddress - The address of the contract
  * @param pageSize - The number of markets to fetch per page
  * @returns Object containing all loaded markets and functions to load more
  */
-export function useInfiniteMarkets(contractAddress: `0x${string}`, pageSize = 10) {
+export function useInfiniteMarkets(pageSize = 10) {
   const [markets, setMarkets] = useState<Market[]>([])
   const [currentOffset, setCurrentOffset] = useState(0)
   const [hasMore, setHasMore] = useState(true)
@@ -102,8 +147,8 @@ export function useInfiniteMarkets(contractAddress: `0x${string}`, pageSize = 10
   
   // Get total count of markets
   const { data: totalCountData } = useReadContract({
-    address: contractAddress,
-    abi: marketsABI,
+    address: PREDICTION_MARKET_HOOK_ADDRESS,
+    abi: MarketHookAbi,
     functionName: 'getMarketCount',
   })
   
@@ -111,7 +156,6 @@ export function useInfiniteMarkets(contractAddress: `0x${string}`, pageSize = 10
 
   // Fetch the current page of markets
   const { markets: pageMarkets, isLoading: pageLoading } = usePaginatedMarkets(
-    contractAddress,
     currentOffset,
     pageSize,
     currentOffset < totalCount // Only enable if there are more markets to fetch
@@ -157,14 +201,13 @@ export function useMarkets(
   }
 ) {
   if (options?.infinite) {
-    return useInfiniteMarkets(contractAddress, options.pageSize || 10)
+    return useInfiniteMarkets(options.pageSize || 10)
   } else if (options?.pagination) {
     return usePaginatedMarkets(
-      contractAddress,
       options.pagination.offset,
       options.pagination.limit
     )
   } else {
-    return useAllMarkets(contractAddress)
+    return useAllMarkets()
   }
 }

@@ -1,22 +1,25 @@
 "use client";
 
 import MarketCard from '@/components/MarketCard';
-import { useAllMarkets } from '@/hooks/fetchMarkets';
-import { PREDICTION_MARKET_HOOK_ADDRESS } from './constants';
+import { useAllMarkets, useMarketCount } from '@/hooks/fetchMarkets';
 import { useChainId } from 'wagmi'
 
 export default function Home() {
 
-  const { markets, isLoading, isError } = useAllMarkets(PREDICTION_MARKET_HOOK_ADDRESS)
+  const { markets, isLoading, isError } = useAllMarkets()
+  
+  const stuff = useMarketCount()
+  console.log(stuff)
+  // console.log(markets)
 
   const chainId = useChainId()
   
   return (
     <div className="markets-container">
         {markets && markets.map((market, index) => (
-          <MarketCard key={index} title={market.title} url={''} />
+          <MarketCard key={index} title={market.title} url={`/${index}`} />
         ))}
-      <MarketCard title={'Market Title Goes Here'} url={''}></MarketCard>
+      <MarketCard title={'Market Title Goes Here'} url={'/1'}></MarketCard>
       <MarketCard title={'Eth price > 2000 on Mar 25th'} url={''}></MarketCard>
       <MarketCard title={'Jesus rises in 2025'} url={''}></MarketCard>
       <MarketCard title={'We all retire'} url={''}></MarketCard>

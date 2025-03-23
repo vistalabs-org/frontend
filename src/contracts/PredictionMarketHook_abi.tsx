@@ -1,4 +1,4 @@
-[
+export const MarketHookAbi = [
   {
     "type": "constructor",
     "inputs": [
