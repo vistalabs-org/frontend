@@ -1,7 +1,7 @@
 // Import the ABI file and define types based on it
 import { useReadContract } from 'wagmi'
 import { useEffect, useState } from 'react'
-import {MarketHookAbi} from '@/contracts/PredictionMarketHook_abi'
+import {PredictionMarketHook_abi} from '@/contracts/PredictionMarketHook_abi'
 import { PREDICTION_MARKET_HOOK_ADDRESS } from '@/app/constants'
 import { IMarketMakerHookAbi } from '@/contracts/IMarketMakerHook';
 
@@ -72,10 +72,8 @@ export const useMarketCount = () => {
 export function useAllMarkets(enabled = true) {
   const result = useReadContract({
     address: PREDICTION_MARKET_HOOK_ADDRESS,
-    abi: MarketHookAbi,
-    functionName: 'marketPoolIds',
-    args: [BigInt(0)],
-
+    abi: PredictionMarketHook_abi,
+    functionName: '',
   });
 
   // Only log changes when data or error actually change
@@ -116,12 +114,9 @@ export function usePaginatedMarkets(
 ) {
   const { data, isLoading, isError, error } = useReadContract({
     address: PREDICTION_MARKET_HOOK_ADDRESS,
-    abi: MarketHookAbi,
+    abi: PredictionMarketHook_abi,
     functionName: 'getMarkets',
     args: [BigInt(offset), BigInt(limit)],
-    query: {
-        enabled,
-      },
   })
 
   return {
@@ -147,7 +142,7 @@ export function useInfiniteMarkets(pageSize = 10) {
   // Get total count of markets
   const { data: totalCountData } = useReadContract({
     address: PREDICTION_MARKET_HOOK_ADDRESS,
-    abi: MarketHookAbi,
+    abi: PredictionMarketHook_abi,
     functionName: 'getMarketCount',
   })
   
