@@ -1,14 +1,14 @@
 "use client";
 
 import MarketCard from '@/components/MarketCard';
-import { useAllMarkets, useMarketCount } from '@/hooks/fetchMarkets';
+import { useAllMarkets, usePaginatedMarkets } from '@/hooks/fetchMarkets';
 import { useChainId } from 'wagmi'
 
 export default function Home() {
 
   const { markets, isLoading, isError } = useAllMarkets()
   
-  const stuff = useMarketCount()
+  const stuff = usePaginatedMarkets(0, 10)
   console.log(stuff)
   console.log("yo", markets)
 
