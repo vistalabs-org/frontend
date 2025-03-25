@@ -72,20 +72,22 @@ export default async function MarketPage({
     const marketData = await getMarketData(id);
     
     return (
-      <main className="bg-gray-50 min-h-screen">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="app-container">
+        <div className="main-content">
           {/* Oracle Info Banner */}
-          <div className="mb-6 bg-blue-50 rounded-lg p-4 flex items-center justify-between">
-            <div>
-              <h3 className="font-medium text-blue-800">Powered by AI Oracle</h3>
-              <p className="text-sm text-blue-600">This market will be resolved using our decentralized AI oracle system</p>
+          <div className="banner-item mb-6">
+            <div className="banner-content">
+              <div className="banner-text">
+                <h3 className="banner-title">Powered by AI Oracle</h3>
+                <p className="banner-description">This market will be resolved using our decentralized AI oracle system</p>
+              </div>
+              <Link
+                href="/oracle"
+                className="banner-button"
+              >
+                See How It Works
+              </Link>
             </div>
-            <Link
-              href="/oracle"
-              className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm"
-            >
-              See How It Works
-            </Link>
           </div>
           
           <PredictionMarketPage marketData={marketData} />
