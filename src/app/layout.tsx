@@ -1,7 +1,7 @@
 import { config } from "@root/config";
 import { cookieToInitialState } from "@account-kit/core";
 import { headers } from "next/headers";
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 // import { Geist, Geist_Mono } from "next/font/google";
 import { Inter } from "next/font/google";
 import "./globals.css";
@@ -14,13 +14,18 @@ export const metadata: Metadata = {
   title: "Vista Markets",
   description: "Deployed on Unichain Prediction Market EigenLayer",
   manifest: '/manifest.json',
-  themeColor: '#000000',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
     title: 'Vista Markets',
   },
 };
+
+export const viewport: Viewport = {
+  themeColor: '#000000',
+  width: 'device-width',
+  initialScale: 1,
+}
 
 export default async function RootLayout({
   children,
@@ -36,15 +41,12 @@ export default async function RootLayout({
   );
 
   return (
-    <html lang="en">
+    <html lang="en" className={inter.className}>
       <head>
         <link rel="manifest" href="/manifest.json" />
-        <meta name="theme-color" content="#000000" />
         <link rel="apple-touch-icon" href="/icons/icon-192x192.png" />
       </head>
-      <body
-        className={inter.className}
-      >
+      <body>
         <Providers initialState={initialState}>
               <div className="app-container">
           

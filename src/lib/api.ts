@@ -91,9 +91,19 @@ const markets = [
     // Simulate API delay
     await new Promise(resolve => setTimeout(resolve, 500));
     
+    // Check if id is a number (or can be parsed as one)
+    const numericId = parseInt(id, 10);
+    
+    // If it's a valid number and within range, return market by index
+    if (!isNaN(numericId) && numericId >= 0 && numericId < markets.length) {
+      return markets[numericId];
+    }
+    
+    // Otherwise try to find by string ID
     const market = markets.find(m => m.id === id);
     
     if (!market) {
+      console.error(`Market not found for ID: ${id}`);
       throw new Error('Market not found');
     }
     
