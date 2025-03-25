@@ -3,7 +3,7 @@ import { useReadContract } from 'wagmi'
 import { useEffect, useState } from 'react'
 import {PredictionMarketHook_abi} from '@/contracts/PredictionMarketHook_abi'
 import { PREDICTION_MARKET_HOOK_ADDRESS } from '@/app/constants'
-import { IMarketMakerHookAbi } from '@/contracts/IMarketMakerHook';
+import { IPredictionMarketHookAbi } from '@/contracts/IPredictionMarketHook_abi';
 
 // The ABI contains complex types for PoolKey and Market
 // Let's define TypeScript interfaces for these
@@ -40,7 +40,7 @@ export const useMarketCount = () => {
 
   const result = useReadContract({
     address: PREDICTION_MARKET_HOOK_ADDRESS,
-    abi: IMarketMakerHookAbi,
+    abi: IPredictionMarketHookAbi,
     functionName: 'marketCount',
   });
 
@@ -114,7 +114,7 @@ export function usePaginatedMarkets(
 ) {
   const { data, isLoading, isError, error } = useReadContract({
     address: PREDICTION_MARKET_HOOK_ADDRESS,
-    abi: PredictionMarketHook_abi,
+    abi: IPredictionMarketHookAbi,
     functionName: 'getMarkets',
     args: [BigInt(offset), BigInt(limit)],
   })
