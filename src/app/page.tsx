@@ -1,9 +1,8 @@
 "use client";
 
-import MarketCard, { MarketCardProps } from '@/components/MarketCard';
-import { useAllMarkets, useMarketCount, usePaginatedMarkets } from '@/hooks/fetchMarkets';
+import MarketCard from '@/components/MarketCard';
+import { usePaginatedMarkets } from '@/hooks/fetchMarkets';
 import { useChainId } from 'wagmi'
-import Link from 'next/link';
 import React from 'react';
 
 export default function Home() {
@@ -17,21 +16,6 @@ export default function Home() {
   return (
     <div className="app-container">
       <div className="main-content">
-        {/* Banner for Oracle information */}
-        <div className="featured-banners">
-          <div className="banner-item">
-            <div className="banner-content">
-              <div className="banner-text">
-                <h2 className="banner-title">How Our Markets Are Resolved</h2>
-                <p className="banner-description">Learn about our advanced AI Oracle system that enables fair and transparent market resolutions.</p>
-                <Link href="/oracle" className="banner-button">Learn More</Link>
-              </div>
-              <div className="banner-image-container">
-                {/* Image would go here */}
-              </div>
-            </div>
-          </div>
-        </div>
         
         {/* Market Tabs */}
         <div className="market-tabs-container">
