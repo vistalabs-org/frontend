@@ -70,6 +70,8 @@ export default async function MarketPage({
   
   try {
     const marketData = await getMarketData(id);
+
+    console.log(marketData);
     
     return (
       <main className="app-container">

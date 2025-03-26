@@ -11,6 +11,8 @@ export default function Home() {
   
   // Default empty array if markets is undefined or not an array
   const marketsList = Array.isArray(markets) ? markets : [];
+
+  console.log(marketsList);
   
   return (
     <div className="app-container">
