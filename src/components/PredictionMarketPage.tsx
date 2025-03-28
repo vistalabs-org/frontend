@@ -54,6 +54,12 @@ const PredictionMarketPage = ({ marketData = sampleMarketData }: any) => {
     setAmount((currentAmount + value).toString());
   };
 
+  // Add checks for all required properties
+  const volume = marketData?.volume ? marketData.volume.toLocaleString() : '0';
+  const comments = marketData?.comments || [];
+  const topHolders = marketData?.topHolders || [];
+  const activity = marketData?.activity || [];
+
   return (
     <div className="max-w-screen-xl mx-auto py-6 text-primary">
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -78,7 +84,7 @@ const PredictionMarketPage = ({ marketData = sampleMarketData }: any) => {
             <div>
               <h1 className="market-title text-2xl mb-2">{marketData.title}</h1>
               <div className="flex items-center gap-4 text-sm text-secondary">
-                <span>${marketData.volume.toLocaleString()} Vol.</span>
+                <span>${volume} Vol.</span>
                 <div className="flex items-center gap-1">
                   <svg 
                     className="w-4 h-4" 
@@ -163,7 +169,7 @@ const PredictionMarketPage = ({ marketData = sampleMarketData }: any) => {
                       <path d="M9 6H11V20H9zM13 8H15V20H13zM17 4H19V20H17zM5 12H7V20H5z"></path>
                     </svg>
                     <span className="font-bold">Volume</span>
-                    <span>${marketData.volume.toLocaleString()}</span>
+                    <span>${volume}</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
@@ -185,19 +191,19 @@ const PredictionMarketPage = ({ marketData = sampleMarketData }: any) => {
                 className={`tab-button ${activeTab === 'Comments' ? 'active' : ''}`}
                 onClick={() => setActiveTab('Comments')}
               >
-                Comments ({marketData.comments.length})
+                Comments ({comments.length})
               </button>
               <button 
                 className={`tab-button ${activeTab === 'TopHolders' ? 'active' : ''}`}
                 onClick={() => setActiveTab('TopHolders')}
               >
-                Top Holders
+                Top Holders ({topHolders.length})
               </button>
               <button 
                 className={`tab-button ${activeTab === 'Activity' ? 'active' : ''}`}
                 onClick={() => setActiveTab('Activity')}
               >
-                Activity
+                Activity ({activity.length})
               </button>
               <button 
                 className={`tab-button ${activeTab === 'Related' ? 'active' : ''}`}
@@ -224,7 +230,7 @@ const PredictionMarketPage = ({ marketData = sampleMarketData }: any) => {
                 <span className="text-secondary">Beware of external links, they may be phishing attacks.</span>
               </div>
               
-              {marketData.comments.slice(0, 5).map((comment:any, index:any) => (
+              {comments.slice(0, 5).map((comment:any, index:any) => (
                 <div key={index} className="border-b border-border-color py-4" style={{ borderColor: 'var(--border-color)' }}>
                   <div className="flex gap-3">
                     <div className="flex-shrink-0">

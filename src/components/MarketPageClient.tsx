@@ -1,22 +1,47 @@
 "use client";
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import PredictionMarketPage from '@/components/PredictionMarketPage';
 import Link from 'next/link';
 import { useMarketByIndex } from '@/hooks/fetchMarkets';
+import { useMarketWithPoolData } from '@/hooks/usePoolData';
+
+// Create a new component to use the pool data hook
+const MarketWithPoolData = ({ marketId, market }: { marketId: string; market: any }) => {
+  // Import and use the hook directly in a component
+  const { market: marketWithPools, yesPool, noPool, isLoading: poolLoading } = useMarketWithPoolData(marketId, market);
+  
+  useEffect(() => {
+    if (yesPool || noPool) {
+      console.log('Pool data loaded:', { yesPool, noPool });
+    }
+  }, [yesPool, noPool]);
+  
+  // This component can either render something with the pool data
+  // or just be used for data fetching
+  return null; // or return some UI that uses poolData
+};
 
 export default function MarketPageClient({ id }: { id: string }) {
+  // State to track if we're mounted on the client
+  const [isMounted, setIsMounted] = useState(false);
+  
+  // Set isMounted to true after initial render
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+  
   // Fetch market data
   const { market, isLoading: marketLoading, isError } = useMarketByIndex(id);
   
-  // Use a stable loading state that won't cause hydration mismatches
-  if (marketLoading) {
+  // Render a stable loading state during SSR and initial hydration
+  if (!isMounted || marketLoading) {
     return (
       <main className="app-container">
         <div className="main-content">
           <div className="loading-container">
             <div className="spinner"></div>
-            <p className="loading-text">Loading market...</p>
+            <p className="loading-text">Loading...</p>
           </div>
         </div>
       </main>
@@ -54,7 +79,10 @@ export default function MarketPageClient({ id }: { id: string }) {
           </div>
         </div>
         
-        <PredictionMarketPage marketData={market} />
+        {isMounted && <PredictionMarketPage marketData={market} />}
+        
+        {/* Add the new component that uses the pool data hook */}
+        {isMounted && market && <MarketWithPoolData marketId={id} market={market} />}
       </div>
     </main>
   );

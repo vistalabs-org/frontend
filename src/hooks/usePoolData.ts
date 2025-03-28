@@ -9,8 +9,14 @@ import { useMarketByIndex } from '@/hooks/fetchMarkets';
  * @returns Market data with yes and no pool information
  */
 export function useMarketWithPoolData(marketId: string | number) {
+  console.log('useMarketWithPoolData called with marketId:', marketId);
+  
   // Get the market data
   const { market, isLoading: marketLoading, isError: marketError } = useMarketByIndex(marketId);
+  
+  console.log('useMarketWithPoolData - market data:', market);
+  console.log('useMarketWithPoolData - marketLoading:', marketLoading);
+  console.log('useMarketWithPoolData - marketError:', marketError);
   
   // Generate pool IDs from pool keys
   const [poolIds, setPoolIds] = useState<{
@@ -19,8 +25,14 @@ export function useMarketWithPoolData(marketId: string | number) {
   }>({});
   
   useEffect(() => {
+    console.log('useMarketWithPoolData - useEffect for poolIds triggered');
+    
     if (market) {
       try {
+        console.log('useMarketWithPoolData - market available, extracting pool keys');
+        console.log('useMarketWithPoolData - yesPoolKey:', market.yesPoolKey);
+        console.log('useMarketWithPoolData - noPoolKey:', market.noPoolKey);
+        
         // Extract yes pool key
         const yesPoolKey: PoolKey = {
           currency0: market.yesPoolKey.currency0,
@@ -39,13 +51,22 @@ export function useMarketWithPoolData(marketId: string | number) {
           hooks: market.noPoolKey.hooks || '0x0000000000000000000000000000000000000000'
         };
         
+        console.log('useMarketWithPoolData - constructed yesPoolKey:', yesPoolKey);
+        console.log('useMarketWithPoolData - constructed noPoolKey:', noPoolKey);
+        
         // Convert to pool IDs
+        const yesPoolId = poolKeyToId(yesPoolKey);
+        const noPoolId = poolKeyToId(noPoolKey);
+        
+        console.log('useMarketWithPoolData - generated yesPoolId:', yesPoolId);
+        console.log('useMarketWithPoolData - generated noPoolId:', noPoolId);
+        
         setPoolIds({
-          yesPoolId: poolKeyToId(yesPoolKey),
-          noPoolId: poolKeyToId(noPoolKey)
+          yesPoolId,
+          noPoolId
         });
       } catch (error) {
-        console.error('Error generating pool IDs:', error);
+        console.error('useMarketWithPoolData - Error generating pool IDs:', error);
         setPoolIds({});
       }
     }
@@ -57,17 +78,30 @@ export function useMarketWithPoolData(marketId: string | number) {
     isLoading: yesSlot0Loading 
   } = useSlot0(poolIds.yesPoolId);
   
+  console.log('useMarketWithPoolData - yesPoolId:', poolIds.yesPoolId);
+  console.log('useMarketWithPoolData - yesSlot0Data:', yesSlot0Data);
+  console.log('useMarketWithPoolData - yesSlot0Loading:', yesSlot0Loading);
+  
   // Get Slot0 data for no pool
   const { 
     data: noSlot0Data, 
     isLoading: noSlot0Loading 
   } = useSlot0(poolIds.noPoolId);
   
+  console.log('useMarketWithPoolData - noPoolId:', poolIds.noPoolId);
+  console.log('useMarketWithPoolData - noSlot0Data:', noSlot0Data);
+  console.log('useMarketWithPoolData - noSlot0Loading:', noSlot0Loading);
+  
   // Combine all data
   const yesPool = useMemo(() => {
-    if (!market?.yesPoolKey) return null;
+    console.log('useMarketWithPoolData - yesPool useMemo triggered');
     
-    return {
+    if (!market?.yesPoolKey) {
+      console.log('useMarketWithPoolData - no yesPoolKey available');
+      return null;
+    }
+    
+    const result = {
       poolId: poolIds.yesPoolId,
       currency0: market.yesPoolKey.currency0,
       currency1: market.yesPoolKey.currency1,
@@ -75,12 +109,20 @@ export function useMarketWithPoolData(marketId: string | number) {
       token: market.yesToken,
       ...yesSlot0Data
     };
+    
+    console.log('useMarketWithPoolData - yesPool result:', result);
+    return result;
   }, [market, poolIds.yesPoolId, yesSlot0Data]);
   
   const noPool = useMemo(() => {
-    if (!market?.noPoolKey) return null;
+    console.log('useMarketWithPoolData - noPool useMemo triggered');
     
-    return {
+    if (!market?.noPoolKey) {
+      console.log('useMarketWithPoolData - no noPoolKey available');
+      return null;
+    }
+    
+    const result = {
       poolId: poolIds.noPoolId,
       currency0: market.noPoolKey.currency0,
       currency1: market.noPoolKey.currency1,
@@ -88,13 +130,19 @@ export function useMarketWithPoolData(marketId: string | number) {
       token: market.noToken,
       ...noSlot0Data
     };
+    
+    console.log('useMarketWithPoolData - noPool result:', result);
+    return result;
   }, [market, poolIds.noPoolId, noSlot0Data]);
   
-  return {
+  const result = {
     market,
     yesPool,
     noPool,
     isLoading: marketLoading || yesSlot0Loading || noSlot0Loading,
     isError: marketError
   };
+  
+  console.log('useMarketWithPoolData - final result:', result);
+  return result;
 } 
