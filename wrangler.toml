@@ -1,8 +1,10 @@
 name = "market"
 compatibility_date = "2025-03-29"
+main = "workers-site/index.js"
 
 [build]
 command = "npm run build"
 
-[build.upload]
-format = "service-worker"
+# Specify the asset directory explicitly
+[assets]
+directory = ".next" 
