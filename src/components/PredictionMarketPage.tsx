@@ -2,6 +2,7 @@
 import React from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
+import { format } from 'date-fns';
 
 // Helper components
 const Badge = ({ children, color = 'green' }:any) => (
@@ -37,7 +38,7 @@ const Button = ({ children, variant = 'primary', onClick, className = '', disabl
   );
 };
 
-const PredictionMarketPage = ({ marketData = sampleMarketData }: any) => {
+const PredictionMarketPage = ({ marketData, yesPrice, yesPercentage, description, endTimestamp }: any) => {
     const [selectedAction, setSelectedAction] = React.useState('Buy');
     const [selectedOption, setSelectedOption] = React.useState('Yes');
   const [amount, setAmount] = React.useState('');
@@ -59,6 +60,11 @@ const PredictionMarketPage = ({ marketData = sampleMarketData }: any) => {
   const comments = marketData?.comments || [];
   const topHolders = marketData?.topHolders || [];
   const activity = marketData?.activity || [];
+
+  const formatEndDate = (timestamp: number) => {
+    const date = new Date(timestamp * 1000);
+    return format(date, "MMMM d, yyyy 'at' h:mm a");
+  };
 
   return (
     <div className="max-w-screen-xl mx-auto py-6 text-primary">
@@ -94,7 +100,7 @@ const PredictionMarketPage = ({ marketData = sampleMarketData }: any) => {
                     <path d="M256 48C141 48 48 141.2 48 256s93 208 207.8 208c115 0 208.2-93.2 208.2-208S370.8 48 255.8 48zm.2 374.4c-91.9 0-166.4-74.5-166.4-166.4S164.1 89.6 256 89.6 422.4 164.1 422.4 256 347.9 422.4 256 422.4z"/>
                     <path d="M266.4 152h-31.2v124.8l109.2 65.5 15.6-25.6-93.6-55.5V152z"/>
                   </svg>
-                  <span>{marketData.endDate}</span>
+                  <span>{endTimestamp ? formatEndDate(Number(endTimestamp)) : "Loading..."}</span>
                 </div>
               </div>
             </div>
@@ -106,7 +112,7 @@ const PredictionMarketPage = ({ marketData = sampleMarketData }: any) => {
               <div className="flex flex-col">
                 <span className="text-sm text-secondary">Yes</span>
                 <div className="flex items-center gap-2">
-                  <span className="market-title">{marketData.currentYesPrice}% chance</span>
+                  <span className="market-title">{yesPercentage}</span>
                   <span className="text-red flex items-center">
                     <svg className="w-4 h-4" viewBox="0 0 24 24" fill="var(--red)">
                       <path d="m18.707 12.707l-1.414-1.414L13 15.586V6h-2v9.586l-4.293-4.293l-1.414 1.414L12 19.414z"/>
@@ -121,8 +127,15 @@ const PredictionMarketPage = ({ marketData = sampleMarketData }: any) => {
             </div>
             
             <div className="market-content">
-              <div className="bg-card-background rounded-lg p-4 mb-4 h-64 flex items-center justify-center" style={{ backgroundColor: 'var(--card-background)' }}>
-                <p className="text-secondary">Chart visualization would go here</p>
+              <div className="chart-container">
+                <div className="price-display">
+                  <span>Yes</span>
+                  <span className="price">{marketData.currentYesPrice}%</span>
+                  <span>% chance</span>
+                </div>
+                <div className="bg-card-background rounded-lg p-4 mb-4 h-64 flex items-center justify-center" style={{ backgroundColor: 'var(--card-background)' }}>
+                  <p className="text-secondary">Chart visualization would go here</p>
+                </div>
               </div>
               
               <div className="flex justify-between items-center">
@@ -148,17 +161,10 @@ const PredictionMarketPage = ({ marketData = sampleMarketData }: any) => {
             
             <div className="market-content">
               <div className="prose max-w-none text-secondary">
+                <p className="mb-4">{description || "Loading..."}</p>
                 <p className="mb-4">
-                  This market will resolve to "Yes" if the US Department of Education ceases operations entirely, including the termination of all federal educational programs managed by the department, by December 31, 2025, 11:59 PM ET. Otherwise, this market will resolve to "No".
-                </p>
-                <p className="mb-4">
-                  If the US Department of Education is merged with another agency, resulting in a consolidated department with a shared administrative structure which is no longer titled the Department of Education it will count as a "Yes" resolution.
-                </p>
-                <p className="mb-4">
-                  If it becomes impossible for Trump to sign legislation/perform executive actions (e.g. he resigns), this market will resolve to "No".
-                </p>
-                <p className="mb-4">
-                  The primary resolution source for this market will be official information from the US government, however a consensus of credible reporting will also be used.
+                  <span className="font-semibold">Resolution Date:</span>{' '}
+                  {endTimestamp ? formatEndDate(Number(endTimestamp)) : "Loading..."}
                 </p>
               </div>
               
@@ -177,7 +183,7 @@ const PredictionMarketPage = ({ marketData = sampleMarketData }: any) => {
                       <path d="M13 7L11 7 11 12.414 14.293 15.707 15.707 14.293 13 11.586z"></path>
                     </svg>
                     <span className="font-bold">End Date</span>
-                    <span>{marketData.endDate}</span>
+                    <span>{endTimestamp ? formatEndDate(Number(endTimestamp)) : "Loading..."}</span>
                   </div>
                 </div>
               </div>
@@ -312,7 +318,7 @@ const PredictionMarketPage = ({ marketData = sampleMarketData }: any) => {
                   >
                     <div className="flex flex-col items-center">
                       <span>Yes</span>
-                      <span className="text-sm">{marketData.currentYesPrice}¢</span>
+                      <span className="text-sm">{marketData.currentYesPrice}%</span>
                     </div>
                   </button>
                   <button 
@@ -322,7 +328,7 @@ const PredictionMarketPage = ({ marketData = sampleMarketData }: any) => {
                   >
                     <div className="flex flex-col items-center">
                       <span>No</span>
-                      <span className="text-sm">{100 - marketData.currentYesPrice}¢</span>
+                      <span className="text-sm">{100 - marketData.currentYesPrice}%</span>
                     </div>
                   </button>
                 </div>

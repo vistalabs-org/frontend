@@ -5,6 +5,7 @@ import PredictionMarketPage from '@/components/PredictionMarketPage';
 import Link from 'next/link';
 import { useMarketByIndex } from '@/hooks/fetchMarkets';
 import { useMarketWithPoolData } from '@/hooks/usePoolData';
+import { format } from 'date-fns';
 
 // Create a new component to use the pool data hook
 const MarketWithPoolData = ({ marketId, market }: { marketId: string; market: any }) => {
@@ -33,6 +34,21 @@ export default function MarketPageClient({ id }: { id: string }) {
   
   // Fetch market data
   const { market, isLoading: marketLoading, isError } = useMarketByIndex(id);
+  const { market: marketWithPools, yesPool, noPool } = useMarketWithPoolData(id);
+  
+  // Format the timestamp (converts from seconds to milliseconds)
+  const formatEndDate = (timestamp: number) => {
+    const date = new Date(timestamp * 1000);
+    return format(date, "MMMM d, yyyy 'at' h:mm a");
+  };
+  
+  // Get the YES pool price
+  const getYesPrice = () => {
+    if (yesPool?.price) {
+      return (yesPool.price * 100).toFixed(2) + '%';
+    }
+    return 'Loading...';
+  };
   
   // Render a stable loading state during SSR and initial hydration
   if (!isMounted || marketLoading) {
@@ -63,6 +79,11 @@ export default function MarketPageClient({ id }: { id: string }) {
   return (
     <main className="app-container">
       <div className="main-content">
+        {/* Market Title */}
+        <div className="market-header mb-6">
+          <h1 className="text-2xl font-bold mb-2">{marketWithPools?.title || "Loading..."}</h1>
+        </div>
+
         {/* Oracle Info Banner */}
         <div className="banner-item mb-6">
           <div className="banner-content">
@@ -79,9 +100,16 @@ export default function MarketPageClient({ id }: { id: string }) {
           </div>
         </div>
         
-        {isMounted && <PredictionMarketPage marketData={market} />}
+        {isMounted && (
+          <PredictionMarketPage 
+            marketData={marketWithPools || market}
+            yesPrice={yesPool?.price}
+            yesPercentage={(yesPool?.price ? (yesPool.price * 100).toFixed(2) : 'NaN') + '%'}
+            description={marketWithPools?.description}
+            endTimestamp={marketWithPools?.endTimestamp}
+          />
+        )}
         
-        {/* Add the new component that uses the pool data hook */}
         {isMounted && market && <MarketWithPoolData marketId={id} market={market} />}
       </div>
     </main>
