@@ -1,30 +1,31 @@
 'use client';
 
-import { config, queryClient } from "@root/config";
-import { AlchemyClientState } from "@account-kit/core";
-import { AlchemyAccountProvider } from "@account-kit/react";
-import { QueryClientProvider } from "@tanstack/react-query";
 import { PropsWithChildren } from "react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { WagmiProvider } from 'wagmi';
-import { wagmiConfig } from '@/lib/wagmi';
+import { getDefaultConfig, RainbowKitProvider } from '@rainbow-me/rainbowkit';
+import { unichainSepolia } from '@/lib/wagmi';
+import '@rainbow-me/rainbowkit/styles.css';
 
-export const Providers = (
-  props: PropsWithChildren<{ initialState?: AlchemyClientState }>
-) => {
+// Create a client
+const queryClient = new QueryClient();
+
+// Configure wagmi with RainbowKit
+const wagmiConfig = getDefaultConfig({
+  appName: 'Vista Markets',
+  projectId: 'YOUR_WALLET_CONNECT_PROJECT_ID', // Get from https://cloud.walletconnect.com
+  chains: [unichainSepolia],
+  ssr: true
+});
+
+export const Providers = (props: PropsWithChildren<{}>) => {
   return (
-    // First wrap with React Query provider as both Wagmi and Alchemy need it
-    <QueryClientProvider client={queryClient}>
-      {/* Then add WagmiProvider */}
-      <WagmiProvider config={wagmiConfig}>
-        {/* Keep your existing Alchemy provider */}
-        <AlchemyAccountProvider
-          config={config}
-          queryClient={queryClient}
-          initialState={props.initialState}
-        >
+    <WagmiProvider config={wagmiConfig}>
+      <QueryClientProvider client={queryClient}>
+        <RainbowKitProvider>
           {props.children}
-        </AlchemyAccountProvider>
-      </WagmiProvider>
-    </QueryClientProvider>
+        </RainbowKitProvider>
+      </QueryClientProvider>
+    </WagmiProvider>
   );
 };
