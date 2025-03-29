@@ -21,9 +21,6 @@ export default function Home() {
         <div className="market-tabs-container">
           <div className="market-tabs">
             <button className="tab-button active">All Markets</button>
-            <button className="tab-button">Trending</button>
-            <button className="tab-button">Politics</button>
-            <button className="tab-button">Crypto</button>
           </div>
         </div>
       

@@ -70,20 +70,22 @@ const TokenBalances = ({ collateralBalance, yesBalance, noBalance }: {
   );
 };
 
-// Add this new component for the price display
+// Add this new component for the price display with hardcoded values
 const PriceDisplay = ({ yesPrice, yesPercentage }: { yesPrice: string; yesPercentage: number }) => {
-  const noPercentage = 100 - yesPercentage;
+  // Hardcode the percentages to 60% and 40%
+  const hardcodedYesPercentage = 60;
+  const hardcodedNoPercentage = 40;
   
   return (
     <div className="price-display p-8 text-center">
       <div className="flex justify-between items-center mb-6">
         <div className="text-center flex-1">
-          <div className="text-4xl font-bold mb-2">{yesPercentage.toFixed(1)}%</div>
+          <div className="text-4xl font-bold mb-2">{hardcodedYesPercentage.toFixed(1)}%</div>
           <div className="text-sm text-secondary">Yes</div>
         </div>
         <div className="text-2xl text-secondary px-4">vs</div>
         <div className="text-center flex-1">
-          <div className="text-4xl font-bold mb-2">{noPercentage.toFixed(1)}%</div>
+          <div className="text-4xl font-bold mb-2">{hardcodedNoPercentage.toFixed(1)}%</div>
           <div className="text-sm text-secondary">No</div>
         </div>
       </div>
@@ -165,7 +167,12 @@ const PredictionMarketPage = ({
                 <h2 className="text-white text-base font-medium mb-1">Powered by AI Oracle</h2>
                 <p className="text-[#8896A7] text-sm">This market will be resolved using our decentralized AI oracle system</p>
               </div>
-              <button className="text-[#5AA1E9] hover:text-[#7AB5F2] text-sm">See How It Works</button>
+              <Link 
+                href="/oracle" 
+                className="text-[#5AA1E9] hover:text-[#7AB5F2] text-sm"
+              >
+                See How It Works
+              </Link>
             </div>
           </div>
         </div>
@@ -192,7 +199,9 @@ const PredictionMarketPage = ({
                   </div>
                 </div>
                 <div>
-                  <h1 className="market-title text-2xl mb-2">{marketData.title}</h1>
+                  <h1 className="text-2xl font-bold text-white">
+                    Will the U.S. Department of Education be dismantled by December 31, 2025?
+                  </h1>
                   <div className="flex items-center gap-4 text-sm text-secondary">
                     <span>${volume} Vol.</span>
                     <div className="flex items-center gap-1">
