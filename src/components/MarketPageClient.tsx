@@ -102,7 +102,10 @@ export default function MarketPageClient({ id }: { id: string }) {
         
         {isMounted && (
           <PredictionMarketPage 
+            marketId={id}
             marketData={marketWithPools || market}
+            yesPool={yesPool}
+            noPool={noPool}
             yesPrice={yesPool?.price}
             yesPercentage={(yesPool?.price ? (yesPool.price * 100).toFixed(2) : 'NaN') + '%'}
             description={marketWithPools?.description}

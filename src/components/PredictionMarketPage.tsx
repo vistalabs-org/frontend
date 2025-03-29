@@ -3,6 +3,8 @@ import React from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { format } from 'date-fns';
+import SwapFunction from './SwapFunction';
+import { useAccount } from 'wagmi';
 
 // Helper components
 const Badge = ({ children, color = 'green' }:any) => (
@@ -38,11 +40,29 @@ const Button = ({ children, variant = 'primary', onClick, className = '', disabl
   );
 };
 
-const PredictionMarketPage = ({ marketData, yesPrice, yesPercentage, description, endTimestamp }: any) => {
+const PredictionMarketPage = ({ marketData, yesPool, noPool, yesPrice, yesPercentage, description, endTimestamp, marketId }: any) => {
     const [selectedAction, setSelectedAction] = React.useState('Buy');
     const [selectedOption, setSelectedOption] = React.useState('Yes');
   const [amount, setAmount] = React.useState('');
   const [activeTab, setActiveTab] = React.useState('Comments');
+  const { isConnected } = useAccount();
+
+  // Use the SwapFunction hook
+  const { 
+    handleSwap, 
+    isSwapping, 
+    expectedOutput, 
+    tokenBalance 
+  } = SwapFunction({
+    marketId,
+    yesPool,
+    noPool,
+    market: marketData,
+    selectedAction: selectedAction as 'Buy' | 'Sell',
+    selectedOption: selectedOption as 'Yes' | 'No',
+    amount,
+    setAmount
+  });
 
   const handleAmountChange = (e: { target: { value: string; }; }) => {
     // Only allow numeric input with decimal point
@@ -318,7 +338,7 @@ const PredictionMarketPage = ({ marketData, yesPrice, yesPercentage, description
                   >
                     <div className="flex flex-col items-center">
                       <span>Yes</span>
-                      <span className="text-sm">{marketData.currentYesPrice}%</span>
+                      <span className="text-sm">{yesPrice ? `${(yesPrice * 100).toFixed(2)}%` : 'N/A'}</span>
                     </div>
                   </button>
                   <button 
@@ -328,7 +348,7 @@ const PredictionMarketPage = ({ marketData, yesPrice, yesPercentage, description
                   >
                     <div className="flex flex-col items-center">
                       <span>No</span>
-                      <span className="text-sm">{100 - marketData.currentYesPrice}%</span>
+                      <span className="text-sm">{yesPrice ? `${(100 - yesPrice * 100).toFixed(2)}%` : 'N/A'}</span>
                     </div>
                   </button>
                 </div>
@@ -356,13 +376,34 @@ const PredictionMarketPage = ({ marketData, yesPrice, yesPercentage, description
                   <Button variant="outline" className="text-sm" onClick={() => addAmount(1)}>+$1</Button>
                   <Button variant="outline" className="text-sm" onClick={() => addAmount(20)}>+$20</Button>
                   <Button variant="outline" className="text-sm" onClick={() => addAmount(100)}>+$100</Button>
-                  <Button variant="outline" className="text-sm" onClick={() => setAmount('1000')}>Max</Button>
+                  <Button variant="outline" className="text-sm" onClick={() => setAmount(tokenBalance)}>Max</Button>
                 </div>
+                
+                {/* Add expected output display */}
+                {amount && parseFloat(amount) > 0 && (
+                  <div className="mt-2 text-sm text-secondary">
+                    Expected {selectedAction === 'Buy' ? 'output' : 'return'}: 
+                    {selectedAction === 'Buy' 
+                      ? ` ${expectedOutput} ${selectedOption} tokens` 
+                      : ` $${expectedOutput}`}
+                  </div>
+                )}
               </div>
 
-              <button className="banner-button w-full mb-4" style={{ backgroundColor: 'var(--primary-color)' }}>
-                Login to Trade
-              </button>
+              {isConnected ? (
+                <button 
+                  className="banner-button w-full mb-4" 
+                  style={{ backgroundColor: 'var(--primary-color)' }}
+                  onClick={handleSwap}
+                  disabled={isSwapping || !amount || parseFloat(amount) <= 0}
+                >
+                  {isSwapping ? 'Processing...' : `${selectedAction} ${selectedOption}`}
+                </button>
+              ) : (
+                <button className="banner-button w-full mb-4" style={{ backgroundColor: 'var(--primary-color)' }}>
+                  Connect Wallet to Trade
+                </button>
+              )}
 
               <p className="text-xs text-center text-secondary">
                 By trading, you agree to the <Link href="/tos" className="text-primary-color underline" style={{ color: 'var(--primary-color)' }}>Terms of Use</Link>.
