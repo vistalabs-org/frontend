@@ -37,18 +37,6 @@ const Header = () => {
                   <span className="nav-text">Markets</span>
                 </Link>
               </li>
-              <li className="nav-item">
-                <Link href="/dashboards" className="nav-link">
-                  <span className="nav-icon">{/* Icon */}</span>
-                  <span className="nav-text">Dashboards</span>
-                </Link>
-              </li>
-              <li className="nav-item">
-                <Link href="/activity" className="nav-link">
-                  <span className="nav-icon">{/* Icon */}</span>
-                  <span className="nav-text">Activity</span>
-                </Link>
-              </li>
             </ul>
           </nav>
           
@@ -69,27 +57,6 @@ const Header = () => {
               All
             </Link>
           </li>
-          <li className="category-item">
-            <Link href="/markets/new" className="category-link">
-              New
-            </Link>
-          </li>
-          <li className="category-item">
-            <Link href="/markets/politics" className="category-link">
-              Politics
-            </Link>
-          </li>
-          <li className="category-item">
-            <Link href="/sports/live" className="category-link">
-              Sports
-            </Link>
-          </li>
-          <li className="category-item">
-            <Link href="/markets/crypto" className="category-link">
-              Crypto
-            </Link>
-          </li>
-          {/* More categories */}
         </ul>
       </div>
     </nav>

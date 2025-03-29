@@ -6,6 +6,8 @@ import { parseUnits, formatUnits } from 'viem';
 import { PREDICTION_MARKET_HOOK_ADDRESS, ROUTER } from '@/app/constants';
 import { PoolSwapTestAbi } from '@/contracts/PoolSwapTest_abi';
 import { MockERC20Abi } from '@/contracts/MockERC20_abi';
+import { simulateContract } from '@wagmi/core';
+import { wagmiConfig } from '@/lib/wagmi';
 
 type SwapFunctionProps = {
   marketId: string;
@@ -152,22 +154,11 @@ export default function SwapFunction({
       return;
     }
     
-    console.log('Starting swap with needsApproval:', needsApproval);
-    
     try {
-      setIsSwapping(true);
-      const amountValue = parseFloat(amount);
-      if (isNaN(amountValue) || amountValue <= 0) {
-        alert('Please enter a valid amount');
-        setIsSwapping(false);
-        return;
-      }
-      
       // Determine which pool to use
       const pool = selectedOption === 'Yes' ? yesPool : noPool;
       if (!pool) {
         alert('Pool data not available');
-        setIsSwapping(false);
         return;
       }
       
@@ -180,75 +171,63 @@ export default function SwapFunction({
         hooks: PREDICTION_MARKET_HOOK_ADDRESS
       };
       
-      // For buying outcome tokens (swapping collateral for outcome tokens)
-      if (selectedAction === 'Buy') {
-        const decimals = 6; // Assuming USDC with 6 decimals
-        const amountToSwap = parseUnits(amount, decimals);
-        
-        // Skip approval if already approved
-        if (needsApproval) {
-          console.log('Approval needed but should be handled by the approve button');
-          setIsSwapping(false);
-          return;
-        }
-        
-        // Prepare swap parameters
-        const swapParams = {
-          zeroForOne: true, // From currency0 (collateral) to currency1 (outcome token)
-          amountSpecified: amountToSwap, // Positive for exact input
-          sqrtPriceLimitX96: BigInt(0) // 0 means no limit (will use router's default)
-        };
-        
-        const testSettings = {
-          takeClaims: true,
-          settleUsingBurn: false
-        };
-        
-        // Execute the swap directly without approval
-        console.log('Executing swap without approval');
-        executeSwap({
-          address: ROUTER as `0x${string}`,
-          abi: PoolSwapTestAbi,
-          functionName: 'swap',
-          args: [poolKey, swapParams, testSettings, '0x'],
-        });
-      } 
-      // For selling outcome tokens (swapping outcome tokens for collateral)
-      else {
-        const decimals = 18; // Outcome tokens typically have 18 decimals
-        const amountToSwap = parseUnits(amount, decimals);
-        
-        // Skip approval if already approved
-        if (needsApproval) {
-          console.log('Approval needed but should be handled by the approve button');
-          setIsSwapping(false);
-          return;
-        }
-        
-        // Prepare swap parameters
-        const swapParams = {
-          zeroForOne: false, // From currency1 (outcome token) to currency0 (collateral)
-          amountSpecified: amountToSwap, // Positive for exact input
-          sqrtPriceLimitX96: BigInt(0) // 0 means no limit (will use router's default)
-        };
-        
-        const testSettings = {
-          takeClaims: true,
-          settleUsingBurn: false
-        };
-        
-        // Execute the swap directly without approval
-        console.log('Executing swap without approval');
-        executeSwap({
-          address: ROUTER as `0x${string}`,
-          abi: PoolSwapTestAbi,
-          functionName: 'swap',
-          args: [poolKey, swapParams, testSettings, '0x'],
-        });
-      }
+      // Prepare swap parameters based on action
+      const swapParams = selectedAction === 'Buy' 
+        ? {
+            zeroForOne: true,
+            amountSpecified: parseUnits(amount, 6),
+            sqrtPriceLimitX96: BigInt(0)
+          }
+        : {
+            zeroForOne: false,
+            amountSpecified: parseUnits(amount, 18),
+            sqrtPriceLimitX96: BigInt(0)
+          };
+
+      const testSettings = {
+        takeClaims: true,
+        settleUsingBurn: false
+      };
+
+      // Simulate the swap first
+      console.log('Simulating swap with params:', {
+        poolKey,
+        swapParams,
+        testSettings
+      });
+
+      const simulation = await simulateContract(wagmiConfig, {
+        address: ROUTER as `0x${string}`,
+        abi: PoolSwapTestAbi,
+        functionName: 'swap',
+        args: [poolKey, swapParams, testSettings, '0x'],
+        account: address,
+      });
+
+      console.log('Simulation result:', simulation);
+
+      // If simulation succeeds, proceed with actual swap
+      setIsSwapping(true);
+      await executeSwap({
+        address: ROUTER as `0x${string}`,
+        abi: PoolSwapTestAbi,
+        functionName: 'swap',
+        args: [poolKey, swapParams, testSettings, '0x'],
+      });
+
     } catch (error) {
       console.error('Swap error:', error);
-      alert('Error executing swap. See console for details.');
+      // Print detailed error information
+      if (error instanceof Error) {
+        alert(`Swap failed: ${error.message}`);
+        console.error('Error details:', {
+          message: error.message,
+          error
+        });
+      } else {
+        alert('Unknown error occurred during swap');
+        console.error('Unknown error:', error);
+      }
     } finally {
       setIsSwapping(false);
     }
