@@ -1,66 +1,43 @@
 // components/Header.tsx
 'use client';
 
+import { Roboto } from 'next/font/google';
+import Image from 'next/image';
 import Link from 'next/link';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
 
-const Header = () => {
+const roboto = Roboto({
+  weight: ['700'],
+  subsets: ['latin'],
+});
+
+const NavBar = () => {
   return (
-    <nav className="header">
-      <div className="header-content">
-        <div className="logo-container">
-          <Link href="/" className="logo-link">
-            <svg className="logo" width="168" height="38" viewBox="0 0 168 38" fill="none">
-              {/* Logo path data would go here */}
-              <path d="..." fill="black"></path>
-            </svg>
-          </Link>
-        </div>
-        
-        <div className="search-container">
-          <form action="search" className="search-form">
-            <input id="search-input" placeholder="Search markets" type="search" className="search-input" />
-            <div className="search-icon-container">
-              <svg className="search-icon" viewBox="0 0 20 20" height="1em" width="1em">
-                <path d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z"></path>
-              </svg>
-            </div>
-          </form>
-        </div>
-        
-        <div className="nav-container">
-          <nav className="main-nav">
-            <ul className="nav-list">
-              <li className="nav-item">
-                <Link href="/markets" className="nav-link">
-                  <span className="nav-icon">{/* Icon */}</span>
-                  <span className="nav-text">Markets</span>
-                </Link>
-              </li>
-            </ul>
-          </nav>
-          
-          <div className="auth-buttons">
-            <ConnectButton />
-          </div>
-        </div>
+    <nav className="flex items-center justify-between px-6 py-4 bg-[#1E2631] border-b border-[#2D3745]">
+      <div className="flex-1">
+        {/* Empty div to maintain spacing */}
       </div>
-      
-      <div className="category-nav">
-        <div className="live-indicator">
-          <span className="live-text">LIVE</span>
-          <div className="pulse-dot"></div>
+
+      {/* Center - Logo and Name */}
+      <div className="flex items-center gap-3">
+        <div className="relative w-6 h-6">
+          <Image 
+            src="/logo.svg" 
+            alt="Vista Market Logo" 
+            width={24} 
+            height={24}
+            priority
+          />
         </div>
-        <ul className="category-list">
-          <li className="category-item">
-            <Link href="/markets/all" className="category-link">
-              All
-            </Link>
-          </li>
-        </ul>
+        <h1 className={`${roboto.className} text-xl text-white`}>Vista Market</h1>
+      </div>
+
+      {/* Right - Connect Button */}
+      <div className="flex-1 flex justify-end">
+        <ConnectButton />
       </div>
     </nav>
   );
 };
 
-export default Header;
+export default NavBar;

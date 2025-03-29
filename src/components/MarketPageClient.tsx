@@ -89,22 +89,6 @@ export default function MarketPageClient({ id }: { id: string }) {
           <span className="mx-2 text-secondary">/</span>
           <span className="text-primary text-sm">{market.title}</span>
         </div>
-
-        {/* Oracle Info Banner */}
-        <div className="banner-item mb-6">
-          <div className="banner-content">
-            <div className="banner-text">
-              <h3 className="banner-title">Powered by AI Oracle</h3>
-              <p className="banner-description">This market will be resolved using our decentralized AI oracle system</p>
-            </div>
-            <Link
-              href="/oracle"
-              className="banner-button"
-            >
-              See How It Works
-            </Link>
-          </div>
-        </div>
         
         {/* Market data and pool loader */}
         <MarketWithPoolData marketId={id} market={market} />
