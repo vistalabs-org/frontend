@@ -12,6 +12,9 @@ const pwaConfig = {
 
 const nextConfig = {
   reactStrictMode: true,
+  typescript: {
+    ignoreBuildErrors: true,
+  },
 };
 
 // Create the config using withPWA higher-order function

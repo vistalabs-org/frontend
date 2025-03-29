@@ -8,11 +8,10 @@ import { useMarketWithPoolData } from '@/hooks/usePoolData';
 import { format } from 'date-fns';
 import { MintCollateralButton } from './MintCollateralButton';
 import { useAccount } from 'wagmi';
+import { useRouter } from 'next/navigation';
 
-// Create a new component to use the pool data hook
-const MarketWithPoolData = ({ marketId, market }: { marketId: string; market: any }) => {
-  // Import and use the hook directly in a component
-  const { market: marketWithPools, yesPool, noPool, isLoading: poolLoading } = useMarketWithPoolData(marketId, market);
+const MarketWithPoolData = ({ marketId }: { marketId: string }) => {
+  const { market: marketWithPools, yesPool, noPool, isLoading: poolLoading } = useMarketWithPoolData(marketId);
   
   useEffect(() => {
     if (yesPool || noPool) {
@@ -20,41 +19,39 @@ const MarketWithPoolData = ({ marketId, market }: { marketId: string; market: an
     }
   }, [yesPool, noPool]);
   
-  // This component doesn't need to render anything now
   return null;
 };
 
 export default function MarketPageClient({ id }: { id: string }) {
-  // State to track if we're mounted on the client
+  const router = useRouter();
   const [isMounted, setIsMounted] = useState(false);
   
-  // Add this to check if user is connected
   const { isConnected } = useAccount();
   
-  // Set isMounted to true after initial render
   useEffect(() => {
     setIsMounted(true);
   }, []);
   
-  // Fetch market data
   const { market, isLoading: marketLoading, isError } = useMarketByIndex(id);
   const { market: marketWithPools, yesPool, noPool } = useMarketWithPoolData(id);
   
-  // Format the timestamp (converts from seconds to milliseconds)
   const formatEndDate = (timestamp: number) => {
     const date = new Date(timestamp * 1000);
     return format(date, "MMMM d, yyyy 'at' h:mm a");
   };
   
-  // Get the YES pool price
   const getYesPrice = () => {
-    if (yesPool?.price) {
+    // Add null/undefined check
+    if (yesPool?.price !== undefined) {
       return (yesPool.price * 100).toFixed(2) + '%';
     }
     return 'Loading...';
   };
   
-  // Render a stable loading state during SSR and initial hydration
+  const handleResolveMarket = () => {
+    router.push(`/market/${id}/resolve`);
+  };
+  
   if (!isMounted || marketLoading) {
     return (
       <main className="app-container">
@@ -90,8 +87,7 @@ export default function MarketPageClient({ id }: { id: string }) {
           <span className="text-primary text-sm">{market.title}</span>
         </div>
         
-        {/* Market data and pool loader */}
-        <MarketWithPoolData marketId={id} market={market} />
+        <MarketWithPoolData marketId={id} />
         
         {/* Main market UI */}
         <PredictionMarketPage 
