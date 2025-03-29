@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { useAccount, useBalance, useWriteContract, useContractRead, useReadContract, useWaitForTransactionReceipt } from 'wagmi';
+import { useAccount, useBalance, useWriteContract, useContractRead, useReadContract } from 'wagmi';
 import { parseUnits, formatUnits } from 'viem';
 import { PREDICTION_MARKET_HOOK_ADDRESS, ROUTER } from '@/app/constants';
 import { PoolSwapTestAbi } from '@/contracts/PoolSwapTest_abi';
@@ -31,7 +31,6 @@ export default function SwapFunction({
   const { address, isConnected } = useAccount();
   const [expectedOutput, setExpectedOutput] = useState<string>('0');
   const [isSwapping, setIsSwapping] = useState(false);
-  const [approvalTxHash, setApprovalTxHash] = useState<`0x${string}` | null>(null);
   const [approvalSuccess, setApprovalSuccess] = useState(false);
   
   // Get collateral token balance
@@ -81,61 +80,49 @@ export default function SwapFunction({
     marketId, selectedAction, selectedOption, amount 
   });
 
-  // Update the needsApproval check to only check the relevant token
+  // Simplified approval check
   const needsApproval = useMemo(() => {
-    console.log('Evaluating needsApproval with:', {
-      amount,
-      selectedAction,
-      collateralAllowance: collateralAllowance?.toString(),
-      outcomeTokenAllowance: outcomeTokenAllowance?.toString(),
-      isConnected,
-      approvalSuccess
-    });
-    
-    if (!amount || !isConnected || approvalSuccess) {
-      console.log('Early return: false');
-      return false;
-    }
+    if (!amount || !isConnected || parseFloat(amount) <= 0) return false;
     
     try {
-      if (parseFloat(amount) <= 0) return false;
-      
-      // For Buy actions, check ONLY collateral allowance
+      // For Buy actions, check collateral allowance
       if (selectedAction === 'Buy') {
         if (!collateralAllowance) return true;
-        
-        const decimals = 6; // USDC has 6 decimals
-        const amountBigInt = parseUnits(amount, decimals);
-        
-        console.log('Checking Buy approval:', {
-          collateralAllowance: collateralAllowance.toString(),
-          amountBigInt: amountBigInt.toString(),
-          hasEnoughAllowance: BigInt(collateralAllowance.toString()) >= amountBigInt
-        });
-        
-        return BigInt(collateralAllowance.toString()) < amountBigInt;
+        return BigInt(collateralAllowance.toString()) < parseUnits(amount, 6);
       } 
-      // For Sell actions, check ONLY the specific outcome token allowance
+      // For Sell actions, check outcome token allowance
       else {
-        // If we don't have allowance data yet, assume we need approval
         if (!outcomeTokenAllowance) return true;
-        
-        const decimals = 18; // Outcome tokens have 18 decimals
-        const amountBigInt = parseUnits(amount, decimals);
-        
-        console.log('Checking Sell approval:', {
-          outcomeTokenAllowance: outcomeTokenAllowance.toString(),
-          amountBigInt: amountBigInt.toString(),
-          needsApproval: outcomeTokenAllowance ? BigInt(outcomeTokenAllowance.toString()) < amountBigInt : true
-        });
-        
-        return outcomeTokenAllowance ? BigInt(outcomeTokenAllowance.toString()) < amountBigInt : true;
+        return BigInt(outcomeTokenAllowance.toString()) < parseUnits(amount, 18);
       }
     } catch (error) {
       console.error('Error checking allowance:', error);
       return false;
     }
-  }, [amount, selectedAction, collateralAllowance, outcomeTokenAllowance, isConnected, approvalSuccess]);
+  }, [amount, selectedAction, collateralAllowance, outcomeTokenAllowance, isConnected]);
+  
+  // Reset approval success when changing tokens or actions
+  useEffect(() => {
+    if (!amount || !isConnected || parseFloat(amount) <= 0) {
+      setApprovalSuccess(false);
+      return;
+    }
+
+    // Set initial approval success based on existing allowance
+    try {
+      if (selectedAction === 'Buy' && collateralAllowance) {
+        const hasEnoughAllowance = BigInt(collateralAllowance.toString()) >= parseUnits(amount, 6);
+        console.log('Setting initial approval success:', hasEnoughAllowance);
+        setApprovalSuccess(hasEnoughAllowance);
+      } else if (selectedAction === 'Sell' && outcomeTokenAllowance) {
+        const hasEnoughAllowance = BigInt(outcomeTokenAllowance.toString()) >= parseUnits(amount, 18);
+        console.log('Setting initial approval success:', hasEnoughAllowance);
+        setApprovalSuccess(hasEnoughAllowance);
+      }
+    } catch (error) {
+      console.error('Error checking initial approval:', error);
+    }
+  }, [amount, selectedAction, collateralAllowance, outcomeTokenAllowance, isConnected]);
   
   // Calculate expected output based on input amount and current price
   useEffect(() => {
@@ -165,6 +152,8 @@ export default function SwapFunction({
       return;
     }
     
+    console.log('Starting swap with needsApproval:', needsApproval);
+    
     try {
       setIsSwapping(true);
       const amountValue = parseFloat(amount);
@@ -193,23 +182,20 @@ export default function SwapFunction({
       
       // For buying outcome tokens (swapping collateral for outcome tokens)
       if (selectedAction === 'Buy') {
-        // First approve the collateral token
         const decimals = 6; // Assuming USDC with 6 decimals
-        const amountToApprove = parseUnits(amount, decimals);
+        const amountToSwap = parseUnits(amount, decimals);
         
-        await approveCollateral({
-          address: market?.collateralAddress as `0x${string}`,
-          abi: MockERC20Abi,
-          functionName: 'approve',
-          args: [ROUTER, amountToApprove],
-        });
+        // Skip approval if already approved
+        if (needsApproval) {
+          console.log('Approval needed but should be handled by the approve button');
+          setIsSwapping(false);
+          return;
+        }
         
-        // After approval, execute the swap
-        // When buying outcome tokens, we're swapping from currency0 (collateral) to currency1 (outcome)
-        // So zeroForOne is true
+        // Prepare swap parameters
         const swapParams = {
           zeroForOne: true, // From currency0 (collateral) to currency1 (outcome token)
-          amountSpecified: parseUnits(amount, decimals), // Positive for exact input
+          amountSpecified: amountToSwap, // Positive for exact input
           sqrtPriceLimitX96: BigInt(0) // 0 means no limit (will use router's default)
         };
         
@@ -218,7 +204,8 @@ export default function SwapFunction({
           settleUsingBurn: false
         };
         
-        // Execute the swap
+        // Execute the swap directly without approval
+        console.log('Executing swap without approval');
         executeSwap({
           address: ROUTER as `0x${string}`,
           abi: PoolSwapTestAbi,
@@ -228,25 +215,20 @@ export default function SwapFunction({
       } 
       // For selling outcome tokens (swapping outcome tokens for collateral)
       else {
-        // First approve the outcome token
         const decimals = 18; // Outcome tokens typically have 18 decimals
-        const amountToApprove = parseUnits(amount, decimals);
+        const amountToSwap = parseUnits(amount, decimals);
         
-        await approveOutcomeToken({
-          address: selectedOption === 'Yes' 
-            ? market?.yesToken as `0x${string}` 
-            : market?.noToken as `0x${string}`,
-          abi: MockERC20Abi,
-          functionName: 'approve',
-          args: [ROUTER, amountToApprove],
-        });
+        // Skip approval if already approved
+        if (needsApproval) {
+          console.log('Approval needed but should be handled by the approve button');
+          setIsSwapping(false);
+          return;
+        }
         
-        // After approval, execute the swap
-        // When selling outcome tokens, we're swapping from currency1 (outcome) to currency0 (collateral)
-        // So zeroForOne is false
+        // Prepare swap parameters
         const swapParams = {
           zeroForOne: false, // From currency1 (outcome token) to currency0 (collateral)
-          amountSpecified: parseUnits(amount, decimals), // Positive for exact input
+          amountSpecified: amountToSwap, // Positive for exact input
           sqrtPriceLimitX96: BigInt(0) // 0 means no limit (will use router's default)
         };
         
@@ -255,7 +237,8 @@ export default function SwapFunction({
           settleUsingBurn: false
         };
         
-        // Execute the swap
+        // Execute the swap directly without approval
+        console.log('Executing swap without approval');
         executeSwap({
           address: ROUTER as `0x${string}`,
           abi: PoolSwapTestAbi,
@@ -290,36 +273,14 @@ export default function SwapFunction({
     }
   };
   
-  // Add transaction receipt tracking
-  const { isLoading: isWaitingForApproval, isSuccess: isApprovalConfirmed } = 
-    useWaitForTransactionReceipt({
-      hash: approvalTxHash,
-      enabled: !!approvalTxHash,
-    });
-
-  // Update the handleApprove function to track the transaction
+  // Simplified approve function
   const handleApprove = async (params: any) => {
     try {
-      setApprovalSuccess(false);
-      const hash = await (selectedAction === 'Buy' ? approveCollateral : approveOutcomeToken)(params);
-      setApprovalTxHash(hash);
+      await (selectedAction === 'Buy' ? approveCollateral : approveOutcomeToken)(params);
     } catch (error) {
       console.error('Error approving token:', error);
     }
   };
-
-  // Reset approval success when changing tokens or actions
-  useEffect(() => {
-    setApprovalSuccess(false);
-    setApprovalTxHash(null);
-  }, [selectedAction, selectedOption]);
-
-  // Set approval success when transaction is confirmed
-  useEffect(() => {
-    if (isApprovalConfirmed && approvalTxHash) {
-      setApprovalSuccess(true);
-    }
-  }, [isApprovalConfirmed, approvalTxHash]);
 
   // Add this debugging function
   useEffect(() => {
@@ -362,10 +323,22 @@ export default function SwapFunction({
     }
   }, [amount, selectedAction, selectedOption, collateralAllowance, outcomeTokenAllowance, needsApproval, approvalSuccess, isConnected, market]);
 
+  // Derive approvalSuccess from needsApproval with explicit logging
+  const isApproved = useMemo(() => {
+    const success = !needsApproval;
+    console.log('Calculating approval status:', {
+      needsApproval,
+      calculatedSuccess: success,
+      collateralAllowance: collateralAllowance?.toString(),
+      amount
+    });
+    return success;
+  }, [needsApproval, collateralAllowance, amount]);
+
   // At the end of the component, right before the return:
   console.log('FINAL VALUES before return:', { 
     needsApproval, 
-    approvalSuccess,
+    isApproved,
     isConnected,
     collateralAllowance: collateralAllowance?.toString(), 
     outcomeTokenAllowance: outcomeTokenAllowance?.toString()
@@ -378,14 +351,14 @@ export default function SwapFunction({
     tokenBalance: getSelectedTokenBalance(),
     needsApproval,
     handleApprove,
-    isApproving: isApproving || isApprovingOutcome || isWaitingForApproval,
-    approvalSuccess,
+    isApproving: isApproving || isApprovingOutcome,
+    isApproved,
     // Add debug values 
     debug: {
       collateralAllowance: collateralAllowance?.toString(),
       outcomeTokenAllowance: outcomeTokenAllowance?.toString(),
       isConnected,
-      approvalSuccess
+      isApproved
     }
   };
 } 

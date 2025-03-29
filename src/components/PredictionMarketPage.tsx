@@ -120,7 +120,7 @@ const PredictionMarketPage = ({
     needsApproval,
     handleApprove,
     isApproving,
-    approvalSuccess
+    isApproved
   } = SwapFunction({
     marketId,
     yesPool,
@@ -367,7 +367,6 @@ const PredictionMarketPage = ({
                   >
                     <div className="flex flex-col items-center">
                       <span>Yes</span>
-                      <span className="text-sm">{yesPrice ? `${(yesPrice * 100).toFixed(2)}%` : 'N/A'}</span>
                     </div>
                   </button>
                   <button 
@@ -377,7 +376,6 @@ const PredictionMarketPage = ({
                   >
                     <div className="flex flex-col items-center">
                       <span>No</span>
-                      <span className="text-sm">{yesPrice ? `${(100 - yesPrice * 100).toFixed(2)}%` : 'N/A'}</span>
                     </div>
                   </button>
                 </div>
@@ -420,7 +418,7 @@ const PredictionMarketPage = ({
               </div>
 
               {isConnected ? (
-                needsApproval ? (
+                needsApproval && !isApproved ? (
                   <button 
                     className="banner-button w-full mb-4" 
                     style={{ backgroundColor: 'var(--primary-color)' }}
@@ -471,7 +469,7 @@ const PredictionMarketPage = ({
               )}
 
               {/* Show approval success message */}
-              {approvalSuccess && (
+              {isApproved && (
                 <div className="mb-4 p-2 bg-green-800 bg-opacity-20 text-green-400 rounded text-sm text-center">
                   Token approval successful! You can now trade.
                 </div>
