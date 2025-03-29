@@ -11,8 +11,8 @@ import NavBar from "@/components/NavBar";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Vista Markets",
-  description: "Deployed on Unichain Prediction Market EigenLayer",
+  title: 'Market',
+  description: 'Vista Market - Prediction Markets on Uniswap v4',
   manifest: '/manifest.json',
   appleWebApp: {
     capable: true,
