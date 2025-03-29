@@ -5,6 +5,9 @@ import Link from 'next/link';
 import { format } from 'date-fns';
 import SwapFunction from './SwapFunction';
 import { useAccount } from 'wagmi';
+import { parseUnits } from 'ethers';
+import { MockERC20Abi } from '@/contracts/MockERC20_abi';
+import { ROUTER } from '@/app/constants';
 
 // Helper components
 const Badge = ({ children, color = 'green' }:any) => (
@@ -113,7 +116,11 @@ const PredictionMarketPage = ({
     handleSwap, 
     isSwapping, 
     expectedOutput, 
-    tokenBalance 
+    tokenBalance,
+    needsApproval,
+    handleApprove,
+    isApproving,
+    approvalSuccess
   } = SwapFunction({
     marketId,
     yesPool,
@@ -413,18 +420,61 @@ const PredictionMarketPage = ({
               </div>
 
               {isConnected ? (
-                <button 
-                  className="banner-button w-full mb-4" 
-                  style={{ backgroundColor: 'var(--primary-color)' }}
-                  onClick={handleSwap}
-                  disabled={isSwapping || !amount || parseFloat(amount) <= 0}
-                >
-                  {isSwapping ? 'Processing...' : `${selectedAction} ${selectedOption}`}
-                </button>
+                needsApproval ? (
+                  <button 
+                    className="banner-button w-full mb-4" 
+                    style={{ backgroundColor: 'var(--primary-color)' }}
+                    onClick={() => handleApprove({
+                      address: selectedAction === 'Buy' 
+                        ? marketData?.collateralAddress 
+                        : selectedOption === 'Yes' 
+                          ? marketData?.yesToken 
+                          : marketData?.noToken,
+                      abi: MockERC20Abi,
+                      functionName: 'approve',
+                      args: [ROUTER, parseUnits('1000000', selectedAction === 'Buy' ? 6 : 18)],
+                    })}
+                    disabled={isApproving}
+                  >
+                    {isApproving ? (
+                      <span className="flex items-center justify-center">
+                        <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        Approving...
+                      </span>
+                    ) : `Approve ${selectedAction === 'Buy' ? 'USDC' : selectedOption}`}
+                  </button>
+                ) : (
+                  <button 
+                    className="banner-button w-full mb-4" 
+                    style={{ backgroundColor: 'var(--primary-color)' }}
+                    onClick={handleSwap}
+                    disabled={isSwapping || !amount || parseFloat(amount) <= 0}
+                  >
+                    {isSwapping ? (
+                      <span className="flex items-center justify-center">
+                        <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        Processing...
+                      </span>
+                    ) : `${selectedAction} ${selectedOption}`}
+                  </button>
+                )
               ) : (
                 <button className="banner-button w-full mb-4" style={{ backgroundColor: 'var(--primary-color)' }}>
                   Connect Wallet to Trade
                 </button>
+              )}
+
+              {/* Show approval success message */}
+              {approvalSuccess && (
+                <div className="mb-4 p-2 bg-green-800 bg-opacity-20 text-green-400 rounded text-sm text-center">
+                  Token approval successful! You can now trade.
+                </div>
               )}
 
               <p className="text-xs text-center text-secondary">

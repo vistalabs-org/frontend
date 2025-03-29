@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
-import { useAccount, useBalance, useWriteContract } from 'wagmi';
+import React, { useState, useEffect, useMemo } from 'react';
+import { useAccount, useBalance, useWriteContract, useContractRead, useReadContract, useWaitForTransactionReceipt } from 'wagmi';
 import { parseUnits, formatUnits } from 'viem';
 import { PREDICTION_MARKET_HOOK_ADDRESS, ROUTER } from '@/app/constants';
 import { PoolSwapTestAbi } from '@/contracts/PoolSwapTest_abi';
@@ -31,6 +31,8 @@ export default function SwapFunction({
   const { address, isConnected } = useAccount();
   const [expectedOutput, setExpectedOutput] = useState<string>('0');
   const [isSwapping, setIsSwapping] = useState(false);
+  const [approvalTxHash, setApprovalTxHash] = useState<`0x${string}` | null>(null);
+  const [approvalSuccess, setApprovalSuccess] = useState(false);
   
   // Get collateral token balance
   const { data: collateralBalance } = useBalance({
@@ -58,6 +60,82 @@ export default function SwapFunction({
   
   // Swap via router
   const { writeContract: executeSwap, isPending: isExecutingSwap } = useWriteContract();
+  
+  // Update the allowance hooks and type handling
+  const { data: collateralAllowance } = useReadContract({
+    address: market?.collateralAddress,
+    abi: MockERC20Abi,
+    functionName: 'allowance',
+    args: [address || '0x0', ROUTER],
+  });
+
+  const { data: outcomeTokenAllowance } = useReadContract({
+    address: selectedOption === 'Yes' ? market?.yesToken : market?.noToken,
+    abi: MockERC20Abi,
+    functionName: 'allowance',
+    args: [address || '0x0', ROUTER],
+  });
+
+  // Add this immediately at the start of the component
+  console.log('SwapFunction INITIAL RENDER with props:', { 
+    marketId, selectedAction, selectedOption, amount 
+  });
+
+  // Update the needsApproval check to only check the relevant token
+  const needsApproval = useMemo(() => {
+    console.log('Evaluating needsApproval with:', {
+      amount,
+      selectedAction,
+      collateralAllowance: collateralAllowance?.toString(),
+      outcomeTokenAllowance: outcomeTokenAllowance?.toString(),
+      isConnected,
+      approvalSuccess
+    });
+    
+    if (!amount || !isConnected || approvalSuccess) {
+      console.log('Early return: false');
+      return false;
+    }
+    
+    try {
+      if (parseFloat(amount) <= 0) return false;
+      
+      // For Buy actions, check ONLY collateral allowance
+      if (selectedAction === 'Buy') {
+        if (!collateralAllowance) return true;
+        
+        const decimals = 6; // USDC has 6 decimals
+        const amountBigInt = parseUnits(amount, decimals);
+        
+        console.log('Checking Buy approval:', {
+          collateralAllowance: collateralAllowance.toString(),
+          amountBigInt: amountBigInt.toString(),
+          hasEnoughAllowance: BigInt(collateralAllowance.toString()) >= amountBigInt
+        });
+        
+        return BigInt(collateralAllowance.toString()) < amountBigInt;
+      } 
+      // For Sell actions, check ONLY the specific outcome token allowance
+      else {
+        // If we don't have allowance data yet, assume we need approval
+        if (!outcomeTokenAllowance) return true;
+        
+        const decimals = 18; // Outcome tokens have 18 decimals
+        const amountBigInt = parseUnits(amount, decimals);
+        
+        console.log('Checking Sell approval:', {
+          outcomeTokenAllowance: outcomeTokenAllowance.toString(),
+          amountBigInt: amountBigInt.toString(),
+          needsApproval: outcomeTokenAllowance ? BigInt(outcomeTokenAllowance.toString()) < amountBigInt : true
+        });
+        
+        return outcomeTokenAllowance ? BigInt(outcomeTokenAllowance.toString()) < amountBigInt : true;
+      }
+    } catch (error) {
+      console.error('Error checking allowance:', error);
+      return false;
+    }
+  }, [amount, selectedAction, collateralAllowance, outcomeTokenAllowance, isConnected, approvalSuccess]);
   
   // Calculate expected output based on input amount and current price
   useEffect(() => {
@@ -212,10 +290,102 @@ export default function SwapFunction({
     }
   };
   
+  // Add transaction receipt tracking
+  const { isLoading: isWaitingForApproval, isSuccess: isApprovalConfirmed } = 
+    useWaitForTransactionReceipt({
+      hash: approvalTxHash,
+      enabled: !!approvalTxHash,
+    });
+
+  // Update the handleApprove function to track the transaction
+  const handleApprove = async (params: any) => {
+    try {
+      setApprovalSuccess(false);
+      const hash = await (selectedAction === 'Buy' ? approveCollateral : approveOutcomeToken)(params);
+      setApprovalTxHash(hash);
+    } catch (error) {
+      console.error('Error approving token:', error);
+    }
+  };
+
+  // Reset approval success when changing tokens or actions
+  useEffect(() => {
+    setApprovalSuccess(false);
+    setApprovalTxHash(null);
+  }, [selectedAction, selectedOption]);
+
+  // Set approval success when transaction is confirmed
+  useEffect(() => {
+    if (isApprovalConfirmed && approvalTxHash) {
+      setApprovalSuccess(true);
+    }
+  }, [isApprovalConfirmed, approvalTxHash]);
+
+  // Add this debugging function
+  useEffect(() => {
+    if (amount && isConnected) {
+      try {
+        // Debug logs specifically for approval checks
+        console.log('=== APPROVAL CHECK DEBUG ===');
+        console.log('Action:', selectedAction);
+        console.log('Option:', selectedOption);
+        console.log('Amount:', amount);
+        
+        if (selectedAction === 'Buy') {
+          console.log('Collateral Address:', market?.collateralAddress);
+          console.log('Collateral Allowance:', collateralAllowance ? collateralAllowance.toString() : 'undefined');
+          
+          if (collateralAllowance) {
+            const decimals = 6; // USDC has 6 decimals
+            const amountBigInt = parseUnits(amount, decimals);
+            console.log('Amount in BigInt:', amountBigInt.toString());
+            console.log('Sufficient allowance?', BigInt(collateralAllowance.toString()) >= amountBigInt);
+          }
+        } else {
+          console.log('Token Address:', selectedOption === 'Yes' ? market?.yesToken : market?.noToken);
+          console.log('Token Allowance:', outcomeTokenAllowance ? outcomeTokenAllowance.toString() : 'undefined');
+          
+          if (outcomeTokenAllowance) {
+            const decimals = 18; // Outcome tokens have 18 decimals
+            const amountBigInt = parseUnits(amount, decimals);
+            console.log('Amount in BigInt:', amountBigInt.toString());
+            console.log('Sufficient allowance?', BigInt(outcomeTokenAllowance.toString()) >= amountBigInt);
+          }
+        }
+        
+        console.log('needsApproval:', needsApproval);
+        console.log('approvalSuccess:', approvalSuccess);
+        console.log('=== END DEBUG ===');
+      } catch (error) {
+        console.error('Error in debug logging:', error);
+      }
+    }
+  }, [amount, selectedAction, selectedOption, collateralAllowance, outcomeTokenAllowance, needsApproval, approvalSuccess, isConnected, market]);
+
+  // At the end of the component, right before the return:
+  console.log('FINAL VALUES before return:', { 
+    needsApproval, 
+    approvalSuccess,
+    isConnected,
+    collateralAllowance: collateralAllowance?.toString(), 
+    outcomeTokenAllowance: outcomeTokenAllowance?.toString()
+  });
+
   return {
     handleSwap,
-    isSwapping: isSwapping || isApproving || isApprovingOutcome || isExecutingSwap,
+    isSwapping: isSwapping || isExecutingSwap,
     expectedOutput,
-    tokenBalance: getSelectedTokenBalance()
+    tokenBalance: getSelectedTokenBalance(),
+    needsApproval,
+    handleApprove,
+    isApproving: isApproving || isApprovingOutcome || isWaitingForApproval,
+    approvalSuccess,
+    // Add debug values 
+    debug: {
+      collateralAllowance: collateralAllowance?.toString(),
+      outcomeTokenAllowance: outcomeTokenAllowance?.toString(),
+      isConnected,
+      approvalSuccess
+    }
   };
 } 
