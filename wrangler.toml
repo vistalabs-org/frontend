@@ -1,5 +1,8 @@
 name = "frontend"
 compatibility_date = "2025-03-29"
 
+[build]
+command = "npm run build"
+
 [site]
-bucket = ".next/static" 
+bucket = ".next"
