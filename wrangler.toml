@@ -1,0 +1,5 @@
+name = "market"
+compatibility_date = "2025-03-29"
+
+[site]
+bucket = ".next/static" 
