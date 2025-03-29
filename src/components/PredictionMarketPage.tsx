@@ -40,7 +40,68 @@ const Button = ({ children, variant = 'primary', onClick, className = '', disabl
   );
 };
 
-const PredictionMarketPage = ({ marketData, yesPool, noPool, yesPrice, yesPercentage, description, endTimestamp, marketId }: any) => {
+// First, add a TokenBalances component
+const TokenBalances = ({ collateralBalance, yesBalance, noBalance }: { 
+  collateralBalance?: string;
+  yesBalance?: string;
+  noBalance?: string;
+}) => {
+  return (
+    <div className="mt-4 p-4 border-t border-border-color">
+      <h3 className="text-sm font-medium mb-2">Your Balances</h3>
+      <div className="space-y-2 text-sm">
+        <div className="flex justify-between">
+          <span className="text-secondary">USDC:</span>
+          <span>{collateralBalance || '0.00'}</span>
+        </div>
+        <div className="flex justify-between">
+          <span className="text-secondary">Yes Tokens:</span>
+          <span>{yesBalance || '0.00'}</span>
+        </div>
+        <div className="flex justify-between">
+          <span className="text-secondary">No Tokens:</span>
+          <span>{noBalance || '0.00'}</span>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Add this new component for the price display
+const PriceDisplay = ({ yesPrice, yesPercentage }: { yesPrice: string; yesPercentage: number }) => {
+  const noPercentage = 100 - yesPercentage;
+  
+  return (
+    <div className="price-display p-8 text-center">
+      <div className="flex justify-between items-center mb-6">
+        <div className="text-center flex-1">
+          <div className="text-4xl font-bold mb-2">{yesPercentage.toFixed(1)}%</div>
+          <div className="text-sm text-secondary">Yes</div>
+        </div>
+        <div className="text-2xl text-secondary px-4">vs</div>
+        <div className="text-center flex-1">
+          <div className="text-4xl font-bold mb-2">{noPercentage.toFixed(1)}%</div>
+          <div className="text-sm text-secondary">No</div>
+        </div>
+      </div>
+      <div className="text-sm text-secondary">
+        Current Market Price
+      </div>
+    </div>
+  );
+};
+
+const PredictionMarketPage = ({ 
+  marketData, 
+  yesPool, 
+  noPool, 
+  yesPrice, 
+  yesPercentage, 
+  description, 
+  endTimestamp, 
+  marketId,
+  mintCollateralButton
+}: any) => {
     const [selectedAction, setSelectedAction] = React.useState('Buy');
     const [selectedOption, setSelectedOption] = React.useState('Yes');
   const [amount, setAmount] = React.useState('');
@@ -128,49 +189,10 @@ const PredictionMarketPage = ({ marketData, yesPool, noPool, yesPrice, yesPercen
 
           {/* Price Chart */}
           <Card className="mb-6">
-            <div className="market-header">
-              <div className="flex flex-col">
-                <span className="text-sm text-secondary">Yes</span>
-                <div className="flex items-center gap-2">
-                  <span className="market-title">{yesPercentage}</span>
-                  <span className="text-red flex items-center">
-                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="var(--red)">
-                      <path d="m18.707 12.707l-1.414-1.414L13 15.586V6h-2v9.586l-4.293-4.293l-1.414 1.414L12 19.414z"/>
-                    </svg>
-                    {marketData.priceChange}%
-                  </span>
-                </div>
-              </div>
-              <div>
-                {/* <img src="/polymarket-logo.svg" alt="Polymarket" className="h-8" /> */}
-              </div>
-            </div>
-            
-            <div className="market-content">
-              <div className="chart-container">
-                <div className="price-display">
-                  <span>Yes</span>
-                  <span className="price">{marketData.currentYesPrice}%</span>
-                  <span>% chance</span>
-                </div>
-                <div className="bg-card-background rounded-lg p-4 mb-4 h-64 flex items-center justify-center" style={{ backgroundColor: 'var(--card-background)' }}>
-                  <p className="text-secondary">Chart visualization would go here</p>
-                </div>
-              </div>
-              
-              <div className="flex justify-between items-center">
-                <div className="market-tabs">
-                  {['1H', '6H', '1D', '1W', '1M', 'ALL'].map((period) => (
-                    <button 
-                      key={period} 
-                      className={`tab-button ${period === 'ALL' ? 'active' : ''}`}
-                    >
-                      {period}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
+            <PriceDisplay 
+              yesPrice={yesPrice} 
+              yesPercentage={yesPercentage} 
+            />
           </Card>
 
           {/* Market Rules */}
@@ -408,6 +430,18 @@ const PredictionMarketPage = ({ marketData, yesPool, noPool, yesPrice, yesPercen
               <p className="text-xs text-center text-secondary">
                 By trading, you agree to the <Link href="/tos" className="text-primary-color underline" style={{ color: 'var(--primary-color)' }}>Terms of Use</Link>.
               </p>
+
+              {/* Add mint button right after the swap content */}
+              {mintCollateralButton}
+
+              {/* Add token balances below mint button */}
+              {isConnected && (
+                <TokenBalances 
+                  collateralBalance={tokenBalance}
+                  yesBalance={yesPool?.balance}
+                  noBalance={noPool?.balance}
+                />
+              )}
             </div>
           </Card>
         </div>

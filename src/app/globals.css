@@ -706,3 +706,34 @@ button {
 .login-button:hover {
   background-color: var(--primary-hover);
 }
+
+/* RainbowKit custom styles */
+[data-rk] {
+  --rk-colors-accentColor: var(--primary-color);
+  --rk-colors-accentColorForeground: white;
+  --rk-colors-actionButtonBorder: var(--border-color);
+  --rk-colors-actionButtonBorderMobile: var(--border-color);
+  --rk-colors-actionButtonSecondaryBackground: var(--card-background);
+  --rk-colors-menuItemBackground: var(--card-background);
+  --rk-colors-modalBackground: var(--background-color);
+  --rk-colors-modalBorder: var(--border-color);
+  --rk-colors-modalText: var(--text-primary);
+  --rk-colors-modalTextSecondary: var(--text-secondary);
+}
+
+/* Custom styling for the ConnectButton */
+[data-rk] button {
+  font-family: inherit;
+}
+
+.price-display {
+  background-color: var(--card-background);
+  border-radius: 0.5rem;
+}
+
+.price-display .text-4xl {
+  background: linear-gradient(90deg, var(--primary-color) 0%, var(--primary-hover) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}

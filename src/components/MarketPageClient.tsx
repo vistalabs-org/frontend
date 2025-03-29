@@ -6,6 +6,8 @@ import Link from 'next/link';
 import { useMarketByIndex } from '@/hooks/fetchMarkets';
 import { useMarketWithPoolData } from '@/hooks/usePoolData';
 import { format } from 'date-fns';
+import { MintCollateralButton } from './MintCollateralButton';
+import { useAccount } from 'wagmi';
 
 // Create a new component to use the pool data hook
 const MarketWithPoolData = ({ marketId, market }: { marketId: string; market: any }) => {
@@ -18,14 +20,16 @@ const MarketWithPoolData = ({ marketId, market }: { marketId: string; market: an
     }
   }, [yesPool, noPool]);
   
-  // This component can either render something with the pool data
-  // or just be used for data fetching
-  return null; // or return some UI that uses poolData
+  // This component doesn't need to render anything now
+  return null;
 };
 
 export default function MarketPageClient({ id }: { id: string }) {
   // State to track if we're mounted on the client
   const [isMounted, setIsMounted] = useState(false);
+  
+  // Add this to check if user is connected
+  const { isConnected } = useAccount();
   
   // Set isMounted to true after initial render
   useEffect(() => {
@@ -79,9 +83,11 @@ export default function MarketPageClient({ id }: { id: string }) {
   return (
     <main className="app-container">
       <div className="main-content">
-        {/* Market Title */}
-        <div className="market-header mb-6">
-          <h1 className="text-2xl font-bold mb-2">{marketWithPools?.title || "Loading..."}</h1>
+        {/* Breadcrumbs navigation */}
+        <div className="breadcrumbs mb-4">
+          <Link href="/" className="text-secondary hover:text-primary text-sm">Markets</Link>
+          <span className="mx-2 text-secondary">/</span>
+          <span className="text-primary text-sm">{market.title}</span>
         </div>
 
         {/* Oracle Info Banner */}
@@ -100,20 +106,33 @@ export default function MarketPageClient({ id }: { id: string }) {
           </div>
         </div>
         
-        {isMounted && (
-          <PredictionMarketPage 
-            marketId={id}
-            marketData={marketWithPools || market}
-            yesPool={yesPool}
-            noPool={noPool}
-            yesPrice={yesPool?.price}
-            yesPercentage={(yesPool?.price ? (yesPool.price * 100).toFixed(2) : 'NaN') + '%'}
-            description={marketWithPools?.description}
-            endTimestamp={marketWithPools?.endTimestamp}
-          />
-        )}
+        {/* Market data and pool loader */}
+        <MarketWithPoolData marketId={id} market={market} />
         
-        {isMounted && market && <MarketWithPoolData marketId={id} market={market} />}
+        {/* Main market UI */}
+        <PredictionMarketPage 
+          marketData={marketWithPools || market}
+          yesPool={yesPool}
+          noPool={noPool}
+          yesPrice={getYesPrice()}
+          yesPercentage={yesPool?.price ? yesPool.price * 100 : 50}
+          description={market.description}
+          endTimestamp={market.endTimestamp}
+          marketId={id}
+          mintCollateralButton={
+            isConnected && marketWithPools?.collateralAddress ? (
+              <div className="mt-4">
+                <h3 className="text-sm font-medium mb-2">Mint Test Collateral</h3>
+                <p className="text-sm text-secondary mb-3">
+                  Need test tokens? Mint some collateral to use in this market.
+                </p>
+                <MintCollateralButton 
+                  collateralAddress={marketWithPools.collateralAddress as `0x${string}`} 
+                />
+              </div>
+            ) : null
+          }
+        />
       </div>
     </main>
   );
