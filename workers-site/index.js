@@ -1,5 +1,6 @@
 import { createPagesFunctionHandler } from '@cloudflare/next-on-pages';
 
-const handler = createPagesFunctionHandler();
-
-export default handler; 
+export default createPagesFunctionHandler({
+  // Optional: Specify path to your Next.js app
+  assetsPath: ".next"
+});
