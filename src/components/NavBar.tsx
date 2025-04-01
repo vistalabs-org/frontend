@@ -14,22 +14,27 @@ const roboto = Roboto({
 const NavBar = () => {
   return (
     <nav className="flex items-center justify-between px-6 py-4 bg-[#1E2631] border-b border-[#2D3745]">
+      {/* Left - Create Proposal Link */}
       <div className="flex-1">
-        {/* Empty div to maintain spacing */}
+        <Link href="/create-proposal" className="text-white hover:text-blue-400 transition-colors">
+          Create Proposal
+        </Link>
       </div>
 
       {/* Center - Logo and Name */}
       <div className="flex items-center gap-3">
-        <div className="relative w-6 h-6">
-          <Image 
-            src="/logo.svg" 
-            alt="Vista Market Logo" 
-            width={24} 
-            height={24}
-            priority
-          />
-        </div>
-        <h1 className={`${roboto.className} text-xl text-white`}>Vista Market</h1>
+        <Link href="/" className="flex items-center gap-3">
+          <div className="relative w-6 h-6">
+            <Image 
+              src="/logo.svg" 
+              alt="Vista Market Logo" 
+              width={24} 
+              height={24}
+              priority
+            />
+          </div>
+          <h1 className={`${roboto.className} text-xl text-white`}>Vista Market</h1>
+        </Link>
       </div>
 
       {/* Right - Connect Button */}
