@@ -1,0 +1,61 @@
+name: Deploy to Cloudflare Pages
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        run: |
+          npm ci
+          # Install the Cloudflare adapter
+          npm install --save-dev @cloudflare/next-on-pages
+        
+      - name: Debug environment
+        run: |
+          echo "Node version: $(node -v)"
+          echo "NPM version: $(npm -v)"
+          echo "Working directory: $(pwd)"
+          ls -la
+          echo "ESLint config:"
+          cat .eslintrc.json
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Build with Cloudflare Adapter
+        run: npx @cloudflare/next-on-pages
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_PROJECT_NAME: market
+
+          ALCHEMY_API_KEY: ${{ secrets.ALCHEMY_API_KEY }}
+          NEXT_PUBLIC_ALCHEMY_API_KEY: ${{ secrets.ALCHEMY_API_KEY }}
+          NEXT_PUBLIC_GAS_MANAGER_POLICY_ID: ${{ secrets.GAS_MANAGER_POLICY_ID }}
+          SEPOLIA_URL: ${{ secrets.SEPOLIA_URL }}
+          NODE_VERSION: '20'
+          
+      - name: Install Wrangler CLI
+        run: npm install -g wrangler
+
+      - name: Deploy to Cloudflare Pages
+        run: wrangler pages deploy .vercel/output/static --project-name=market --commit-dirty=true
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}

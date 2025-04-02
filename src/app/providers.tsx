@@ -7,6 +7,11 @@ import { getDefaultConfig, RainbowKitProvider } from '@rainbow-me/rainbowkit';
 import { unichainSepolia } from '@/lib/wagmi';
 import '@rainbow-me/rainbowkit/styles.css';
 
+// Import Account Kit config and provider
+import { config } from "@root/config";
+import { AlchemyAccountProvider } from "@account-kit/react";
+import { cookieToInitialState } from "@account-kit/core";
+
 // Create a client
 const queryClient = new QueryClient();
 
@@ -18,12 +23,22 @@ const wagmiConfig = getDefaultConfig({
   ssr: true
 });
 
-export const Providers = (props: PropsWithChildren<{}>) => {
+// Define props including the cookie string
+interface ProviderProps extends PropsWithChildren {
+  cookie: string | undefined;
+}
+
+export const Providers = ({ children, cookie }: ProviderProps) => {
+  // Calculate initial state inside the client component
+  const initialState = cookieToInitialState(config, cookie);
+
   return (
     <WagmiProvider config={wagmiConfig}>
       <QueryClientProvider client={queryClient}>
         <RainbowKitProvider>
-          {props.children}
+          <AlchemyAccountProvider config={config} initialState={initialState} queryClient={queryClient}>
+            {children}
+          </AlchemyAccountProvider>
         </RainbowKitProvider>
       </QueryClientProvider>
     </WagmiProvider>

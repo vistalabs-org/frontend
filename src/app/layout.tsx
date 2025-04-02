@@ -1,5 +1,3 @@
-import { config } from "@root/config";
-import { cookieToInitialState } from "@account-kit/core";
 import { headers } from "next/headers";
 import type { Metadata, Viewport } from "next";
 // import { Geist, Geist_Mono } from "next/font/google";
@@ -35,10 +33,7 @@ export default async function RootLayout({
     // Persist state across pages
   // https://accountkit.alchemy.com/react/ssr#persisting-the-account-state
   const headerData = await headers();
-  const initialState = cookieToInitialState(
-    config,
-    headerData.get("cookie") ?? undefined
-  );
+  const cookie = headerData.get("cookie") ?? undefined;
 
   return (
     <html lang="en" className={inter.className}>
@@ -47,7 +42,7 @@ export default async function RootLayout({
         <link rel="apple-touch-icon" href="/icons/icon-192x192.png" />
       </head>
       <body>
-        <Providers initialState={initialState}>
+        <Providers cookie={cookie}>
               <div className="app-container">
           
                 <NavBar />

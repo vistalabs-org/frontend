@@ -2,99 +2,141 @@
 import React, { useMemo } from 'react';
 import OracleLogicVisualizer from '@/components/OracleLogicVisualizer';
 import Link from 'next/link';
-import { useLatestTaskNum, useOracleTask, useRegisteredAgents, Agent } from '@/hooks/useOracleData';
 
-// Define expected status types for the visualizer
-type VisualizerTaskStatus = 'Created' | 'InProgress' | 'Resolved'; 
+// Add edge runtime configuration
+export const runtime = 'edge';
 
-// Updated mapping function
-const getTaskStatusString = (statusNumber: number | undefined): VisualizerTaskStatus | 'Loading...' | 'Unknown' => {
-  if (statusNumber === undefined) return 'Loading...';
-  // Map based on expected contract values and Visualizer types
-  switch (statusNumber) {
-    case 0: return 'Created'; // Assuming 0 maps to Created
-    case 1: return 'InProgress';
-    case 2: return 'Resolved';
-    // case 3: // Handle 'Disputed' if needed by visualizer
-    default: return 'Unknown'; // Statuses not handled by visualizer
-  }
+// Example market data
+const exampleMarket = {
+  id: 'market-123',
+  title: 'Will Trump end Department of Education in 2025?',
+  question: 'Will the U.S. Department of Education be dismantled by December 31, 2025?',
+  resolutionDate: 'December 31, 2025, 11:59 PM ET'
 };
 
+// Example task data (with proper types)
+const exampleTask = {
+  id: 123,
+  name: 'Will the U.S. Department of Education be dismantled by December 31, 2025?',
+  taskCreatedBlock: 8764321,
+  status: 'InProgress' as const, // Use const assertion to fix type
+  respondents: 3,
+  consensusThreshold: 70, // 70%
+  minimumResponses: 5,
+  currentResponses: 3
+};
+
+// Example resolved task (to show full resolution flow)
+const resolvedTask = {
+  id: 456,
+  name: 'Will Tesla stock price exceed $300 by March 1, 2025?',
+  taskCreatedBlock: 8712345,
+  status: 'Resolved' as const, // Use const assertion to fix type
+  respondents: 5,
+  consensusThreshold: 70,
+  minimumResponses: 5,
+  currentResponses: 5
+};
+
+// Example AI agents (with proper types)
+const exampleAgents = [
+  {
+    id: 1,
+    address: '0x1a2b...3c4d',
+    status: 'active' as const,
+    responseTime: 45,
+    reliability: 98,
+    hasResponded: true,
+    response: 'YES'
+  },
+  {
+    id: 2,
+    address: '0x5e6f...7g8h',
+    status: 'active' as const,
+    responseTime: 63,
+    reliability: 95,
+    hasResponded: true,
+    response: 'YES'
+  },
+  {
+    id: 3,
+    address: '0x9i10...11j12',
+    status: 'active' as const,
+    responseTime: 112,
+    reliability: 92,
+    hasResponded: true,
+    response: 'NO'
+  },
+  {
+    id: 4,
+    address: '0x13k14...15l16',
+    status: 'active' as const,
+    responseTime: 0,
+    reliability: 96,
+    hasResponded: false
+  },
+  {
+    id: 5,
+    address: '0x17m18...19n20',
+    status: 'active' as const,
+    responseTime: 0,
+    reliability: 91,
+    hasResponded: false
+  }
+];
+
+// Agents for resolved task
+const resolvedAgents = [
+  {
+    id: 1,
+    address: '0x1a2b...3c4d',
+    status: 'active' as const,
+    responseTime: 33,
+    reliability: 98,
+    hasResponded: true,
+    response: 'YES'
+  },
+  {
+    id: 2,
+    address: '0x5e6f...7g8h',
+    status: 'active' as const,
+    responseTime: 47,
+    reliability: 95,
+    hasResponded: true,
+    response: 'YES'
+  },
+  {
+    id: 3,
+    address: '0x9i10...11j12',
+    status: 'active' as const,
+    responseTime: 58,
+    reliability: 92,
+    hasResponded: true,
+    response: 'YES'
+  },
+  {
+    id: 4,
+    address: '0x13k14...15l16',
+    status: 'active' as const,
+    responseTime: 72,
+    reliability: 96,
+    hasResponded: true,
+    response: 'YES'
+  },
+  {
+    id: 5,
+    address: '0x17m18...19n20',
+    status: 'active' as const,
+    responseTime: 89,
+    reliability: 91,
+    hasResponded: true,
+    response: 'NO'
+  }
+];
+
 const OraclePage = () => {
-  // 1. Fetch the latest task number
-  const { latestTaskNum, isLoading: isLoadingTaskNum, error: errorTaskNum } = useLatestTaskNum();
+  const [showResolved, setShowResolved] = useState(false);
   
-  // 2. Fetch the details for the latest task
-  // Pass latestTaskNum (which can be undefined initially)
-  const { task, loading: isLoadingTask, error: errorTask } = useOracleTask(latestTaskNum);
-
-  // 3. Fetch all registered agents
-  const { agents: registeredAgents, loading: isLoadingAgents, error: errorAgents } = useRegisteredAgents();
-  
-  // Combine loading states
-  const isLoading = isLoadingTaskNum || (latestTaskNum !== undefined && isLoadingTask) || isLoadingAgents;
-  // Combine error states
-  const error = errorTaskNum || errorTask || errorAgents;
-
-  // 4. Prepare data for the visualizer once task and agents are loaded
-  const visualizerData = useMemo(() => {
-    if (!task || !registeredAgents || registeredAgents.length === 0) {
-      return null;
-    }
-    
-    const mappedStatus = getTaskStatusString(task.status);
-
-    // Only proceed if the status is one the visualizer understands
-    if (mappedStatus === 'Loading...' || mappedStatus === 'Unknown') {
-        console.warn(`Task ${task.id} has unhandled status for visualizer: ${mappedStatus} (raw: ${task.status})`);
-        return null; // Don't create visualizer data for statuses it can't handle
-    }
-    
-    const marketQuestion = `Task ID: ${task.id} - Market Question Not Available`; 
-    const resolutionDate = "Resolution Date Not Available"; 
-
-    // Added Agent type annotation
-    const agentsForVisualizer = registeredAgents.map((agent: Agent) => { 
-       const hasResponded = task.respondents.includes(agent.address);
-       const response = hasResponded ? "Response Data Unavailable" : undefined; 
-       // TODO: Fetch/calculate actual agent status, reliability, response time
-       return {
-         id: agent.address, 
-         address: agent.address,
-         status: 'active' as const, // Placeholder
-         reliability: agent.details ? Number(agent.details.consensusParticipations) : 0, // Placeholder
-         responseTime: 0, // Placeholder
-         hasResponded: hasResponded,
-         response: response, // Placeholder
-       };
-    });
-
-    // Map task data - status type is now guaranteed to be VisualizerTaskStatus
-    const taskForVisualizer = {
-      id: task.id,
-      name: marketQuestion, 
-      taskCreatedBlock: 0, // Placeholder
-      status: mappedStatus, // Use the validated & mapped status
-      respondents: task.respondents.length,
-      consensusThreshold: 70, // Placeholder
-      minimumResponses: 5, // Placeholder
-      currentResponses: task.respondents.length, 
-      consensusResult: task.consensusResult, 
-    };
-    // Note: This assumes the overall structure matches the OracleTask type expected by the visualizer.
-    // Further errors might indicate missing/mismatched properties beyond 'status'.
-
-    return {
-      marketId: String(task.id),
-      marketQuestion,
-      resolutionDate,
-      task: taskForVisualizer, // Pass the object assumed to match OracleTask type
-      agents: agentsForVisualizer,
-      consensusThreshold: taskForVisualizer.consensusThreshold, 
-      minimumResponses: taskForVisualizer.minimumResponses, 
-    };
-  }, [task, registeredAgents]); 
-
   return (
     <div className="main-content">
       {/* Page Header */}
