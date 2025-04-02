@@ -53,8 +53,6 @@ jobs:
 
       - name: Build
         run: npm run build
-        env:
-          NODE_OPTIONS: "--verbose"
         
       # If you have tests, uncomment and adjust the following step
       # - name: Run tests
