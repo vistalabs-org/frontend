@@ -185,8 +185,6 @@ jobs:
             env: {
               ALCHEMY_API_KEY: process.env.ALCHEMY_API_KEY || process.env.NEXT_PUBLIC_ALCHEMY_API_KEY
             },
-            // Generate static output for Cloudflare Pages
-            output: 'export',
             // Disable image optimization since Cloudflare doesn't support it
             images: {
               unoptimized: true,
@@ -288,33 +286,18 @@ jobs:
           echo "Checking if project exists, creating if needed..."
           wrangler pages project create market --production-branch=main || echo "Project may already exist or there was an error"
           
-          # With output: 'export', Next.js creates an 'out' directory
-          # Check if 'out' directory exists from static export
-          if [ -d "out" ]; then
-            echo "Using Next.js static export 'out' directory"
-            # Copy to a separate directory to preserve original
-            mkdir -p .cloudflare-deploy
-            cp -r out/* .cloudflare-deploy/
-            
-            # Deploy the static output
-            wrangler pages deploy .cloudflare-deploy --project-name=market --commit-dirty=true -v
-          else
-            # Fallback to the previous approach
-            echo "No 'out' directory found. Removing large files from .next..."
-            rm -rf .next/cache
-            
-            # Find and list any remaining files over 20MB
-            find .next -type f -size +20M | while read file; do
-              echo "Warning: Large file detected: $file"
-              # Delete the file if needed
-              rm -f "$file"
-              echo "Removed large file: $file"
-            done
-            
-            # Deploy with a smaller set of files
-            wrangler pages deploy .next --project-name=market --commit-dirty=true -v || {
-              echo "Deployment failed. Trying with static directory only..."
-              mkdir -p .next-static
-              cp -r .next/static .next-static/ 2>/dev/null || echo "No static directory"
-              wrangler pages deploy .next-static --project-name=market --commit-dirty=true -v
-            } 
+          # Remove large files that exceed Cloudflare's 25MB limit
+          echo "Removing large files and cache directories..."
+          rm -rf .next/cache
+          
+          # Find and list any remaining files over 20MB
+          find .next -type f -size +20M | while read file; do
+            echo "Warning: Large file detected: $file"
+            # Delete the file
+            rm -f "$file"
+            echo "Removed large file: $file"
+          done
+          
+          # Deploy with server-side rendering approach
+          echo "Deploying with server-side rendering support..."
+          wrangler pages deploy .next --project-name=market --commit-dirty=true -v 
