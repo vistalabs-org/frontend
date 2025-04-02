@@ -21,7 +21,10 @@ jobs:
           cache-dependency-path: package-lock.json
 
       - name: Install dependencies
-        run: npm ci
+        run: |
+          npm ci
+          # Install the Cloudflare adapter
+          npm install --save-dev @cloudflare/next-on-pages
         
       - name: Debug environment
         run: |
@@ -35,269 +38,21 @@ jobs:
       - name: Lint
         run: npm run lint
 
-      - name: Build
-        run: npm run build
+      - name: Build with Cloudflare Adapter
+        run: npx @cloudflare/next-on-pages
         env:
-          NEXT_PUBLIC_ALCHEMY_API_KEY: ${{ secrets.ALCHEMY_API_KEY }}
-          NEXT_PUBLIC_GAS_MANAGER_POLICY_ID: ${{ secrets.GAS_MANAGER_POLICY_ID }}
-          SEPOLIA_URL: ${{ secrets.SEPOLIA_URL }}
-        
-      # If you have tests, uncomment and adjust the following step
-      # - name: Run tests
-      #   run: npm test
-
-  deploy:
-    needs: test
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      deployments: write
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Check file structure
-        run: |
-          echo "Current directory:"
-          pwd
-          echo "Directory contents:"
-          ls -la
-          echo "Checking package-lock.json:"
-          if [ -f "package-lock.json" ]; then
-            echo "✅ package-lock.json exists"
-          else
-            echo "❌ package-lock.json not found!"
-          fi
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: package-lock.json
-
-      # Cache build output to speed up subsequent builds
-      - name: Cache Next.js build
-        uses: actions/cache@v3
-        with:
-          path: |
-            .next/cache
-          key: ${{ runner.os }}-nextjs-${{ hashFiles('package-lock.json') }}-${{ github.sha }}
-          restore-keys: |
-            ${{ runner.os }}-nextjs-${{ hashFiles('package-lock.json') }}-
-            ${{ runner.os }}-nextjs-
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Build Next.js app
-        run: npm run build
-        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_PROJECT_NAME: market # Replace with your project name if different
+          # Make build-time secrets available
           ALCHEMY_API_KEY: ${{ secrets.ALCHEMY_API_KEY }}
           NEXT_PUBLIC_ALCHEMY_API_KEY: ${{ secrets.ALCHEMY_API_KEY }}
           NEXT_PUBLIC_GAS_MANAGER_POLICY_ID: ${{ secrets.GAS_MANAGER_POLICY_ID }}
           SEPOLIA_URL: ${{ secrets.SEPOLIA_URL }}
-
-      - name: Create Cloudflare worker for Next.js routing
-        run: |
-          mkdir -p .next/workers-site
-          cat > .next/workers-site/index.js << 'EOL'
-          import { getAssetFromKV } from '@cloudflare/kv-asset-handler';
-
-          addEventListener('fetch', event => {
-            event.respondWith(handleEvent(event));
-          });
-
-          async function handleEvent(event) {
-            try {
-              // Try to serve static assets first
-              return await getAssetFromKV(event, {
-                mapRequestToAsset: req => {
-                  const url = new URL(req.url);
-                  // If the URL has a file extension, try to serve it as a static asset
-                  if (url.pathname.includes('.')) {
-                    return req;
-                  }
-                  
-                  // Otherwise, return index.html for client-side routing
-                  if (!url.pathname.startsWith('/_next/')) {
-                    return new Request(`${url.origin}/index.html`, req);
-                  }
-                  
-                  return req;
-                }
-              });
-            } catch (e) {
-              // Fall back to serving index.html
-              return new Response('Not Found', { status: 404 });
-            }
-          }
-          EOL
-          
-          # Create package.json for worker dependencies
-          cat > .next/workers-site/package.json << 'EOL'
-          {
-            "name": "next-cloudflare-worker",
-            "version": "1.0.0",
-            "main": "index.js",
-            "dependencies": {
-              "@cloudflare/kv-asset-handler": "^0.3.0"
-            }
-          }
-          EOL
-          
-          # Install dependencies for the worker
-          cd .next/workers-site && npm install
-          
-          echo "Created Next.js worker script with dependencies"
-
-      - name: Install Wrangler globally
-        run: npm install -g wrangler
-
-      - name: List built files
-        run: |
-          echo "Content of .next directory:"
-          ls -la .next
-          echo "Content of .next/static directory:"
-          ls -la .next/static || echo "Static directory does not exist"
-          echo "Size of .next directory:"
-          du -sh .next
-
-      - name: Clean cache directories
-        run: |
-          rm -rf .next/cache
-          echo "Removed cache directory to prevent asset size errors"
-
-      - name: Create Next.js configuration for Cloudflare
-        run: |
-          # Create a minimal adapter for Next.js on Cloudflare
-          cat > next.config.js << 'EOL'
-          /** @type {import('next').NextConfig} */
-          const nextConfig = {
-            // Ensure TypeScript error doesn't block the build
-            typescript: {
-              ignoreBuildErrors: true,
-            },
-            eslint: {
-              ignoreDuringBuilds: true,
-            },
-            env: {
-              ALCHEMY_API_KEY: process.env.ALCHEMY_API_KEY || process.env.NEXT_PUBLIC_ALCHEMY_API_KEY
-            },
-            // Disable image optimization since Cloudflare doesn't support it
-            images: {
-              unoptimized: true,
-            },
-            // Ensure webpack doesn't generate files that are too large
-            webpack: (config) => {
-              // Modify minSize to create smaller chunks
-              if (config.optimization && config.optimization.splitChunks) {
-                if (config.optimization.splitChunks.chunks === 'all') {
-                  config.optimization.splitChunks = {
-                    chunks: 'all',
-                    maxInitialRequests: Infinity,
-                    minSize: 20000,
-                    maxSize: 20000000, // 20MB max size
-                    cacheGroups: {
-                      vendor: {
-                        test: /[\\/]node_modules[\\/]/,
-                        name(module) {
-                          const packageName = module.context.match(/[\\/]node_modules[\\/](.*?)([\\/]|$)/)[1];
-                          return `npm.${packageName.replace('@', '')}`;
-                        },
-                      },
-                    },
-                  };
-                }
-              }
-              return config;
-            },
-          };
-          
-          module.exports = nextConfig;
-          EOL
-          
-          # Create a basic not-found page to fix the build error
-          mkdir -p src/app
-          cat > src/app/not-found.tsx << 'EOL'
-          export default function NotFound() {
-            return (
-              <div className="container mx-auto py-10 text-center">
-                <h1 className="text-3xl font-bold mb-4">404 - Page Not Found</h1>
-                <p className="mb-4">The page you are looking for does not exist.</p>
-                <a href="/" className="text-blue-500 hover:underline">
-                  Return to home
-                </a>
-              </div>
-            );
-          }
-          EOL
-          
-          # Export the environment variables
-          export ALCHEMY_API_KEY="${{ secrets.ALCHEMY_API_KEY }}"
-          export NEXT_PUBLIC_ALCHEMY_API_KEY="${{ secrets.ALCHEMY_API_KEY }}"
-          export NEXT_PUBLIC_GAS_MANAGER_POLICY_ID="${{ secrets.GAS_MANAGER_POLICY_ID }}"
-          export SEPOLIA_URL="${{ secrets.SEPOLIA_URL }}"
-          
-          # Rebuild with relaxed checks to bypass TypeScript errors
-          npm run build
-          
-          # Create the _routes.json file for Cloudflare Pages
-          mkdir -p .next
-          cat > .next/_routes.json << 'EOL'
-          {
-            "version": 1,
-            "include": ["/*"],
-            "exclude": []
-          }
-          EOL
-
-      - name: Create wrangler.toml with specific excludes
-        run: |
-          cat > wrangler.toml << 'EOL'
-          name = "market"
-          compatibility_date = "2025-03-29"
-          
-          # Required field for Pages
-          pages_build_output_dir = ".next"
-          
-          # Node.js compatibility
-          compatibility_flags = ["nodejs_compat"]
-          
-          # Environment variables
-          [env.production]
-          ALCHEMY_API_KEY = "${{ secrets.ALCHEMY_API_KEY }}"
-          NEXT_PUBLIC_ALCHEMY_API_KEY = "${{ secrets.ALCHEMY_API_KEY }}"
-          NEXT_PUBLIC_GAS_MANAGER_POLICY_ID = "${{ secrets.GAS_MANAGER_POLICY_ID }}"
-          SEPOLIA_URL = "${{ secrets.SEPOLIA_URL }}"
-          EOL
-          
-          echo "Created wrangler.toml:"
-          cat wrangler.toml
+          NODE_VERSION: '20' # Ensure Node version consistency
 
       - name: Deploy to Cloudflare Pages
+        run: wrangler pages deploy .vercel/output/static --project-name=market --commit-dirty=true
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-        run: |
-          echo "Deploying to Cloudflare Pages..."
-          # First try to create the project if it doesn't exist
-          echo "Checking if project exists, creating if needed..."
-          wrangler pages project create market --production-branch=main || echo "Project may already exist or there was an error"
-          
-          # Remove large files that exceed Cloudflare's 25MB limit
-          echo "Removing large files and cache directories..."
-          rm -rf .next/cache
-          
-          # Find and list any remaining files over 20MB
-          find .next -type f -size +20M | while read file; do
-            echo "Warning: Large file detected: $file"
-            # Delete the file
-            rm -f "$file"
-            echo "Removed large file: $file"
-          done
-          
-          # Deploy with server-side rendering approach
-          echo "Deploying with server-side rendering support..."
-          wrangler pages deploy .next --project-name=market --commit-dirty=true -v 
