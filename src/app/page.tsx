@@ -5,6 +5,9 @@ import { usePaginatedMarkets } from '@/hooks/fetchMarkets';
 import { useChainId } from 'wagmi'
 import React from 'react';
 
+// Add edge runtime configuration
+export const runtime = 'edge';
+
 export default function Home() {
   const {markets, isLoading, isError} = usePaginatedMarkets(0, 9);
   

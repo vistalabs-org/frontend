@@ -3,7 +3,8 @@ import React, { useState } from 'react';
 import OracleLogicVisualizer from '@/components/OracleLogicVisualizer';
 import Link from 'next/link';
 
-
+// Add edge runtime configuration
+export const runtime = 'edge';
 
 // Example market data
 const exampleMarket = {

@@ -3,6 +3,9 @@ import React from 'react';
 import { Metadata } from 'next';
 import MarketPageClient from '@/components/MarketPageClient';
 
+// Add edge runtime configuration
+export const runtime = 'edge';
+
 // Generate metadata for the page
 export const metadata: Metadata = {
   title: 'Market | Polymarket',
