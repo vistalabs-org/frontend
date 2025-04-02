@@ -94,6 +94,7 @@ jobs:
       - name: Build Next.js app
         run: npm run build
         env:
+          ALCHEMY_API_KEY: ${{ secrets.ALCHEMY_API_KEY }}
           NEXT_PUBLIC_ALCHEMY_API_KEY: ${{ secrets.ALCHEMY_API_KEY }}
           NEXT_PUBLIC_GAS_MANAGER_POLICY_ID: ${{ secrets.GAS_MANAGER_POLICY_ID }}
           SEPOLIA_URL: ${{ secrets.SEPOLIA_URL }}
@@ -180,11 +181,36 @@ jobs:
             },
             eslint: {
               ignoreDuringBuilds: true,
+            },
+            env: {
+              ALCHEMY_API_KEY: process.env.ALCHEMY_API_KEY || process.env.NEXT_PUBLIC_ALCHEMY_API_KEY
             }
           };
           
           module.exports = nextConfig;
           EOL
+          
+          # Create a basic not-found page to fix the build error
+          mkdir -p src/app
+          cat > src/app/not-found.tsx << 'EOL'
+          export default function NotFound() {
+            return (
+              <div className="container mx-auto py-10 text-center">
+                <h1 className="text-3xl font-bold mb-4">404 - Page Not Found</h1>
+                <p className="mb-4">The page you are looking for does not exist.</p>
+                <a href="/" className="text-blue-500 hover:underline">
+                  Return to home
+                </a>
+              </div>
+            );
+          }
+          EOL
+          
+          # Export the environment variables
+          export ALCHEMY_API_KEY="${{ secrets.ALCHEMY_API_KEY }}"
+          export NEXT_PUBLIC_ALCHEMY_API_KEY="${{ secrets.ALCHEMY_API_KEY }}"
+          export NEXT_PUBLIC_GAS_MANAGER_POLICY_ID="${{ secrets.GAS_MANAGER_POLICY_ID }}"
+          export SEPOLIA_URL="${{ secrets.SEPOLIA_URL }}"
           
           # Rebuild with relaxed checks to bypass TypeScript errors
           npm run build
@@ -207,6 +233,16 @@ jobs:
           
           # Required field for Pages
           pages_build_output_dir = ".next"
+          
+          # Node.js compatibility
+          compatibility_flags = ["nodejs_compat"]
+          
+          # Environment variables
+          [env.production]
+          ALCHEMY_API_KEY = "${{ secrets.ALCHEMY_API_KEY }}"
+          NEXT_PUBLIC_ALCHEMY_API_KEY = "${{ secrets.ALCHEMY_API_KEY }}"
+          NEXT_PUBLIC_GAS_MANAGER_POLICY_ID = "${{ secrets.GAS_MANAGER_POLICY_ID }}"
+          SEPOLIA_URL = "${{ secrets.SEPOLIA_URL }}"
           EOL
           
           echo "Created wrangler.toml:"
