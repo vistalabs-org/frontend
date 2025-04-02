@@ -98,6 +98,59 @@ jobs:
           NEXT_PUBLIC_GAS_MANAGER_POLICY_ID: ${{ secrets.GAS_MANAGER_POLICY_ID }}
           SEPOLIA_URL: ${{ secrets.SEPOLIA_URL }}
 
+      - name: Create Cloudflare worker for Next.js routing
+        run: |
+          mkdir -p .next/workers-site
+          cat > .next/workers-site/index.js << 'EOL'
+          import { getAssetFromKV } from '@cloudflare/kv-asset-handler';
+
+          addEventListener('fetch', event => {
+            event.respondWith(handleEvent(event));
+          });
+
+          async function handleEvent(event) {
+            try {
+              // Try to serve static assets first
+              return await getAssetFromKV(event, {
+                mapRequestToAsset: req => {
+                  const url = new URL(req.url);
+                  // If the URL has a file extension, try to serve it as a static asset
+                  if (url.pathname.includes('.')) {
+                    return req;
+                  }
+                  
+                  // Otherwise, return index.html for client-side routing
+                  if (!url.pathname.startsWith('/_next/')) {
+                    return new Request(`${url.origin}/index.html`, req);
+                  }
+                  
+                  return req;
+                }
+              });
+            } catch (e) {
+              // Fall back to serving index.html
+              return new Response('Not Found', { status: 404 });
+            }
+          }
+          EOL
+          
+          # Create package.json for worker dependencies
+          cat > .next/workers-site/package.json << 'EOL'
+          {
+            "name": "next-cloudflare-worker",
+            "version": "1.0.0",
+            "main": "index.js",
+            "dependencies": {
+              "@cloudflare/kv-asset-handler": "^0.3.0"
+            }
+          }
+          EOL
+          
+          # Install dependencies for the worker
+          cd .next/workers-site && npm install
+          
+          echo "Created Next.js worker script with dependencies"
+
       - name: Install Wrangler globally
         run: npm install -g wrangler
 
@@ -120,6 +173,19 @@ jobs:
           cat > wrangler.toml << 'EOL'
           name = "market"
           compatibility_date = "2025-03-29"
+          
+          # Required configuration for Pages
+          [build]
+          command = "npm run build"
+          
+          [build.environment]
+          NODE_VERSION = "20"
+          
+          [site]
+          bucket = ".next"
+          
+          [pages]
+          build_output_directory = ".next/static"
           EOL
           
           echo "Created wrangler.toml:"
@@ -134,5 +200,6 @@ jobs:
           # First try to create the project if it doesn't exist
           echo "Checking if project exists, creating if needed..."
           wrangler pages project create market --production-branch=main || echo "Project may already exist or there was an error"
-          # Then deploy to the project
+          # Then deploy to the project with _routes.json for Next.js compatibility
+          echo '{"version":1,"include":["/*"],"exclude":[]}' > .next/_routes.json
           wrangler pages deploy .next --project-name=market --commit-dirty=true -v 
