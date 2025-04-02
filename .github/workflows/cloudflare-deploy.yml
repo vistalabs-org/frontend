@@ -24,6 +24,17 @@ jobs:
           cache: 'npm'
           cache-dependency-path: frontend/package-lock.json
 
+      # Cache build output to speed up subsequent builds
+      - name: Cache Next.js build
+        uses: actions/cache@v3
+        with:
+          path: |
+            frontend/.next/cache
+          key: ${{ runner.os }}-nextjs-${{ hashFiles('frontend/package-lock.json') }}-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-nextjs-${{ hashFiles('frontend/package-lock.json') }}-
+            ${{ runner.os }}-nextjs-
+
       - name: Install dependencies
         working-directory: ./frontend
         run: npm ci
@@ -35,9 +46,28 @@ jobs:
       - name: Install Wrangler globally
         run: npm install -g wrangler
 
+      - name: Clean cache directories
+        working-directory: ./frontend
+        run: |
+          rm -rf .next/cache
+          echo "Removed cache directory to prevent asset size errors"
+
+      - name: Create wrangler.toml with specific excludes
+        working-directory: ./frontend
+        run: |
+          cat > wrangler.toml << 'EOL'
+          name = "market"
+          compatibility_date = "2025-03-29"
+          main = "workers-site/index.js"
+
+          [assets]
+          directory = ".next"
+          exclude = ["**/*.pack", ".next/cache/**"]
+          EOL
+
       - name: Deploy to Cloudflare Pages
         working-directory: ./frontend
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-        run: wrangler deploy 
+        run: wrangler pages deploy .next --project-name=market 
