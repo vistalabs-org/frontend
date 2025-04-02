@@ -37,6 +37,10 @@ jobs:
 
       - name: Build
         run: npm run build
+        env:
+          NEXT_PUBLIC_ALCHEMY_API_KEY: ${{ secrets.ALCHEMY_API_KEY }}
+          NEXT_PUBLIC_GAS_MANAGER_POLICY_ID: ${{ secrets.GAS_MANAGER_POLICY_ID }}
+          SEPOLIA_URL: ${{ secrets.SEPOLIA_URL }}
         
       # If you have tests, uncomment and adjust the following step
       # - name: Run tests
@@ -89,6 +93,10 @@ jobs:
 
       - name: Build Next.js app
         run: npm run build
+        env:
+          NEXT_PUBLIC_ALCHEMY_API_KEY: ${{ secrets.ALCHEMY_API_KEY }}
+          NEXT_PUBLIC_GAS_MANAGER_POLICY_ID: ${{ secrets.GAS_MANAGER_POLICY_ID }}
+          SEPOLIA_URL: ${{ secrets.SEPOLIA_URL }}
 
       - name: Install Wrangler globally
         run: npm install -g wrangler
