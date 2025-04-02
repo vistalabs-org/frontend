@@ -1,29 +1,68 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAccount } from 'wagmi';
+import { useAccount, useReadContract } from 'wagmi';
+import { parseEther } from 'viem';
 import { useCreateMarket } from '@/hooks/useCreateMarket';
+import { MockERC20Abi } from '@/contracts/MockERC20_abi';
+import { PREDICTION_MARKET_HOOK_ADDRESS } from '@/app/constants';
 
 export default function CreateProposal() {
   const router = useRouter();
   const { address, chain } = useAccount();
-  const { approveTokens, createMarket, isPending, isApproving, isReady } = useCreateMarket();
+  const { approveTokens, createMarket, isPending, isApproving, isSimulating, isReady, checkBalance } = useCreateMarket();
   
   const [step, setStep] = useState('prepare'); // 'prepare', 'approve', 'create'
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [hasEnoughBalance, setHasEnoughBalance] = useState<boolean | null>(null);
   
   // Initial form state
   const [formData, setFormData] = useState({
     title: '',
     description: '',
     duration: 7, // Default 7 days
-    collateralAmount: '100',
-    collateralAddress: '0xabe6c3A133ff49e12EBcE8AA927A1684d572D862',
+    collateralAmount: '10',
+    collateralAddress: '0x77a4d2324d8330a04a0187a36d35fa4b542d17eb', // test usdc unichain sepolia
     curveId: 0
   });
-  
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+
+  // Check if tokens are already approved
+  const { data: allowance, refetch: refetchAllowance } = useReadContract({
+    address: formData.collateralAddress as `0x${string}`,
+    abi: MockERC20Abi,
+    functionName: 'allowance',
+    args: [address || '0x0', PREDICTION_MARKET_HOOK_ADDRESS],
+    query: {
+      enabled: !!address && step === 'approve',
+    }
+  });
+
+  // Check allowance when entering approve step
+  useEffect(() => {
+    if (step === 'approve' && allowance) {
+      const requiredAmount = parseEther(formData.collateralAmount);
+      
+      // If allowance is sufficient, skip to create step
+      if (BigInt(allowance.toString()) >= requiredAmount) {
+        console.log('Tokens already approved, skipping to create step');
+        setStep('create');
+      }
+    }
+  }, [step, allowance, formData.collateralAmount]);
+
+  // Add this effect to check balance when the form changes
+  useEffect(() => {
+    if (address && formData.collateralAddress && formData.collateralAmount) {
+      const checkUserBalance = async () => {
+        const result = await checkBalance(formData.collateralAddress, formData.collateralAmount);
+        setHasEnoughBalance(result);
+      };
+      
+      checkUserBalance();
+    }
+  }, [address, formData.collateralAddress, formData.collateralAmount, checkBalance]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -42,6 +81,7 @@ export default function CreateProposal() {
     
     try {
       await approveTokens(formData.collateralAddress, formData.collateralAmount);
+      await refetchAllowance(); // Refresh allowance after approval
       setStep('create');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to approve tokens');
@@ -85,6 +125,18 @@ export default function CreateProposal() {
       {error && (
         <div className="bg-red-900/50 border border-red-500 text-red-200 p-3 rounded mb-4">
           {error}
+        </div>
+      )}
+      
+      {!hasEnoughBalance && hasEnoughBalance !== null && (
+        <div className="bg-yellow-900/50 border border-yellow-500 text-yellow-200 p-3 rounded mb-4">
+          You don't have enough tokens. Please mint some tokens first.
+          <button 
+            onClick={() => router.push('/mint')} 
+            className="ml-2 underline"
+          >
+            Go to mint page
+          </button>
         </div>
       )}
       
@@ -213,11 +265,13 @@ export default function CreateProposal() {
         <div className="pt-4">
           <button
             type="submit"
-            disabled={isSubmitting || isPending || isApproving || !isReady}
+            disabled={isSubmitting || isPending || isApproving || isSimulating || !isReady}
             className="w-full px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:bg-gray-500"
           >
-            {isSubmitting || isPending || isApproving
-              ? 'Processing...' 
+            {isSubmitting || isPending || isApproving || isSimulating
+              ? isSimulating 
+                ? 'Simulating...' 
+                : 'Processing...' 
               : step === 'prepare' 
                 ? 'Continue' 
                 : step === 'approve' 
