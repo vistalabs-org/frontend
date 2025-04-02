@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useAccount, useReadContract, useWriteContract, useConfig } from 'wagmi';
 import { readContract } from '@wagmi/core'; // Import readContract for non-hook usage
-import { AIOracleServiceManagerABI } from '@/contracts/AIOracleServiceManagerABI';
-import { AIAgentRegistryABI } from '@/contracts/AIAgentRegistryABI';
+import { AIOracleServiceManagerABI } from '@/contracts/AIOracleServiceManager';
+import { AIAgentRegistryABI } from '@/contracts/AIAgentRegistry';
 // AIAgentABI seems unused in the original hook, but keep import if needed elsewhere
 // import { AIAgentABI } from '@/contracts/AIAgentABI'; 
 import { ORACLE_SERVICE_MANAGER_ADDRESS, AGENT_REGISTRY_ADDRESS } from '@/app/constants';
