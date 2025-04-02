@@ -7,7 +7,7 @@ on:
   push:
     branches:
       - '**'
-      - '!main'  # Don't run on main as that will be handled by deploy workflow
+      - '!main'
   workflow_dispatch:
 
 jobs:

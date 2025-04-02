@@ -43,13 +43,13 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          CLOUDFLARE_PROJECT_NAME: market # Replace with your project name if different
-          # Make build-time secrets available
+          CLOUDFLARE_PROJECT_NAME: market
+
           ALCHEMY_API_KEY: ${{ secrets.ALCHEMY_API_KEY }}
           NEXT_PUBLIC_ALCHEMY_API_KEY: ${{ secrets.ALCHEMY_API_KEY }}
           NEXT_PUBLIC_GAS_MANAGER_POLICY_ID: ${{ secrets.GAS_MANAGER_POLICY_ID }}
           SEPOLIA_URL: ${{ secrets.SEPOLIA_URL }}
-          NODE_VERSION: '20' # Ensure Node version consistency
+          NODE_VERSION: '20'
           
       - name: Install Wrangler CLI
         run: npm install -g wrangler
