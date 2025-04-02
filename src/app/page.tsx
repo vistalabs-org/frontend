@@ -43,7 +43,7 @@ export default function Home() {
             // Use React.createElement approach to avoid key prop TypeScript issues
             marketsList.map((market, index) => {
               // Check if market has an id property, otherwise fall back to index
-              const marketId = market.id || index.toString();
+              const marketId = market?.id || index.toString();
               console.log(`Creating market card for: ${market.title} with ID: ${marketId}`);
               
               return React.createElement(

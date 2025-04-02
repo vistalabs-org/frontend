@@ -29,7 +29,7 @@ interface AgentDetails {
     // Add status if needed from AIAgentABI or Registry
 }
 
-interface Agent {
+export interface Agent {
     address: `0x${string}`;
     details: AgentDetails | null; // Allow null if details couldn't be fetched
     // Add other relevant agent properties if needed
