@@ -18,14 +18,12 @@ jobs:
         with:
           node-version: '20'
           cache: 'npm'
-          cache-dependency-path: frontend/package-lock.json
+          cache-dependency-path: package-lock.json
 
       - name: Install dependencies
-        working-directory: ./frontend
         run: npm ci
         
       - name: Debug environment
-        working-directory: ./frontend
         run: |
           echo "Node version: $(node -v)"
           echo "NPM version: $(npm -v)"
@@ -35,18 +33,15 @@ jobs:
           cat .eslintrc.json
 
       - name: Lint
-        working-directory: ./frontend
         run: npm run lint --no-fix
 
       - name: Build
-        working-directory: ./frontend
         run: npm run build
         env:
           NODE_OPTIONS: "--verbose"
         
       # If you have tests, uncomment and adjust the following step
       # - name: Run tests
-      #   working-directory: ./frontend
       #   run: npm test
 
   deploy:
@@ -60,37 +55,47 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Check file structure
+        run: |
+          echo "Current directory:"
+          pwd
+          echo "Directory contents:"
+          ls -la
+          echo "Checking package-lock.json:"
+          if [ -f "package-lock.json" ]; then
+            echo "✅ package-lock.json exists"
+          else
+            echo "❌ package-lock.json not found!"
+          fi
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
-          cache-dependency-path: frontend/package-lock.json
+          cache-dependency-path: package-lock.json
 
       # Cache build output to speed up subsequent builds
       - name: Cache Next.js build
         uses: actions/cache@v3
         with:
           path: |
-            frontend/.next/cache
-          key: ${{ runner.os }}-nextjs-${{ hashFiles('frontend/package-lock.json') }}-${{ github.sha }}
+            .next/cache
+          key: ${{ runner.os }}-nextjs-${{ hashFiles('package-lock.json') }}-${{ github.sha }}
           restore-keys: |
-            ${{ runner.os }}-nextjs-${{ hashFiles('frontend/package-lock.json') }}-
+            ${{ runner.os }}-nextjs-${{ hashFiles('package-lock.json') }}-
             ${{ runner.os }}-nextjs-
 
       - name: Install dependencies
-        working-directory: ./frontend
         run: npm ci
 
       - name: Build Next.js app
-        working-directory: ./frontend
         run: npm run build
 
       - name: Install Wrangler globally
         run: npm install -g wrangler
 
       - name: List built files
-        working-directory: ./frontend
         run: |
           echo "Content of .next directory:"
           ls -la .next
@@ -100,13 +105,11 @@ jobs:
           du -sh .next
 
       - name: Clean cache directories
-        working-directory: ./frontend
         run: |
           rm -rf .next/cache
           echo "Removed cache directory to prevent asset size errors"
 
       - name: Create wrangler.toml with specific excludes
-        working-directory: ./frontend
         run: |
           cat > wrangler.toml << 'EOL'
           name = "market"
@@ -122,7 +125,6 @@ jobs:
           cat wrangler.toml
 
       - name: Deploy to Cloudflare Pages
-        working-directory: ./frontend
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
