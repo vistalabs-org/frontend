@@ -50,6 +50,9 @@ jobs:
           NEXT_PUBLIC_GAS_MANAGER_POLICY_ID: ${{ secrets.GAS_MANAGER_POLICY_ID }}
           SEPOLIA_URL: ${{ secrets.SEPOLIA_URL }}
           NODE_VERSION: '20' # Ensure Node version consistency
+          
+      - name: Install Wrangler CLI
+        run: npm install -g wrangler
 
       - name: Deploy to Cloudflare Pages
         run: wrangler pages deploy .vercel/output/static --project-name=market --commit-dirty=true
