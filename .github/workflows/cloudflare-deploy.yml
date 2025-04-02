@@ -168,6 +168,29 @@ jobs:
           rm -rf .next/cache
           echo "Removed cache directory to prevent asset size errors"
 
+      - name: Create Next.js configuration for Cloudflare
+        run: |
+          # Create config for Next.js on Cloudflare Pages
+          cat > next.config.js << 'EOL'
+          /** @type {import('next').NextConfig} */
+          const nextConfig = {
+            reactStrictMode: true,
+            output: 'export',
+            images: {
+              unoptimized: true,
+            },
+            trailingSlash: true,
+          };
+          
+          module.exports = nextConfig;
+          EOL
+          
+          # Rebuild with the new config
+          npm run build
+          
+          # Make sure index.html is at the root level for Cloudflare Pages
+          cp .next/index.html .next/index.html || echo "No index.html found"
+
       - name: Create wrangler.toml with specific excludes
         run: |
           cat > wrangler.toml << 'EOL'
@@ -175,17 +198,10 @@ jobs:
           compatibility_date = "2025-03-29"
           
           # Required configuration for Pages
-          [build]
-          command = "npm run build"
+          pages_build_output_dir = ".next"
           
           [build.environment]
           NODE_VERSION = "20"
-          
-          [site]
-          bucket = ".next"
-          
-          [pages]
-          build_output_directory = ".next/static"
           EOL
           
           echo "Created wrangler.toml:"
@@ -200,6 +216,41 @@ jobs:
           # First try to create the project if it doesn't exist
           echo "Checking if project exists, creating if needed..."
           wrangler pages project create market --production-branch=main || echo "Project may already exist or there was an error"
-          # Then deploy to the project with _routes.json for Next.js compatibility
-          echo '{"version":1,"include":["/*"],"exclude":[]}' > .next/_routes.json
+          
+          # Create a _routes.json file for Next.js routing
+          cat > .next/_routes.json << 'EOL'
+          {
+            "version": 1,
+            "include": ["/*"],
+            "exclude": []
+          }
+          EOL
+          
+          # Create a functions folder for Next.js Edge functions
+          mkdir -p .next/functions
+          cat > .next/functions/_middleware.js << 'EOL'
+          export async function onRequest(context) {
+            const { request, next } = context;
+            const url = new URL(request.url);
+            
+            // Let assets and API routes pass through
+            if (url.pathname.startsWith('/_next/') || 
+                url.pathname.startsWith('/api/') ||
+                url.pathname.includes('.')) {
+              return await next();
+            }
+            
+            // For other routes, check if there's a static file
+            try {
+              return await next();
+            } catch (err) {
+              // If no static file, serve index.html for client-side routing
+              url.pathname = '/';
+              const response = await context.env.ASSETS.fetch(url);
+              return response;
+            }
+          }
+          EOL
+          
+          # Deploy to Cloudflare Pages
           wrangler pages deploy .next --project-name=market --commit-dirty=true -v 
