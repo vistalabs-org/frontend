@@ -120,11 +120,6 @@ jobs:
           cat > wrangler.toml << 'EOL'
           name = "market"
           compatibility_date = "2025-03-29"
-          main = "workers-site/index.js"
-
-          [assets]
-          directory = ".next"
-          exclude = ["**/*.pack", ".next/cache/**"]
           EOL
           
           echo "Created wrangler.toml:"
@@ -136,4 +131,8 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           echo "Deploying to Cloudflare Pages..."
+          # First try to create the project if it doesn't exist
+          echo "Checking if project exists, creating if needed..."
+          wrangler pages project create market --production-branch=main || echo "Project may already exist or there was an error"
+          # Then deploy to the project
           wrangler pages deploy .next --project-name=market --commit-dirty=true -v 
