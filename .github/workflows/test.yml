@@ -49,7 +49,7 @@ jobs:
           cat .eslintrc.json
 
       - name: Lint
-        run: npm run lint --no-fix
+        run: npm run lint
 
       - name: Build
         run: npm run build
