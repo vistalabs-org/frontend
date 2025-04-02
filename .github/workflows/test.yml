@@ -39,14 +39,26 @@ jobs:
       - name: Install dependencies
         working-directory: ./frontend
         run: npm ci
+        
+      - name: Debug environment
+        working-directory: ./frontend
+        run: |
+          echo "Node version: $(node -v)"
+          echo "NPM version: $(npm -v)"
+          echo "Working directory: $(pwd)"
+          ls -la
+          echo "ESLint config:"
+          cat .eslintrc.json
 
       - name: Lint
         working-directory: ./frontend
-        run: npm run lint
+        run: npm run lint --no-fix
 
       - name: Build
         working-directory: ./frontend
         run: npm run build
+        env:
+          NODE_OPTIONS: "--verbose"
         
       # If you have tests, uncomment and adjust the following step
       # - name: Run tests
