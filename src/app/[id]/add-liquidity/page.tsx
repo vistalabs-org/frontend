@@ -3,15 +3,18 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { useAccount, useBalance } from 'wagmi';
+import { useAccount, useBalance, useWriteContract, useReadContract, useWaitForTransactionReceipt } from 'wagmi';
 import { useMarketWithPoolData } from '@/hooks/usePoolData';
 import { formatUnits, parseUnits } from 'ethers';
 import { PoolModifyLiquidityTest_abi } from '@/contracts/PoolModifyLiquidityTest_abi';
 import { POOL_MODIFY_LIQUIDITY_ROUTER } from '@/app/constants';
 import JSBI from 'jsbi';
+import { MockERC20Abi } from '@/contracts/MockERC20_abi';
+import { randomBytes } from 'crypto';
 
 // Constants from Uniswap
 const Q96 = JSBI.exponentiate(JSBI.BigInt(2), JSBI.BigInt(96));
+const MAX_UINT256 = '115792089237316195423570985008687907853269984665640564039457584007913129639935';
 
 export default function AddLiquidityPage() {
   const params = useParams();
@@ -19,7 +22,8 @@ export default function AddLiquidityPage() {
   const marketId = params.id as string;
   const { address: userAddress } = useAccount();
   
-
+  // Contract address for PoolModifyLiquidityTest
+  const poolModifyLiquidityTestAddress = POOL_MODIFY_LIQUIDITY_ROUTER;
   
   // Set YES as default selected pool
   const [selectedPool, setSelectedPool] = useState<'YES' | 'NO'>('YES');
@@ -29,6 +33,7 @@ export default function AddLiquidityPage() {
   const [needsApproval, setNeedsApproval] = useState<boolean>(false);
   const [isApproving, setIsApproving] = useState<boolean>(false);
   const [isAddingLiquidity, setIsAddingLiquidity] = useState<boolean>(false);
+  const [txError, setTxError] = useState<string | null>(null);
 
   // Fetch market data to get token addresses
   const { market: marketWithPools, yesPool, noPool } = useMarketWithPoolData(marketId);
@@ -36,24 +41,68 @@ export default function AddLiquidityPage() {
   // Get token addresses
   const usdcAddress = marketWithPools?.collateralAddress as `0x${string}`;
   const outcomeTokenAddress = selectedPool === 'YES' 
-    ? marketWithPools?.yesTokenAddress as `0x${string}`
-    : marketWithPools?.noTokenAddress as `0x${string}`;
+    ? marketWithPools?.yesToken as `0x${string}`
+    : marketWithPools?.noToken as `0x${string}`;
 
   // Get USDC balance
   const { data: usdcBalance } = useBalance({
     address: userAddress,
-    token: marketWithPools?.collateralAddress as `0x${string}`,
-    watch: true,
+    token: usdcAddress,
+    watch: true
   });
 
   // Get YES/NO token balance
   const { data: outcomeTokenBalance } = useBalance({
     address: userAddress,
-    token: selectedPool === 'YES' 
-      ? marketWithPools?.yesTokenAddress as `0x${string}`
-      : marketWithPools?.noTokenAddress as `0x${string}`,
-    watch: true,
+    token: outcomeTokenAddress,
+    watch: true
   });
+
+  // Check USDC allowance
+  const { data: usdcAllowance, refetch: refetchUsdcAllowance } = useReadContract({
+    address: usdcAddress,
+    abi: MockERC20Abi,
+    functionName: 'allowance',
+    args: [userAddress as `0x${string}`, poolModifyLiquidityTestAddress as `0x${string}`],
+    query: {
+      enabled: !!userAddress && !!usdcAddress && !!poolModifyLiquidityTestAddress,
+    }
+  });
+
+  // Check outcome token allowance
+  const { data: outcomeTokenAllowance, refetch: refetchOutcomeTokenAllowance } = useReadContract({
+    address: outcomeTokenAddress,
+    abi: MockERC20Abi,
+    functionName: 'allowance',
+    args: [userAddress as `0x${string}`, poolModifyLiquidityTestAddress as `0x${string}`],
+    query: {
+      enabled: !!userAddress && !!outcomeTokenAddress && !!poolModifyLiquidityTestAddress,
+    }
+  });
+
+  // Write contract hooks
+  const { writeContract, data: writeData, isPending: isWritePending, error: writeError } = useWriteContract();
+
+  // Wait for transaction receipt
+  const { isLoading: isWaitingForTransaction, isSuccess: isTransactionSuccess } = useWaitForTransactionReceipt({
+    hash: writeData,
+  });
+
+  // Handle successful transaction
+  useEffect(() => {
+    if (isTransactionSuccess) {
+      refetchUsdcAllowance();
+      refetchOutcomeTokenAllowance();
+      checkApprovalStatus();
+      setIsApproving(false);
+      setIsAddingLiquidity(false);
+      
+      // If this was a successful liquidity addition, redirect to the market page
+      if (isAddingLiquidity) {
+        router.push(`/${marketId}`);
+      }
+    }
+  }, [isTransactionSuccess, isAddingLiquidity]);
 
   // Format balance for display
   const formatBalance = (balance: any) => {
@@ -214,6 +263,167 @@ export default function AddLiquidityPage() {
     }
   };
 
+  // Check if approvals are needed
+  const checkApprovalStatus = () => {
+    if (!usdcAllowance || !outcomeTokenAllowance || !amount0 || !amount1) {
+      setNeedsApproval(false);
+      return;
+    }
+
+    try {
+      const amt0 = parseUnits(amount0, 6); // USDC has 6 decimals
+      const amt1 = parseUnits(amount1, 18); // Outcome tokens have 18 decimals
+      
+      const needsUsdcApproval = BigInt(usdcAllowance.toString()) < BigInt(amt0.toString());
+      const needsOutcomeTokenApproval = BigInt(outcomeTokenAllowance.toString()) < BigInt(amt1.toString());
+      
+      setNeedsApproval(needsUsdcApproval || needsOutcomeTokenApproval);
+    } catch (error) {
+      console.error('Error checking approval status:', error);
+      setNeedsApproval(true);
+    }
+  };
+
+  // Update approval status when inputs change
+  useEffect(() => {
+    checkApprovalStatus();
+  }, [amount0, amount1, usdcAllowance, outcomeTokenAllowance]);
+
+  // Update approval status when token addresses change
+  useEffect(() => {
+    refetchUsdcAllowance();
+    refetchOutcomeTokenAllowance();
+  }, [usdcAddress, outcomeTokenAddress]);
+
+  // Handle token approval
+  const handleApprove = async () => {
+    setIsApproving(true);
+    setTxError(null);
+    
+    try {
+      // Check which tokens need approval
+      const amt0 = parseUnits(amount0, 6); // USDC has 6 decimals
+      const amt1 = parseUnits(amount1, 18); // Outcome tokens have 18 decimals
+      
+      const needsUsdcApproval = BigInt(usdcAllowance?.toString() || '0') < BigInt(amt0.toString());
+      const needsOutcomeTokenApproval = BigInt(outcomeTokenAllowance?.toString() || '0') < BigInt(amt1.toString());
+      
+      // Approve USDC if needed
+      if (needsUsdcApproval) {
+        writeContract({
+          address: usdcAddress,
+          abi: MockERC20Abi,
+          functionName: 'approve',
+          args: [poolModifyLiquidityTestAddress, MAX_UINT256]
+        });
+      } 
+      // Approve outcome token if needed
+      else if (needsOutcomeTokenApproval) {
+        writeContract({
+          address: outcomeTokenAddress,
+          abi: MockERC20Abi,
+          functionName: 'approve',
+          args: [poolModifyLiquidityTestAddress, MAX_UINT256]
+        });
+      }
+    } catch (error) {
+      console.error('Error approving tokens:', error);
+      setIsApproving(false);
+      setTxError('Failed to approve tokens');
+    }
+  };
+
+  // Handle adding liquidity
+  const handleAddLiquidity = async () => {
+    if (!marketWithPools || !yesPool || !noPool) {
+      setTxError('Market data not available');
+      return;
+    }
+    
+    setIsAddingLiquidity(true);
+    setTxError(null);
+    
+    try {
+      // Get the pool key
+      const poolKey = {
+        currency0: usdcAddress,
+        currency1: outcomeTokenAddress,
+        fee: selectedPool === 'YES' ? yesPool?.fee || 1000 : noPool?.fee || 1000,
+        tickSpacing: 100, // Hardcoded tick spacing value
+        hooks: '0x0000000000000000000000000000000000000000' as `0x${string}`
+      };
+      
+      // Get the modify liquidity params
+      const modifyLiquidityParams = {
+        tickLower: -887272, // Min tick for full range
+        tickUpper: 887272,  // Max tick for full range
+        liquidityDelta: BigInt(parseUnits(liquidityAmount, 18).toString()), // Convert to bigint
+        salt: ('0x' + randomBytes(32).toString('hex')) as `0x${string}` // Cast to proper type
+      };
+      
+      // Call modifyLiquidity
+      writeContract({
+        address: poolModifyLiquidityTestAddress,
+        abi: PoolModifyLiquidityTest_abi,
+        functionName: 'modifyLiquidity',
+        args: [
+          poolKey,
+          modifyLiquidityParams,
+          '0x', // No hook data
+          false, // Don't settle using burn
+          false  // Don't take claims
+        ],
+        value: BigInt(0) // No ETH value
+      });
+    } catch (error) {
+      console.error('Error adding liquidity:', error);
+      setIsAddingLiquidity(false);
+      setTxError('Failed to add liquidity');
+    }
+  };
+
+  // Get button state
+  const getButtonState = () => {
+    // Check if inputs are valid
+    const isInputValid = amount0 && amount1 && parseFloat(amount0) > 0 && parseFloat(amount1) > 0;
+    
+    // If waiting for transaction
+    if (isWaitingForTransaction) {
+      return {
+        text: isApproving ? 'Approving...' : 'Adding Liquidity...',
+        disabled: true,
+        onClick: () => {}
+      };
+    }
+    
+    // If approving
+    if (isWritePending) {
+      return {
+        text: 'Confirming...',
+        disabled: true,
+        onClick: () => {}
+      };
+    }
+    
+    // If needs approval
+    if (needsApproval) {
+      return {
+        text: 'Approve Tokens',
+        disabled: !isInputValid,
+        onClick: handleApprove
+      };
+    }
+    
+    // Default state - ready to add liquidity
+    return {
+      text: 'Add Liquidity',
+      disabled: !isInputValid,
+      onClick: handleAddLiquidity
+    };
+  };
+
+  const buttonState = getButtonState();
+
   return (
     <div className="max-w-screen-xl mx-auto py-8 px-4">
       <div className="mb-6">
@@ -235,6 +445,13 @@ export default function AddLiquidityPage() {
         <p className="text-secondary mb-4">
           Add liquidity to this prediction market to earn fees from trades.
         </p>
+        
+        {txError && (
+          <div className="mb-4 p-3 bg-red-900/30 border border-red-500 rounded-md text-red-200">
+            <p className="font-medium">Transaction Error</p>
+            <p className="text-sm">{txError}</p>
+          </div>
+        )}
         
         <div className="mb-6">
           <label className="block text-sm font-medium mb-2">
@@ -352,14 +569,27 @@ export default function AddLiquidityPage() {
                   : `1 USDC = ${getCurrentPrice()} NO tokens`}
               </div>
             </div>
+            
+            {/* Liquidity Amount Information */}
+            <div className="mt-3 p-3 bg-[#1E2530] rounded-md border border-border-color">
+              <div className="flex justify-between items-center">
+                <span className="text-sm">Liquidity Amount:</span>
+                <span className="text-sm font-medium">{liquidityAmount}</span>
+              </div>
+              <div className="mt-1 text-xs text-secondary">
+                Estimated liquidity based on your input amounts and current price
+              </div>
+            </div>
           </div>
         </div>
         
         <button 
           className="banner-button w-full" 
           style={{ backgroundColor: 'var(--primary-color)' }}
+          disabled={buttonState.disabled}
+          onClick={buttonState.onClick}
         >
-          Add Liquidity
+          {buttonState.text}
         </button>
         
         <div className="mt-4 text-sm text-secondary">
