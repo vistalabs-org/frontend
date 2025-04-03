@@ -41,6 +41,26 @@ export default function AddLiquidityPage() {
     return parseFloat(formatUnits(balance.value, balance.decimals)).toFixed(2);
   };
 
+  // Format price for display
+  const formatPrice = (pool: any) => {
+    if (!pool?.price) return '0.00';
+    try {
+      // Convert the price to token0/token1 by taking reciprocal
+      const priceAsNumber = Number(pool.price);
+      const token0Price = 1 / priceAsNumber;
+      return (token0Price * 100).toFixed(2);
+    } catch (error) {
+      console.error('Error formatting price:', error);
+      return '0.00';
+    }
+  };
+
+  // Get current price based on selected pool
+  const getCurrentPrice = () => {
+    const pool = selectedPool === 'YES' ? yesPool : noPool;
+    return formatPrice(pool);
+  };
+
   return (
     <div className="max-w-screen-xl mx-auto py-8 px-4">
       <div className="mb-6">
@@ -128,6 +148,51 @@ export default function AddLiquidityPage() {
               />
               <div className="bg-[#1E2530] border border-l-0 border-border-color rounded-r-md p-2 flex items-center">
                 {selectedPool}
+              </div>
+            </div>
+          </div>
+          
+          {/* Price Range Field */}
+          <div>
+            <div className="mb-2">
+              <label className="text-sm font-medium">
+                Price Range
+              </label>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="flex flex-col">
+                <label className="text-xs text-secondary mb-1">Low</label>
+                <input 
+                  type="number" 
+                  className="p-2 bg-[#1E2530] border border-border-color rounded-md focus:outline-none"
+                  value="0"
+                  disabled
+                />
+              </div>
+              <div className="flex flex-col">
+                <label className="text-xs text-secondary mb-1">High</label>
+                <input 
+                  type="number" 
+                  className="p-2 bg-[#1E2530] border border-border-color rounded-md focus:outline-none"
+                  value="1"
+                  disabled
+                />
+              </div>
+            </div>
+            <div className="mt-1 text-xs text-secondary">
+              Full range (0 to 1) provides liquidity across all price points
+            </div>
+            
+            {/* Current Price Information */}
+            <div className="mt-3 p-3 bg-[#1E2530] rounded-md border border-border-color">
+              <div className="flex justify-between items-center">
+                <span className="text-sm">Current Price:</span>
+                <span className="text-sm font-medium">{getCurrentPrice()}%</span>
+              </div>
+              <div className="mt-1 text-xs text-secondary">
+                {selectedPool === 'YES' 
+                  ? `1 USDC = ${getCurrentPrice()} YES tokens` 
+                  : `1 USDC = ${getCurrentPrice()} NO tokens`}
               </div>
             </div>
           </div>

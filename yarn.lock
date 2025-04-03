@@ -4175,7 +4175,7 @@
     "@uniswap/v3-core" "^1.0.0"
     base64-sol "1.0.1"
 
-"@uniswap/v3-sdk@^3.25.2":
+"@uniswap/v3-sdk@^3.25.2", "@uniswap/v3-sdk@3.25.2":
   version "3.25.2"
   resolved "https://registry.npmjs.org/@uniswap/v3-sdk/-/v3-sdk-3.25.2.tgz"
   integrity sha512-0oiyJNGjUVbc958uZmAr+m4XBCjV7PfMs/OUeBv+XDl33MEYF/eH86oBhvqGDM8S/cYaK55tCXzoWkmRUByrHg==
@@ -4207,6 +4207,17 @@
   version "1.0.1"
   resolved "https://registry.npmjs.org/@uniswap/v4-periphery/-/v4-periphery-1.0.1.tgz"
   integrity sha512-/ZLz7mCLL0eTo1M0h/Lc180OYMmpUEGb0yfqZ79nsqVdZCFp0TLQstLZ/zC+ofF7SrMoeGb57p+T8hbe6MXwNw==
+
+"@uniswap/v4-sdk@^1.21.2":
+  version "1.21.2"
+  resolved "https://registry.npmjs.org/@uniswap/v4-sdk/-/v4-sdk-1.21.2.tgz"
+  integrity sha512-MZVF/L8hEX0x8AClkSOWRDpUP24m1oMRLeYieXw/my767S8e9pG51eM9WaoL+RZUfJbOe8nFjgYzSKIaD9gkXA==
+  dependencies:
+    "@ethersproject/solidity" "^5.0.9"
+    "@uniswap/sdk-core" "^7.7.1"
+    "@uniswap/v3-sdk" "3.25.2"
+    tiny-invariant "^1.1.0"
+    tiny-warning "^1.0.3"
 
 "@unrs/rspack-resolver-binding-darwin-arm64@1.2.2":
   version "1.2.2"
