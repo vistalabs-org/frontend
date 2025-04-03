@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { format } from 'date-fns';
 import SwapFunction from './SwapFunction';
 import { useAccount } from 'wagmi';
-import { parseUnits } from 'ethers';
+import { parseUnits, formatUnits } from 'ethers';
 import { MockERC20Abi } from '@/contracts/MockERC20_abi';
 import { ROUTER } from '@/app/constants';
 
@@ -70,27 +70,69 @@ const TokenBalances = ({ collateralBalance, yesBalance, noBalance }: {
   );
 };
 
-// Add this new component for the price display with hardcoded values
-const PriceDisplay = ({ yesPrice, yesPercentage }: { yesPrice: string; yesPercentage: number }) => {
-  // Hardcode the percentages to 60% and 40%
-  const hardcodedYesPercentage = 60;
-  const hardcodedNoPercentage = 40;
-  
+// Update PriceDisplay to show actual prices
+const PriceDisplay = ({ yesPool, noPool }: { yesPool: any; noPool: any }) => {
+  const formatPrice = (pool: any) => {
+    if (!pool?.price) return '0.00';
+    try {
+      // Convert the price to token0/token1 by taking reciprocal
+      const priceAsNumber = Number(pool.price);
+      const token0Price = 1 / priceAsNumber;
+      return (token0Price * 100).toFixed(2);
+    } catch (error) {
+      console.error('Error formatting price:', error);
+      return '0.00';
+    }
+  };
+
+  // For debugging
+  console.log("PriceDisplay - yesPool:", yesPool);
+  console.log("PriceDisplay - noPool:", noPool);
+  console.log("PriceDisplay - yesPool liquidity:", yesPool?.liquidity);
+  console.log("PriceDisplay - noPool liquidity:", noPool?.liquidity);
+
   return (
     <div className="price-display p-8 text-center">
       <div className="flex justify-between items-center mb-6">
         <div className="text-center flex-1">
-          <div className="text-4xl font-bold mb-2">{hardcodedYesPercentage.toFixed(1)}%</div>
+          <div className="text-4xl font-bold mb-2">{formatPrice(yesPool)}%</div>
           <div className="text-sm text-secondary">Yes</div>
         </div>
         <div className="text-2xl text-secondary px-4">vs</div>
         <div className="text-center flex-1">
-          <div className="text-4xl font-bold mb-2">{hardcodedNoPercentage.toFixed(1)}%</div>
+          <div className="text-4xl font-bold mb-2">{formatPrice(noPool)}%</div>
           <div className="text-sm text-secondary">No</div>
         </div>
       </div>
-      <div className="text-sm text-secondary">
+      <div className="text-sm text-secondary mb-4">
         Current Market Price
+      </div>
+      
+      {/* Liquidity section */}
+      <div className="border-t border-border-color pt-4">
+        <div className="text-sm text-secondary mb-2">
+          Current Market Liquidity
+        </div>
+        <div className="flex justify-between items-center">
+          <div className="text-center flex-1">
+            <div className="text-lg font-medium">
+              {yesPool?.liquidity ? yesPool.liquidity.toString() : '0'}
+            </div>
+            <div className="text-xs text-secondary">Yes Pool</div>
+          </div>
+          <div className="text-center flex-1">
+            <div className="text-lg font-medium">
+              {noPool?.liquidity ? noPool.liquidity.toString() : '0'}
+            </div>
+            <div className="text-xs text-secondary">No Pool</div>
+          </div>
+        </div>
+        <div className="text-sm font-medium mt-2">
+          Total: {
+            ((yesPool?.liquidity ? BigInt(yesPool.liquidity) : BigInt(0)) + 
+             (noPool?.liquidity ? BigInt(noPool.liquidity) : BigInt(0))).toString()
+          }
+        </div>
       </div>
     </div>
   );
@@ -100,9 +142,6 @@ const PredictionMarketPage = ({
   marketData, 
   yesPool, 
   noPool, 
-  yesPrice, 
-  yesPercentage, 
-  description, 
   endTimestamp, 
   marketId,
   mintCollateralButton
@@ -200,7 +239,7 @@ const PredictionMarketPage = ({
                 </div>
                 <div>
                   <h1 className="text-2xl font-bold text-white">
-                    Will the U.S. Department of Education be dismantled by December 31, 2025?
+                    {marketData?.title || "Loading..."}
                   </h1>
                   <div className="flex items-center gap-4 text-sm text-secondary">
                     <span>${volume} Vol.</span>
@@ -221,10 +260,7 @@ const PredictionMarketPage = ({
 
               {/* Price Chart */}
               <Card className="mb-6">
-                <PriceDisplay 
-                  yesPrice={yesPrice} 
-                  yesPercentage={yesPercentage} 
-                />
+                <PriceDisplay yesPool={yesPool} noPool={noPool} />
               </Card>
 
               {/* Market Rules */}
@@ -235,7 +271,7 @@ const PredictionMarketPage = ({
                 
                 <div className="market-content">
                   <div className="prose max-w-none text-secondary">
-                    <p className="mb-4">{description || "Loading..."}</p>
+                    <p className="mb-4">{marketData?.description || "Loading..."}</p>
                     <p className="mb-4">
                       <span className="font-semibold">Resolution Date:</span>{' '}
                       {endTimestamp ? formatEndDate(Number(endTimestamp)) : "Loading..."}

@@ -58,12 +58,15 @@ export default function Home() {
           ) : (
             // Fallback static markets (these will show when API fails or returns empty)
             <>
-              <MarketCard title={'Market Title Goes Here'} url={'/0'} />
-              <MarketCard title={'Eth price > 2000 on Mar 25th'} url={'/1'} />
-              <MarketCard title={'Jesus rises in 2025'} url={'/2'} />
-              <MarketCard title={'We all retire'} url={'/3'} />
-              <MarketCard title={'Trump in jail'} url={'/4'} />
-              <MarketCard title={'Trump takes Kim jung un to New York Yankees in 2025'} url={'/5'} />
+              <div className="flex flex-col items-center justify-center p-8 text-center">
+                <h3 className="text-xl font-semibold mb-2">No markets detected</h3>
+                <p className="text-gray-500">
+                  There are currently no prediction markets available or there was an error loading the markets.
+                </p>
+                <p className="text-gray-500 mt-4">
+                  Try refreshing the page or check back later. Or create your own market!
+                </p>
+              </div>
             </>
           )}
         </div>

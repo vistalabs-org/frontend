@@ -251,6 +251,14 @@ export default function CreateProposal() {
             <p><strong>Duration:</strong> {formData.duration} days</p>
             <p><strong>Collateral:</strong> {formData.collateralAmount} tokens</p>
             <p><strong>Collateral Address:</strong> {formData.collateralAddress}</p>
+            
+            {/* New information about token distribution */}
+            <div className="mt-3 pt-3 border-t border-gray-600">
+              <p>You will receive <strong>{formData.collateralAmount} YES tokens</strong> and <strong>{formData.collateralAmount} NO tokens</strong> after market creation.</p>
+              <p className="text-sm text-gray-400 mt-1">
+                These tokens represent your position in this prediction market. You can use them to add liquidity to the market. You can also trade them on the market page.
+              </p>
+            </div>
           </div>
         )}
         
