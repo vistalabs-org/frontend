@@ -337,7 +337,7 @@ export default function AddLiquidityPage() {
 
   // Handle adding liquidity
   const handleAddLiquidity = async () => {
-    if (!marketWithPools || !yesPool || !noPool) {
+    if (!marketWithPools) {
       setTxError('Market data not available');
       return;
     }
@@ -346,14 +346,19 @@ export default function AddLiquidityPage() {
     setTxError(null);
     
     try {
-      // Get the pool key
-      const poolKey = {
-        currency0: usdcAddress,
-        currency1: outcomeTokenAddress,
-        fee: selectedPool === 'YES' ? yesPool?.fee || 3000 : noPool?.fee || 3000,
-        tickSpacing: 60, // Hardcoded tick spacing value
-        hooks: '0x0000000000000000000000000000000000000000' as `0x${string}`
-      };
+      // Get the pool key directly from market data
+      const poolKey = selectedPool === 'YES' 
+        ? marketWithPools.yesPoolKey 
+        : marketWithPools.noPoolKey;
+      
+      if (!poolKey) {
+        setTxError(`${selectedPool} pool key not available`);
+        setIsAddingLiquidity(false);
+        return;
+      }
+      
+      console.log("marketWithPools", marketWithPools)
+      console.log("Using pool key:", poolKey);
       
       // In Uniswap V3, ticks are calculated as log(sqrt(price)) * 2^23
       // For price range 0 to 1:

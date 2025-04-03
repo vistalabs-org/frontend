@@ -8,6 +8,7 @@ import { PoolSwapTestAbi } from '@/contracts/PoolSwapTest_abi';
 import { MockERC20Abi } from '@/contracts/MockERC20_abi';
 import { simulateContract } from '@wagmi/core';
 import { wagmiConfig } from '@/lib/wagmi';
+import { getPublicClient } from '@wagmi/core';
 
 type SwapFunctionProps = {
   marketId: string;
@@ -155,21 +156,17 @@ export default function SwapFunction({
     }
     
     try {
-      // Determine which pool to use
-      const pool = selectedOption === 'Yes' ? yesPool : noPool;
-      if (!pool) {
-        alert('Pool data not available');
+      // Get the pool key directly from market data
+      const poolKey = selectedOption === 'Yes' 
+        ? market.yesPoolKey 
+        : market.noPoolKey;
+      
+      if (!poolKey) {
+        alert(`${selectedOption} pool key not available`);
         return;
       }
       
-      // Prepare the pool key
-      const poolKey = {
-        currency0: pool.currency0,
-        currency1: pool.currency1,
-        fee: pool.fee || 500,
-        tickSpacing: pool.tickSpacing || 10,
-        hooks: PREDICTION_MARKET_HOOK_ADDRESS
-      };
+      console.log("Using pool key:", poolKey);
       
       // Prepare swap parameters based on action
       const swapParams = selectedAction === 'Buy' 
@@ -196,24 +193,19 @@ export default function SwapFunction({
         testSettings
       });
 
-      const simulation = await simulateContract(wagmiConfig, {
+      const { request } = await getPublicClient(wagmiConfig).simulateContract({
+        account: address,
         address: ROUTER as `0x${string}`,
         abi: PoolSwapTestAbi,
         functionName: 'swap',
         args: [poolKey, swapParams, testSettings, '0x'],
-        account: address,
       });
 
-      console.log('Simulation result:', simulation);
+      console.log('Simulation successful, sending transaction');
 
       // If simulation succeeds, proceed with actual swap
       setIsSwapping(true);
-      await executeSwap({
-        address: ROUTER as `0x${string}`,
-        abi: PoolSwapTestAbi,
-        functionName: 'swap',
-        args: [poolKey, swapParams, testSettings, '0x'],
-      });
+      executeSwap(request);
 
     } catch (error) {
       console.error('Swap error:', error);
