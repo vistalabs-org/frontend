@@ -11,6 +11,8 @@ import { POOL_MODIFY_LIQUIDITY_ROUTER } from '@/app/constants';
 import JSBI from 'jsbi';
 import { MockERC20Abi } from '@/contracts/MockERC20_abi';
 import { randomBytes } from 'crypto';
+import { getPublicClient } from '@wagmi/core';
+import { wagmiConfig } from '@/lib/wagmi';
 
 // Constants from Uniswap
 const Q96 = JSBI.exponentiate(JSBI.BigInt(2), JSBI.BigInt(96));
@@ -348,21 +350,35 @@ export default function AddLiquidityPage() {
       const poolKey = {
         currency0: usdcAddress,
         currency1: outcomeTokenAddress,
-        fee: selectedPool === 'YES' ? yesPool?.fee || 1000 : noPool?.fee || 1000,
-        tickSpacing: 100, // Hardcoded tick spacing value
+        fee: selectedPool === 'YES' ? yesPool?.fee || 3000 : noPool?.fee || 3000,
+        tickSpacing: 60, // Hardcoded tick spacing value
         hooks: '0x0000000000000000000000000000000000000000' as `0x${string}`
       };
       
+      // In Uniswap V3, ticks are calculated as log(sqrt(price)) * 2^23
+      // For price range 0 to 1:
+      // Price 0 corresponds to tick -887272 (minimum possible tick)
+      // Price 1 corresponds to tick 0 (since log(sqrt(1)) = 0)
+      const tickLower = -887272; // Price near 0
+      const tickUpper = 0;       // Price = 1
+      
       // Get the modify liquidity params
       const modifyLiquidityParams = {
-        tickLower: -887272, // Min tick for full range
-        tickUpper: 887272,  // Max tick for full range
+        tickLower: tickLower,
+        tickUpper: tickUpper,
         liquidityDelta: BigInt(parseUnits(liquidityAmount, 18).toString()), // Convert to bigint
         salt: ('0x' + randomBytes(32).toString('hex')) as `0x${string}` // Cast to proper type
       };
       
-      // Call modifyLiquidity
-      writeContract({
+      console.log('Adding liquidity with params:', {
+        poolKey,
+        modifyLiquidityParams,
+        liquidityAmount
+      });
+      
+      // Simulate transaction
+      const { request } = await getPublicClient(wagmiConfig).simulateContract({
+        account: userAddress,
         address: poolModifyLiquidityTestAddress,
         abi: PoolModifyLiquidityTest_abi,
         functionName: 'modifyLiquidity',
@@ -373,12 +389,16 @@ export default function AddLiquidityPage() {
           false, // Don't settle using burn
           false  // Don't take claims
         ],
-        value: BigInt(0) // No ETH value
       });
+      
+      console.log('Simulation successful, sending transaction');
+      
+      // Call modifyLiquidity
+      writeContract(request);
     } catch (error) {
       console.error('Error adding liquidity:', error);
       setIsAddingLiquidity(false);
-      setTxError('Failed to add liquidity');
+      setTxError(`Failed to add liquidity: ${error instanceof Error ? error.message : String(error)}`);
     }
   };
 
