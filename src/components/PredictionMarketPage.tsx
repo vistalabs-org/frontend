@@ -70,8 +70,8 @@ const TokenBalances = ({ collateralBalance, yesBalance, noBalance }: {
   );
 };
 
-// Update PriceDisplay to show actual prices
-const PriceDisplay = ({ yesPool, noPool }: { yesPool: any; noPool: any }) => {
+// Update PriceDisplay to show actual prices and raw liquidity
+const PriceDisplay = ({ yesPool, noPool, marketId }: { yesPool: any; noPool: any; marketId: string }) => {
   const formatPrice = (pool: any) => {
     if (!pool?.price) return '0.00';
     try {
@@ -108,10 +108,22 @@ const PriceDisplay = ({ yesPool, noPool }: { yesPool: any; noPool: any }) => {
         Current Market Price
       </div>
       
-      {/* Liquidity section */}
+      {/* Liquidity section with Add Liquidity link */}
       <div className="border-t border-border-color pt-4">
-        <div className="text-sm text-secondary mb-2">
-          Current Market Liquidity
+        <div className="flex justify-between items-center mb-2">
+          <div className="text-sm text-secondary">
+            Current Market Liquidity
+          </div>
+          <a 
+            href={`/${marketId}/add-liquidity`}
+            className="text-sm text-primary-color hover:underline flex items-center"
+            style={{ color: 'var(--primary-color)' }}
+          >
+            <svg className="w-3 h-3 mr-1" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
+            </svg>
+            Add Liquidity
+          </a>
         </div>
         <div className="flex justify-between items-center">
           <div className="text-center flex-1">
@@ -195,6 +207,12 @@ const PredictionMarketPage = ({
     return format(date, "MMMM d, yyyy 'at' h:mm a");
   };
 
+  // For debugging
+  console.log("PredictionMarketPage - yesPool:", yesPool);
+  console.log("PredictionMarketPage - noPool:", noPool);
+  console.log("PredictionMarketPage - yesPool liquidity:", yesPool?.liquidity);
+  console.log("PredictionMarketPage - noPool liquidity:", noPool?.liquidity);
+
   return (
     <div className="max-w-screen-xl mx-auto py-6 text-primary">
       <div className="flex flex-col gap-6">
@@ -260,7 +278,7 @@ const PredictionMarketPage = ({
 
               {/* Price Chart */}
               <Card className="mb-6">
-                <PriceDisplay yesPool={yesPool} noPool={noPool} />
+                <PriceDisplay yesPool={yesPool} noPool={noPool} marketId={marketId} />
               </Card>
 
               {/* Market Rules */}
