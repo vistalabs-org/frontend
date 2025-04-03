@@ -1,11 +1,17 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAccount, useBalance } from 'wagmi';
 import { useMarketWithPoolData } from '@/hooks/usePoolData';
-import { formatUnits } from 'ethers';
+import { formatUnits, parseUnits } from 'ethers';
+import { PoolModifyLiquidityTest_abi } from '@/contracts/PoolModifyLiquidityTest_abi';
+import { POOL_MODIFY_LIQUIDITY_ROUTER } from '@/app/constants';
+import JSBI from 'jsbi';
+
+// Constants from Uniswap
+const Q96 = JSBI.exponentiate(JSBI.BigInt(2), JSBI.BigInt(96));
 
 export default function AddLiquidityPage() {
   const params = useParams();
@@ -13,11 +19,25 @@ export default function AddLiquidityPage() {
   const marketId = params.id as string;
   const { address: userAddress } = useAccount();
   
+
+  
   // Set YES as default selected pool
   const [selectedPool, setSelectedPool] = useState<'YES' | 'NO'>('YES');
+  const [amount0, setAmount0] = useState<string>('');
+  const [amount1, setAmount1] = useState<string>('');
+  const [liquidityAmount, setLiquidityAmount] = useState<string>('0');
+  const [needsApproval, setNeedsApproval] = useState<boolean>(false);
+  const [isApproving, setIsApproving] = useState<boolean>(false);
+  const [isAddingLiquidity, setIsAddingLiquidity] = useState<boolean>(false);
 
   // Fetch market data to get token addresses
   const { market: marketWithPools, yesPool, noPool } = useMarketWithPoolData(marketId);
+
+  // Get token addresses
+  const usdcAddress = marketWithPools?.collateralAddress as `0x${string}`;
+  const outcomeTokenAddress = selectedPool === 'YES' 
+    ? marketWithPools?.yesTokenAddress as `0x${string}`
+    : marketWithPools?.noTokenAddress as `0x${string}`;
 
   // Get USDC balance
   const { data: usdcBalance } = useBalance({
@@ -59,6 +79,139 @@ export default function AddLiquidityPage() {
   const getCurrentPrice = () => {
     const pool = selectedPool === 'YES' ? yesPool : noPool;
     return formatPrice(pool);
+  };
+
+  // Get current price as a number
+  const getCurrentPriceAsNumber = (): number => {
+    const pool = selectedPool === 'YES' ? yesPool : noPool;
+    if (!pool?.price) return 0;
+    try {
+      const priceAsNumber = Number(pool.price);
+      const token0Price = 1 / priceAsNumber;
+      return token0Price;
+    } catch (error) {
+      console.error('Error getting price as number:', error);
+      return 0;
+    }
+  };
+
+  // Uniswap V3 liquidity calculation functions
+  // Based on https://github.com/Uniswap/sdks/blob/main/sdks/v3-sdk/src/utils/maxLiquidityForAmounts.ts
+  
+  function maxLiquidityForAmount0Precise(sqrtRatioAX96: JSBI, sqrtRatioBX96: JSBI, amount0: string): JSBI {
+    if (JSBI.greaterThan(sqrtRatioAX96, sqrtRatioBX96)) {
+      [sqrtRatioAX96, sqrtRatioBX96] = [sqrtRatioBX96, sqrtRatioAX96];
+    }
+    
+    const numerator = JSBI.multiply(
+      JSBI.multiply(JSBI.BigInt(amount0), sqrtRatioAX96), 
+      sqrtRatioBX96
+    );
+    const denominator = JSBI.multiply(Q96, JSBI.subtract(sqrtRatioBX96, sqrtRatioAX96));
+    
+    return JSBI.divide(numerator, denominator);
+  }
+  
+  function maxLiquidityForAmount1(sqrtRatioAX96: JSBI, sqrtRatioBX96: JSBI, amount1: string): JSBI {
+    if (JSBI.greaterThan(sqrtRatioAX96, sqrtRatioBX96)) {
+      [sqrtRatioAX96, sqrtRatioBX96] = [sqrtRatioBX96, sqrtRatioAX96];
+    }
+    
+    return JSBI.divide(
+      JSBI.multiply(JSBI.BigInt(amount1), Q96), 
+      JSBI.subtract(sqrtRatioBX96, sqrtRatioAX96)
+    );
+  }
+  
+  function maxLiquidityForAmounts(
+    sqrtRatioCurrentX96: JSBI,
+    sqrtRatioAX96: JSBI,
+    sqrtRatioBX96: JSBI,
+    amount0: string,
+    amount1: string
+  ): JSBI {
+    if (JSBI.greaterThan(sqrtRatioAX96, sqrtRatioBX96)) {
+      [sqrtRatioAX96, sqrtRatioBX96] = [sqrtRatioBX96, sqrtRatioAX96];
+    }
+    
+    if (JSBI.lessThanOrEqual(sqrtRatioCurrentX96, sqrtRatioAX96)) {
+      return maxLiquidityForAmount0Precise(sqrtRatioAX96, sqrtRatioBX96, amount0);
+    } else if (JSBI.lessThan(sqrtRatioCurrentX96, sqrtRatioBX96)) {
+      const liquidity0 = maxLiquidityForAmount0Precise(sqrtRatioCurrentX96, sqrtRatioBX96, amount0);
+      const liquidity1 = maxLiquidityForAmount1(sqrtRatioAX96, sqrtRatioCurrentX96, amount1);
+      return JSBI.lessThan(liquidity0, liquidity1) ? liquidity0 : liquidity1;
+    } else {
+      return maxLiquidityForAmount1(sqrtRatioAX96, sqrtRatioBX96, amount1);
+    }
+  }
+
+  // Calculate liquidity using Uniswap V3 algorithm
+  const calculateLiquidity = (amount0: string, amount1: string): string => {
+    if (!amount0 || !amount1) return '0';
+    
+    try {
+      // For full range (min to max ticks), we use the minimum and maximum sqrt prices
+      // Min tick corresponds to price of 0, max tick to price of infinity
+      // In practice, we use very small and very large numbers
+      const minSqrtPrice = JSBI.BigInt(1); // Close to 0
+      const maxSqrtPrice = JSBI.exponentiate(JSBI.BigInt(2), JSBI.BigInt(128)); // Very large
+      
+      // Current price in sqrt Q96 format
+      const price = getCurrentPriceAsNumber();
+      if (price <= 0) return '0';
+      
+      // Convert price to sqrt price in Q96 format
+      const sqrtPrice = JSBI.BigInt(Math.floor(Math.sqrt(price) * 2**96));
+      
+      // Convert amounts to BigInt (assuming 18 decimals for simplicity)
+      // In a real implementation, you'd use the actual token decimals
+      const amt0 = parseFloat(amount0) * 10**18;
+      const amt1 = parseFloat(amount1) * 10**18;
+      
+      // Calculate liquidity
+      const liquidity = maxLiquidityForAmounts(
+        sqrtPrice,
+        minSqrtPrice,
+        maxSqrtPrice,
+        amt0.toString(),
+        amt1.toString()
+      );
+      
+      // Convert back to a readable format
+      return (Number(liquidity.toString()) / 10**18).toFixed(6);
+    } catch (error) {
+      console.error('Error calculating liquidity:', error);
+      return '0';
+    }
+  };
+
+  // Update liquidity amount when inputs change
+  useEffect(() => {
+    if (amount0 && amount1) {
+      const liquidity = calculateLiquidity(amount0, amount1);
+      setLiquidityAmount(liquidity);
+    }
+  }, [amount0, amount1, selectedPool]);
+
+  // Handle input changes
+  const handleAmount0Change = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setAmount0(e.target.value);
+    // Optionally calculate amount1 based on price
+    if (e.target.value) {
+      const price = getCurrentPriceAsNumber();
+      const calculatedAmount1 = (parseFloat(e.target.value) * price).toString();
+      setAmount1(calculatedAmount1);
+    }
+  };
+
+  const handleAmount1Change = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setAmount1(e.target.value);
+    // Optionally calculate amount0 based on price
+    if (e.target.value) {
+      const price = getCurrentPriceAsNumber();
+      const calculatedAmount0 = (parseFloat(e.target.value) / price).toString();
+      setAmount0(calculatedAmount0);
+    }
   };
 
   return (
@@ -124,6 +277,8 @@ export default function AddLiquidityPage() {
                 type="number" 
                 className="flex-grow p-2 bg-[#1E2530] border border-border-color rounded-l-md focus:outline-none"
                 placeholder="0.0"
+                value={amount0}
+                onChange={handleAmount0Change}
               />
               <div className="bg-[#1E2530] border border-l-0 border-border-color rounded-r-md p-2 flex items-center">
                 USDC
@@ -145,6 +300,8 @@ export default function AddLiquidityPage() {
                 type="number" 
                 className="flex-grow p-2 bg-[#1E2530] border border-border-color rounded-l-md focus:outline-none"
                 placeholder="0.0"
+                value={amount1}
+                onChange={handleAmount1Change}
               />
               <div className="bg-[#1E2530] border border-l-0 border-border-color rounded-r-md p-2 flex items-center">
                 {selectedPool}
