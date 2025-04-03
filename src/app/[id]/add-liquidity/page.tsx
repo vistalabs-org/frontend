@@ -286,17 +286,6 @@ export default function AddLiquidityPage() {
     }
   };
 
-  // Update approval status when inputs change
-  useEffect(() => {
-    checkApprovalStatus();
-  }, [amount0, amount1, usdcAllowance, outcomeTokenAllowance]);
-
-  // Update approval status when token addresses change
-  useEffect(() => {
-    refetchUsdcAllowance();
-    refetchOutcomeTokenAllowance();
-  }, [usdcAddress, outcomeTokenAddress]);
-
   // Handle token approval
   const handleApprove = async () => {
     setIsApproving(true);
@@ -312,28 +301,49 @@ export default function AddLiquidityPage() {
       
       // Approve USDC if needed
       if (needsUsdcApproval) {
-        writeContract({
+        console.log('Approving USDC...');
+        
+        const { request } = await getPublicClient(wagmiConfig).simulateContract({
+          account: userAddress,
           address: usdcAddress,
           abi: MockERC20Abi,
           functionName: 'approve',
           args: [poolModifyLiquidityTestAddress, MAX_UINT256]
         });
+        
+        writeContract(request);
       } 
       // Approve outcome token if needed
       else if (needsOutcomeTokenApproval) {
-        writeContract({
+        console.log('Approving outcome token...');
+        
+        const { request } = await getPublicClient(wagmiConfig).simulateContract({
+          account: userAddress,
           address: outcomeTokenAddress,
           abi: MockERC20Abi,
           functionName: 'approve',
           args: [poolModifyLiquidityTestAddress, MAX_UINT256]
         });
+        
+        writeContract(request);
       }
     } catch (error) {
       console.error('Error approving tokens:', error);
       setIsApproving(false);
-      setTxError('Failed to approve tokens');
+      setTxError(`Failed to approve tokens: ${error instanceof Error ? error.message : String(error)}`);
     }
   };
+
+  // Update approval status when inputs change
+  useEffect(() => {
+    checkApprovalStatus();
+  }, [amount0, amount1, usdcAllowance, outcomeTokenAllowance]);
+
+  // Update approval status when token addresses change
+  useEffect(() => {
+    refetchUsdcAllowance();
+    refetchOutcomeTokenAllowance();
+  }, [usdcAddress, outcomeTokenAddress]);
 
   // Handle adding liquidity
   const handleAddLiquidity = async () => {
@@ -360,12 +370,10 @@ export default function AddLiquidityPage() {
       console.log("marketWithPools", marketWithPools)
       console.log("Using pool key:", poolKey);
       
-      // In Uniswap V3, ticks are calculated as log(sqrt(price)) * 2^23
-      // For price range 0 to 1:
-      // Price 0 corresponds to tick -887272 (minimum possible tick)
-      // Price 1 corresponds to tick 0 (since log(sqrt(1)) = 0)
-      const tickLower = -887272; // Price near 0
-      const tickUpper = 0;       // Price = 1
+      // Use the tick range from PredictionMarketHook
+      // These ticks constrain the price between 0.01 and 0.99 USDC
+      const tickLower = -9200; // Slightly above 0.01 USDC
+      const tickUpper = -100;  // Slightly below 0.99 USDC
       
       // Get the modify liquidity params
       const modifyLiquidityParams = {
