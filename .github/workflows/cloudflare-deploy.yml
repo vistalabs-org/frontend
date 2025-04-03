@@ -45,7 +45,6 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           CLOUDFLARE_PROJECT_NAME: market
 
-          ALCHEMY_API_KEY: ${{ secrets.ALCHEMY_API_KEY }}
           NEXT_PUBLIC_ALCHEMY_API_KEY: ${{ secrets.ALCHEMY_API_KEY }}
           NEXT_PUBLIC_GAS_MANAGER_POLICY_ID: ${{ secrets.GAS_MANAGER_POLICY_ID }}
           SEPOLIA_URL: ${{ secrets.SEPOLIA_URL }}
