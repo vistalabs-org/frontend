@@ -151,17 +151,37 @@ export default function CreateMarket() {
       
       {/* Market summary */}
       {formData && (
-        <div className="bg-[#2D3745] p-4 rounded-md mb-6">
-          <h3 className="text-lg font-medium mb-2">Market Summary</h3>
-          <p><strong>Title:</strong> {formData.title}</p>
-          <p><strong>Description:</strong> {formData.description}</p>
-          <p><strong>Duration:</strong> {formData.duration} days</p>
-          <p><strong>Collateral:</strong> {formData.collateralAmount} tokens {tokenDecimals !== null ? `(${tokenDecimals} decimals)` : ''}</p>
+        <div className="bg-[#1E2530] rounded-lg p-6 shadow-lg">
+          <h2 className="text-2xl font-semibold text-white mb-6">Market Summary</h2>
           
-          {/* Token distribution info */}
-          <div className="mt-3 pt-3 border-t border-gray-600">
-            <p>You will receive <strong>{formData.collateralAmount} YES tokens</strong> and <strong>{formData.collateralAmount} NO tokens</strong> after market creation.</p>
-            <p className="text-sm text-gray-400 mt-1">
+          <div className="space-y-4">
+            <div>
+              <span className="text-gray-400">Title:</span>
+              <span className="text-white ml-2">{formData.title}</span>
+            </div>
+            
+            <div>
+              <span className="text-gray-400">Description:</span>
+              <span className="text-white ml-2">{formData.description}</span>
+            </div>
+            
+            <div>
+              <span className="text-gray-400">Duration:</span>
+              <span className="text-white ml-2">{formData.duration} days</span>
+            </div>
+            
+            <div>
+              <span className="text-gray-400">Collateral:</span>
+              <span className="text-white ml-2">{formData.collateralAmount} tokens ({formData.decimals} decimals)</span>
+            </div>
+          </div>
+          
+          <div className="mt-8 border-t border-gray-700 pt-6">
+            <p className="text-white mb-4">
+              You will receive <span className="font-semibold">{formData.collateralAmount} YES tokens</span> and 
+              <span className="font-semibold"> {formData.collateralAmount} NO tokens</span> after market creation.
+            </p>
+            <p className="text-gray-400">
               These tokens represent your position in this prediction market. You can use them to add liquidity to the market or trade them.
             </p>
           </div>
@@ -171,7 +191,7 @@ export default function CreateMarket() {
       <button
         onClick={buttonState.onClick}
         disabled={buttonState.disabled}
-        className="w-full px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:bg-gray-500"
+        className="w-full mt-6 bg-[#4CAF50] hover:bg-[#45a049] text-white font-bold py-4 px-6 rounded-lg transition-colors"
       >
         {buttonState.text}
       </button>
