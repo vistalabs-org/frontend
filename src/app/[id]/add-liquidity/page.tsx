@@ -12,7 +12,6 @@ import { PoolModifyLiquidityTest_abi } from '@/contracts/PoolModifyLiquidityTest
 import { POOL_MODIFY_LIQUIDITY_ROUTER } from '@/app/constants';
 import JSBI from 'jsbi';
 import { MockERC20Abi } from '@/contracts/MockERC20_abi';
-import { randomBytes } from 'crypto';
 import { getPublicClient } from '@wagmi/core';
 import { wagmiConfig } from '@/lib/wagmi';
 
@@ -52,14 +51,12 @@ export default function AddLiquidityPage() {
   const { data: usdcBalance } = useBalance({
     address: userAddress,
     token: usdcAddress,
-    watch: true
   });
 
   // Get YES/NO token balance
   const { data: outcomeTokenBalance } = useBalance({
     address: userAddress,
     token: outcomeTokenAddress,
-    watch: true
   });
 
   // Check USDC allowance
@@ -379,11 +376,15 @@ export default function AddLiquidityPage() {
       const tickUpper = -100;  // Slightly below 0.99 USDC
       
       // Get the modify liquidity params
+      const saltBytes = new Uint8Array(32);
+      crypto.getRandomValues(saltBytes);
+      const saltHex = Array.from(saltBytes).map(b => b.toString(16).padStart(2, '0')).join('');
+      
       const modifyLiquidityParams = {
         tickLower: tickLower,
         tickUpper: tickUpper,
         liquidityDelta: BigInt(parseUnits(liquidityAmount, 18).toString()), // Convert to bigint
-        salt: ('0x' + randomBytes(32).toString('hex')) as `0x${string}` // Cast to proper type
+        salt: `0x${saltHex}` as `0x${string}` // Use Web Crypto API for salt
       };
       
       console.log('Adding liquidity with params:', {
@@ -392,6 +393,15 @@ export default function AddLiquidityPage() {
         liquidityAmount
       });
       
+      // Ensure poolKey structure matches ABI
+      const abiCompatiblePoolKey = {
+        currency0: poolKey.currency0,
+        currency1: poolKey.currency1,
+        fee: poolKey.fee,
+        tickSpacing: poolKey.tickSpacing,
+        hooks: poolKey.hooks
+      };
+
       // Simulate transaction
       const { request } = await getPublicClient(wagmiConfig).simulateContract({
         account: userAddress,
@@ -399,7 +409,7 @@ export default function AddLiquidityPage() {
         abi: PoolModifyLiquidityTest_abi,
         functionName: 'modifyLiquidity',
         args: [
-          poolKey,
+          abiCompatiblePoolKey, // Pass the structured poolKey
           modifyLiquidityParams,
           '0x', // No hook data
           false, // Don't settle using burn
