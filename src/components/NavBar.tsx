@@ -13,10 +13,13 @@ const roboto = Roboto({
 
 const NavBar = () => {
   return (
-    <nav className="flex items-center justify-between px-6 py-4 bg-[#1E2631] border-b border-[#2D3745]">
+    <nav className="flex items-center justify-between px-6 py-4 bg-white border-b border-gray-200">
       {/* Left - Create Proposal Link */}
       <div className="flex-1">
-        <Link href="/create-proposal" className="text-white hover:text-blue-400 transition-colors">
+        <Link 
+          href="/create-proposal" 
+          className="text-gray-600 hover:text-blue-600 transition-colors"
+        >
           Create Proposal
         </Link>
       </div>
@@ -33,7 +36,7 @@ const NavBar = () => {
               priority
             />
           </div>
-          <h1 className={`${roboto.className} text-xl text-white`}>Vista Market</h1>
+          <h1 className={`${roboto.className} text-xl text-gray-900`}>Vista Market</h1>
         </Link>
       </div>
 

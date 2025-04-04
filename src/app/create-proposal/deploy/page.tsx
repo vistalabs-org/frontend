@@ -139,49 +139,49 @@ export default function CreateMarket() {
 
   return (
     <div className="max-w-2xl mx-auto p-6">
-      <h1 className="text-2xl font-bold mb-6">
+      <h1 className="text-2xl font-bold text-gray-900 mb-6">
         {step === 'approve' ? 'Approve Tokens' : 'Create Market'}
       </h1>
       
       {error && (
-        <div className="bg-red-900/50 border border-red-500 text-red-200 p-3 rounded mb-4">
+        <div className="bg-red-50 border border-red-400 text-red-700 p-3 rounded mb-4">
           {error}
         </div>
       )}
       
       {/* Market summary */}
       {formData && (
-        <div className="bg-[#1E2530] rounded-lg p-6 shadow-lg">
-          <h2 className="text-2xl font-semibold text-white mb-6">Market Summary</h2>
+        <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
+          <h2 className="text-2xl font-semibold text-gray-900 mb-6">Market Summary</h2>
           
           <div className="space-y-4">
             <div>
-              <span className="text-gray-400">Title:</span>
-              <span className="text-white ml-2">{formData.title}</span>
+              <span className="text-gray-600">Title:</span>
+              <span className="text-gray-900 ml-2">{formData.title}</span>
             </div>
             
             <div>
-              <span className="text-gray-400">Description:</span>
-              <span className="text-white ml-2">{formData.description}</span>
+              <span className="text-gray-600">Description:</span>
+              <span className="text-gray-900 ml-2">{formData.description}</span>
             </div>
             
             <div>
-              <span className="text-gray-400">Duration:</span>
-              <span className="text-white ml-2">{formData.duration} days</span>
+              <span className="text-gray-600">Duration:</span>
+              <span className="text-gray-900 ml-2">{formData.duration} days</span>
             </div>
             
             <div>
-              <span className="text-gray-400">Collateral:</span>
-              <span className="text-white ml-2">{formData.collateralAmount} tokens ({formData.decimals} decimals)</span>
+              <span className="text-gray-600">Collateral:</span>
+              <span className="text-gray-900 ml-2">{formData.collateralAmount} tokens ({formData.decimals} decimals)</span>
             </div>
           </div>
           
-          <div className="mt-8 border-t border-gray-700 pt-6">
-            <p className="text-white mb-4">
+          <div className="mt-8 border-t border-gray-200 pt-6">
+            <p className="text-gray-900 mb-4">
               You will receive <span className="font-semibold">{formData.collateralAmount} YES tokens</span> and 
               <span className="font-semibold"> {formData.collateralAmount} NO tokens</span> after market creation.
             </p>
-            <p className="text-gray-400">
+            <p className="text-gray-600">
               These tokens represent your position in this prediction market. You can use them to add liquidity to the market or trade them.
             </p>
           </div>
@@ -191,13 +191,13 @@ export default function CreateMarket() {
       <button
         onClick={buttonState.onClick}
         disabled={buttonState.disabled}
-        className="w-full mt-6 bg-[#4CAF50] hover:bg-[#45a049] text-white font-bold py-4 px-6 rounded-lg transition-colors"
+        className="w-full mt-6 bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 px-6 rounded-lg transition-colors disabled:bg-gray-300 disabled:text-gray-500 disabled:cursor-not-allowed"
       >
         {buttonState.text}
       </button>
       
       {tokenDecimals === null && formData && (
-        <p className="mt-2 text-yellow-400 text-sm">
+        <p className="mt-2 text-yellow-600 text-sm">
           Loading token information...
         </p>
       )}
