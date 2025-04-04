@@ -8,9 +8,11 @@ import { useMarketWithPoolData } from '@/hooks/usePoolData';
 import { format } from 'date-fns';
 import { MintCollateralButton } from './MintCollateralButton';
 import { useAccount } from 'wagmi';
-import { useRouter } from 'next/navigation';
+import { useLiquidity } from '@/hooks/useStateView';
 
-const MarketWithPoolData = ({ marketId }: { marketId: string }) => {
+// Create a new component to use the pool data hook
+const MarketWithPoolData = ({ marketId, market }: { marketId: string; market: any }) => {
+  // Import and use the hook directly in a component
   const { market: marketWithPools, yesPool, noPool, isLoading: poolLoading } = useMarketWithPoolData(marketId);
   
   useEffect(() => {
@@ -35,6 +37,11 @@ export default function MarketPageClient({ id }: { id: string }) {
   const { market, isLoading: marketLoading, isError } = useMarketByIndex(id);
   const { market: marketWithPools, yesPool, noPool } = useMarketWithPoolData(id);
   
+  // Add this to your existing hooks
+  const { data: yesLiquidity } = useLiquidity(yesPool?.poolId);
+  const { data: noLiquidity } = useLiquidity(noPool?.poolId);
+  
+  // Format the timestamp (converts from seconds to milliseconds)
   const formatEndDate = (timestamp: number) => {
     const date = new Date(timestamp * 1000);
     return format(date, "MMMM d, yyyy 'at' h:mm a");
@@ -92,8 +99,8 @@ export default function MarketPageClient({ id }: { id: string }) {
         {/* Main market UI */}
         <PredictionMarketPage 
           marketData={marketWithPools || market}
-          yesPool={yesPool}
-          noPool={noPool}
+          yesPool={{...yesPool, liquidity: yesLiquidity}}
+          noPool={{...noPool, liquidity: noLiquidity}}
           yesPrice={getYesPrice()}
           yesPercentage={yesPool?.price ? yesPool.price * 100 : 50}
           description={market.description}
