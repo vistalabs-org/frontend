@@ -737,3 +737,322 @@ button {
   -webkit-text-fill-color: transparent;
   background-clip: text;
 }
+
+
+/* Include this in your global CSS or import it in the Resolution component */
+
+.resolution-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+}
+
+.market-info-card,
+.resolution-status-card,
+.ai-agents-card {
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  padding: 1.5rem;
+  margin-bottom: 2rem;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+}
+
+.create-task-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 2rem 0;
+}
+
+.create-task-button {
+  background-color: #3b82f6;
+  color: white;
+  padding: 0.75rem 1.5rem;
+  border-radius: 6px;
+  font-weight: 500;
+  margin-top: 1rem;
+  border: none;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.create-task-button:hover {
+  background-color: #2563eb;
+}
+
+.create-task-button:disabled {
+  background-color: #93c5fd;
+  cursor: not-allowed;
+}
+
+.task-details {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.status-created {
+  color: #3b82f6;
+}
+
+.status-in-progress {
+  color: #f59e0b;
+}
+
+.status-resolved {
+  color: #10b981;
+}
+
+.status-unknown {
+  color: #6b7280;
+}
+
+.resolution-result {
+  background-color: #e0f2fe;
+  padding: 1rem;
+  border-radius: 6px;
+}
+
+.result-value {
+  font-size: 1.5rem;
+  font-weight: 600;
+  text-align: center;
+  margin-top: 0.5rem;
+}
+
+.respondents-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.respondent-item {
+  background-color: #f3f4f6;
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  margin-bottom: 0.5rem;
+}
+
+.agents-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 1rem;
+}
+
+.agent-card {
+  background-color: white;
+  border-radius: 6px;
+  padding: 1rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  border: 1px solid #e5e7eb;
+}
+
+.agent-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  border-bottom: 1px solid #e5e7eb;
+  padding-bottom: 0.5rem;
+}
+
+.agent-status {
+  font-size: 0.75rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 9999px;
+}
+
+.status-active {
+  background-color: #dcfce7;
+  color: #16a34a;
+}
+
+.status-inactive {
+  background-color: #f3f4f6;
+  color: #6b7280;
+}
+
+.status-suspended {
+  background-color: #fee2e2;
+  color: #dc2626;
+}
+
+.agent-details {
+  font-size: 0.875rem;
+  color: #4b5563;
+}
+
+.agent-details p {
+  margin: 0.5rem 0;
+}
+
+.banner-buttons {
+  display: flex;
+  align-items: center;
+}
+
+.banner-button-resolve {
+  background-color: #10b981;
+}
+
+.banner-button-resolve:hover {
+  background-color: #059669;
+}
+
+/* Resolution Component Styles */
+
+.market-card {
+  background-color: var(--card-background, #ffffff);
+  border-radius: 8px;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+  border: 1px solid var(--border-color, #e5e7eb);
+}
+
+.market-title {
+  font-weight: 600;
+  color: var(--text-primary, #111827);
+}
+
+.text-secondary {
+  color: var(--text-secondary, #6b7280);
+}
+
+.market-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.tab-button {
+  padding: 0.5rem 1rem;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  font-weight: 500;
+  color: var(--text-secondary, #6b7280);
+  cursor: pointer;
+  transition: color 0.2s, border-color 0.2s;
+}
+
+.tab-button.active {
+  color: var(--primary-color, #2563eb);
+  border-bottom-color: var(--primary-color, #2563eb);
+}
+
+.create-task-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--primary-color, #2563eb);
+  color: white;
+  padding: 0.75rem 1.5rem;
+  border-radius: 6px;
+  font-weight: 500;
+  border: none;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.create-task-button:hover {
+  background-color: #1d4ed8;
+}
+
+.create-task-button:disabled {
+  background-color: #93c5fd;
+  cursor: not-allowed;
+}
+
+.loading-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem 0;
+}
+
+.spinner {
+  border: 3px solid rgba(0, 0, 0, 0.1);
+  border-top: 3px solid var(--primary-color, #2563eb);
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  animation: spin 1s linear infinite;
+  margin-bottom: 1rem;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.respondent-item {
+  background-color: var(--background-color, #f3f4f6);
+  margin-bottom: 0.5rem;
+}
+
+.agent-card {
+  background-color: white;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  border: 1px solid var(--border-color, #e5e7eb);
+}
+
+.status-active {
+  background-color: rgba(16, 185, 129, 0.1);
+  color: #10b981;
+}
+
+.status-inactive {
+  background-color: rgba(107, 114, 128, 0.1);
+  color: #6b7280;
+}
+
+.status-suspended {
+  background-color: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+}
+
+.banner-button {
+  background-color: var(--primary-color, #2563eb);
+  color: white;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  font-weight: 500;
+  border: none;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.banner-button:hover {
+  background-color: #1d4ed8;
+}
+
+/* CSS Variables */
+:root {
+  --primary-color: #2563eb;
+  --green: #10b981;
+  --red: #ef4444;
+  --text-primary: #111827;
+  --text-secondary: #6b7280;
+  --card-background: #ffffff;
+  --background-color: #f3f4f6;
+  --border-color: #e5e7eb;
+}
+
+/* Dark mode variables - if needed */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --primary-color: #3b82f6;
+    --green: #10b981;
+    --red: #f87171;
+    --text-primary: #f9fafb;
+    --text-secondary: #d1d5db;
+    --card-background: #1f2937;
+    --background-color: #111827;
+    --border-color: #374151;
+  }
+} 

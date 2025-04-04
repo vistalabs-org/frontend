@@ -5,9 +5,6 @@ import {
   } from "@account-kit/react";
 import { alchemy, sepolia } from "@account-kit/infra";
 import { QueryClient } from "@tanstack/react-query";
-import dotenv from 'dotenv';
-
-dotenv.config();
 
 // const WALLET_CONN_PROJ_ID = process.env.WALLET_CONN_PROJ_ID;
 // if (!WALLET_CONN_PROJ_ID) throw "env var ALCHEMY_API_KEY missing"

@@ -1,3 +1,6 @@
+// Add edge runtime configuration
+export const runtime = 'edge';
+
 export default function Offline() {
     return (
         <div>
