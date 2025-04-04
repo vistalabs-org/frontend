@@ -265,9 +265,20 @@ export default function AddLiquidityPage() {
     }
   };
 
+  // Check approval status when inputs change
+  useEffect(() => {
+    checkApprovalStatus();
+  }, [amount0, amount1, usdcAllowance, outcomeTokenAllowance, usdcAddress, outcomeTokenAddress]);
+
+  // Update approval status when token addresses change
+  useEffect(() => {
+    refetchUsdcAllowance();
+    refetchOutcomeTokenAllowance();
+  }, [usdcAddress, outcomeTokenAddress, userAddress]);
+
   // Check if approvals are needed
   const checkApprovalStatus = () => {
-    if (!usdcAllowance || !outcomeTokenAllowance || !amount0 || !amount1) {
+    if (!amount0 || !amount1) {
       setNeedsApproval(false);
       return;
     }
@@ -276,10 +287,11 @@ export default function AddLiquidityPage() {
       const amt0 = parseUnits(amount0, 6); // USDC has 6 decimals
       const amt1 = parseUnits(amount1, 18); // Outcome tokens have 18 decimals
       
-      const needsUsdcApproval = BigInt(usdcAllowance.toString()) < BigInt(amt0.toString());
-      const needsOutcomeTokenApproval = BigInt(outcomeTokenAllowance.toString()) < BigInt(amt1.toString());
+      const needsUsdcApproval = !usdcAllowance || BigInt(usdcAllowance.toString()) < BigInt(amt0.toString());
+      const needsOutcomeTokenApproval = !outcomeTokenAllowance || BigInt(outcomeTokenAllowance.toString()) < BigInt(amt1.toString());
       
       setNeedsApproval(needsUsdcApproval || needsOutcomeTokenApproval);
+      console.log('Approval status:', { needsUsdcApproval, needsOutcomeTokenApproval, usdcAllowance, outcomeTokenAllowance });
     } catch (error) {
       console.error('Error checking approval status:', error);
       setNeedsApproval(true);
@@ -333,17 +345,6 @@ export default function AddLiquidityPage() {
       setTxError(`Failed to approve tokens: ${error instanceof Error ? error.message : String(error)}`);
     }
   };
-
-  // Update approval status when inputs change
-  useEffect(() => {
-    checkApprovalStatus();
-  }, [amount0, amount1, usdcAllowance, outcomeTokenAllowance]);
-
-  // Update approval status when token addresses change
-  useEffect(() => {
-    refetchUsdcAllowance();
-    refetchOutcomeTokenAllowance();
-  }, [usdcAddress, outcomeTokenAddress]);
 
   // Handle adding liquidity
   const handleAddLiquidity = async () => {

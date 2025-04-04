@@ -148,6 +148,17 @@ export default function SwapFunction({
     }
   }, [amount, selectedAction, selectedOption, yesPool?.price, noPool?.price]);
   
+  // Add helper function to convert tick to sqrtPriceX96
+  const tickToSqrtPriceX96 = (tick: number): bigint => {
+    // These are the actual sqrt price values for our tick range
+    if (tick === 0) {
+      return BigInt('79228162514264337593543950336'); // 1.0001^0 * 2^96
+    } else if (tick === -9200) {
+      return BigInt('6743328256147649'); // 1.0001^(-9200/2) * 2^96
+    }
+    return BigInt(0);
+  };
+
   // Handle the swap
   const handleSwap = async () => {
     if (!amount || !market || !address || !isConnected) {
@@ -168,18 +179,25 @@ export default function SwapFunction({
       
       console.log("Using pool key:", poolKey);
       
-      // Prepare swap parameters based on action
+      // Prepare swap parameters based on action and direction
       const swapParams = selectedAction === 'Buy' 
         ? {
-            zeroForOne: true,
+            zeroForOne: true, // Swapping token0 (USDC) for token1 (YES/NO)
             amountSpecified: parseUnits(amount, 6),
-            sqrtPriceLimitX96: BigInt(0)
+            // When buying (going down in price), set limit to min price
+            sqrtPriceLimitX96: tickToSqrtPriceX96(-9200) // Lower bound
           }
         : {
-            zeroForOne: false,
+            zeroForOne: false, // Swapping token1 (YES/NO) for token0 (USDC)
             amountSpecified: parseUnits(amount, 18),
-            sqrtPriceLimitX96: BigInt(0)
+            // When selling, we need to use the lower bound as the limit
+            sqrtPriceLimitX96: tickToSqrtPriceX96(-9200) // For sells, use lower bound
           };
+
+      console.log('Swap params:', {
+        ...swapParams,
+        sqrtPriceLimitX96: swapParams.sqrtPriceLimitX96.toString()
+      });
 
       const testSettings = {
         takeClaims: true,

@@ -8,12 +8,36 @@ import { useCreateMarket } from '@/hooks/useCreateMarket';
 import { MockERC20Abi } from '@/contracts/MockERC20_abi';
 import { PREDICTION_MARKET_HOOK_ADDRESS } from '@/app/constants';
 
+// Add this component for the Loom video
+const LoomVideoExplanation = () => {
+  return (
+    <div className="mb-8">
+      <h2 className="text-xl font-semibold mb-3">How It Works</h2>
+      <div className="relative pb-[56.25%] h-0 rounded-lg overflow-hidden">
+        <iframe 
+          src="https://www.loom.com/embed/14eebc7c6f0e4312b68431ae8b6d0189?sid=011b6192-4b9f-442a-bd1f-b62b4614c2b3" 
+          frameBorder="0" 
+          webkitallowfullscreen="true"
+          mozallowfullscreen="true"
+          allowFullScreen 
+          className="absolute top-0 left-0 w-full h-full"
+        ></iframe>
+      </div>
+      <p className="text-sm text-gray-400 mt-2">
+        Watch this short video to understand how prediction markets work.
+      </p>
+    </div>
+  );
+};
+
 export default function CreateProposal() {
   const router = useRouter();
   const { address, chain } = useAccount();
   const { approveTokens, createMarket, isPending, isApproving, isSimulating, isReady, checkBalance } = useCreateMarket();
   
-  const [step, setStep] = useState('prepare'); // 'prepare', 'approve', 'create'
+  // Add a new step for market type selection
+  const [step, setStep] = useState('select-type'); // 'select-type', 'prepare', 'approve', 'create'
+  const [marketType, setMarketType] = useState<'token-price' | 'protocol-kpi' | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [hasEnoughBalance, setHasEnoughBalance] = useState<boolean | null>(null);
@@ -73,6 +97,17 @@ export default function CreateProposal() {
     setError(null);
   };
 
+  // Handle market type selection
+  const handleMarketTypeSelect = (type: 'token-price' | 'protocol-kpi') => {
+    setMarketType(type);
+    if (type === 'protocol-kpi') {
+      setStep('prepare');
+    } else {
+      // For token price markets, we'll redirect to a different page in the future
+      alert('Token price markets are coming soon!');
+    }
+  };
+
   // Handle token approval
   const handleApprove = async () => {
     if (!isReady) return;
@@ -120,7 +155,6 @@ export default function CreateProposal() {
 
   return (
     <div className="max-w-2xl mx-auto p-6">
-      <h1 className="text-2xl font-bold mb-6">Create New Prediction Market</h1>
       
       {error && (
         <div className="bg-red-900/50 border border-red-500 text-red-200 p-3 rounded mb-4">
@@ -128,7 +162,8 @@ export default function CreateProposal() {
         </div>
       )}
       
-      {!hasEnoughBalance && hasEnoughBalance !== null && (
+      {/* Only show balance warning if not in select-type step */}
+      {!hasEnoughBalance && hasEnoughBalance !== null && step !== 'select-type' && (
         <div className="bg-yellow-900/50 border border-yellow-500 text-yellow-200 p-3 rounded mb-4">
           You don't have enough tokens. Please mint some tokens first.
           <button 
@@ -140,160 +175,183 @@ export default function CreateProposal() {
         </div>
       )}
       
-      <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Form fields - only show if in prepare step */}
-        {step === 'prepare' && (
-          <>
-            <div className="space-y-2">
-              <label htmlFor="title" className="block text-sm font-medium">
-                Market Title
-              </label>
-              <input
-                type="text"
-                id="title"
-                name="title"
-                value={formData.title}
-                onChange={handleChange}
-                required
-                className="w-full p-2 border border-gray-600 rounded bg-[#1E2631] text-white"
-                placeholder="e.g., Will ETH price exceed $3000 by June 2023?"
-              />
-            </div>
-            
-            <div className="space-y-2">
-              <label htmlFor="description" className="block text-sm font-medium">
-                Description
-              </label>
-              <textarea
-                id="description"
-                name="description"
-                value={formData.description}
-                onChange={handleChange}
-                rows={4}
-                className="w-full p-2 border border-gray-600 rounded bg-[#1E2631] text-white"
-                placeholder="Provide details about your prediction market..."
-              />
-            </div>
-            
-            <div className="space-y-2">
-              <label htmlFor="duration" className="block text-sm font-medium">
-                Duration (days)
-              </label>
-              <input
-                type="number"
-                id="duration"
-                name="duration"
-                value={formData.duration}
-                onChange={handleChange}
-                min="1"
-                required
-                className="w-full p-2 border border-gray-600 rounded bg-[#1E2631] text-white"
-              />
-            </div>
-            
-            <div className="space-y-2">
-              <label htmlFor="collateralAddress" className="block text-sm font-medium">
-                Collateral Token Address
-              </label>
-              <input
-                type="text"
-                id="collateralAddress"
-                name="collateralAddress"
-                value={formData.collateralAddress}
-                onChange={handleChange}
-                required
-                className="w-full p-2 border border-gray-600 rounded bg-[#1E2631] text-white"
-                placeholder="0x..."
-              />
-            </div>
-            
-            <div className="space-y-2">
-              <label htmlFor="collateralAmount" className="block text-sm font-medium">
-                Collateral Amount
-              </label>
-              <input
-                type="text"
-                id="collateralAmount"
-                name="collateralAmount"
-                value={formData.collateralAmount}
-                onChange={handleChange}
-                required
-                className="w-full p-2 border border-gray-600 rounded bg-[#1E2631] text-white"
-                placeholder="100"
-              />
-            </div>
-            
-            <div className="space-y-2">
-              <label htmlFor="curveId" className="block text-sm font-medium">
-                Curve ID
-              </label>
-              <select
-                id="curveId"
-                name="curveId"
-                value={formData.curveId}
-                onChange={handleChange}
-                className="w-full p-2 border border-gray-600 rounded bg-[#1E2631] text-white"
+      {/* Market Type Selection Step */}
+      {step === 'select-type' && (
+        <div className="space-y-8">
+          <div>
+            <h1 className="text-2xl font-bold mb-6">Create New Prediction Market</h1>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Token Price Market Card */}
+              <div 
+                className="border border-gray-700 rounded-lg p-6 cursor-pointer hover:bg-gray-800 transition-colors"
+                onClick={() => handleMarketTypeSelect('token-price')}
               >
-                <option value="0">Default Curve (0)</option>
-                <option value="1">Curve 1</option>
-                <option value="2">Curve 2</option>
-              </select>
+                <div className="flex items-center justify-center mb-4 text-blue-400">
+                  <svg className="w-12 h-12" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M3.5 18.49l6-6.01 4 4L22 6.92l-1.41-1.41-7.09 7.97-4-4L2 16.99z"/>
+                  </svg>
+                </div>
+                <h3 className="text-lg font-medium text-center mb-2">Proposal based on token price</h3>
+                <p className="text-sm text-gray-400 text-center">
+                  Decide based on the expected impact of the proposal on the token price
+                </p>
+                <div className="mt-4 text-xs text-center text-gray-500">Coming soon</div>
+              </div>
+              
+              {/* Protocol KPI Market Card */}
+              <div 
+                className="border border-gray-700 rounded-lg p-6 cursor-pointer hover:bg-gray-800 transition-colors"
+                onClick={() => handleMarketTypeSelect('protocol-kpi')}
+              >
+                <div className="flex items-center justify-center mb-4 text-green-400">
+                  <svg className="w-12 h-12" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V5h14v14z"/>
+                    <path d="M7 12h2v5H7zm4-7h2v12h-2zm4 4h2v8h-2z"/>
+                  </svg>
+                </div>
+                <h3 className="text-lg font-medium text-center mb-2">Proposal based on KPIs</h3>
+                <p className="text-sm text-gray-400 text-center">
+                  Decide based on the expected impact of the proposal on the KPIs (e.g. TVL, volume, liquidity, etc.)
+                </p>
+              </div>
             </div>
-          </>
-        )}
-        
-        {/* Summary - show in approve and create steps */}
-        {(step === 'approve' || step === 'create') && (
-          <div className="bg-[#2D3745] p-4 rounded-md">
-            <h3 className="text-lg font-medium mb-2">Market Summary</h3>
-            <p><strong>Title:</strong> {formData.title}</p>
-            <p><strong>Description:</strong> {formData.description}</p>
-            <p><strong>Duration:</strong> {formData.duration} days</p>
-            <p><strong>Collateral:</strong> {formData.collateralAmount} tokens</p>
-            <p><strong>Collateral Address:</strong> {formData.collateralAddress}</p>
-            
-            {/* New information about token distribution */}
-            <div className="mt-3 pt-3 border-t border-gray-600">
-              <p>You will receive <strong>{formData.collateralAmount} YES tokens</strong> and <strong>{formData.collateralAmount} NO tokens</strong> after market creation.</p>
-              <p className="text-sm text-gray-400 mt-1">
-                These tokens represent your position in this prediction market. You can use them to add liquidity to the market. You can also trade them on the market page.
+          </div>
+          
+          {/* Video explanation now appears below the cards */}
+          <div className="border-t border-gray-700 pt-8">
+            <LoomVideoExplanation />
+          </div>
+        </div>
+      )}
+      
+      {/* Form fields - only show if in prepare step */}
+      {step !== 'select-type' && (
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {step === 'prepare' && (
+            <>
+              <div>
+                <label htmlFor="title" className="block text-sm font-medium mb-1">
+                  Market Title
+                </label>
+                <input
+                  type="text"
+                  id="title"
+                  name="title"
+                  value={formData.title}
+                  onChange={handleChange}
+                  className="w-full p-2 bg-[#1E2530] border border-gray-700 rounded focus:outline-none focus:border-green-500"
+                  placeholder="Will Protocol X reach 1M TVL by EOY?"
+                  required
+                />
+              </div>
+              
+              <div>
+                <label htmlFor="description" className="block text-sm font-medium mb-1">
+                  Market Description
+                </label>
+                <textarea
+                  id="description"
+                  name="description"
+                  value={formData.description}
+                  onChange={handleChange}
+                  rows={4}
+                  className="w-full p-2 bg-[#1E2530] border border-gray-700 rounded focus:outline-none focus:border-green-500"
+                  placeholder="Provide details about this market, including resolution criteria..."
+                  required
+                />
+              </div>
+              
+              <div>
+                <label htmlFor="duration" className="block text-sm font-medium mb-1">
+                  Duration (days)
+                </label>
+                <select
+                  id="duration"
+                  name="duration"
+                  value={formData.duration}
+                  onChange={handleChange}
+                  className="w-full p-2 bg-[#1E2530] border border-gray-700 rounded focus:outline-none focus:border-green-500"
+                >
+                  <option value={1}>1 day</option>
+                  <option value={7}>7 days</option>
+                  <option value={30}>30 days</option>
+                  <option value={90}>90 days</option>
+                </select>
+              </div>
+              
+              <div>
+                <label htmlFor="collateralAmount" className="block text-sm font-medium mb-1">
+                  Collateral Amount (USDC)
+                </label>
+                <input
+                  type="number"
+                  id="collateralAmount"
+                  name="collateralAmount"
+                  value={formData.collateralAmount}
+                  onChange={handleChange}
+                  className="w-full p-2 bg-[#1E2530] border border-gray-700 rounded focus:outline-none focus:border-green-500"
+                  min="1"
+                  required
+                />
+                <p className="mt-1 text-xs text-gray-400">
+                  This amount will be used as collateral for the market.
+                </p>
+              </div>
+            </>
+          )}
+          
+          {(step === 'approve' || step === 'create') && (
+            <div className="bg-[#2D3745] p-4 rounded-md">
+              <h3 className="text-lg font-medium mb-2">Market Summary</h3>
+              <p><strong>Title:</strong> {formData.title}</p>
+              <p><strong>Description:</strong> {formData.description}</p>
+              <p><strong>Duration:</strong> {formData.duration} days</p>
+              <p><strong>Collateral:</strong> {formData.collateralAmount} tokens</p>
+              <p><strong>Collateral Address:</strong> {formData.collateralAddress}</p>
+              
+              {/* New information about token distribution */}
+              <div className="mt-3 pt-3 border-t border-gray-600">
+                <p>You will receive <strong>{formData.collateralAmount} YES tokens</strong> and <strong>{formData.collateralAmount} NO tokens</strong> after market creation.</p>
+                <p className="text-sm text-gray-400 mt-1">
+                  These tokens represent your position in this prediction market. You can use them to add liquidity to the market. You can also trade them on the market page.
+                </p>
+              </div>
+            </div>
+          )}
+          
+          {chain && (
+            <div className="space-y-2">
+              <p className="text-sm text-gray-400">
+                Connected to chain: {chain.name} (ID: {chain.id})
               </p>
             </div>
-          </div>
-        )}
-        
-        {chain && (
-          <div className="space-y-2">
-            <p className="text-sm text-gray-400">
-              Connected to chain: {chain.name} (ID: {chain.id})
-            </p>
-          </div>
-        )}
-        
-        <div className="pt-4">
-          <button
-            type="submit"
-            disabled={isSubmitting || isPending || isApproving || isSimulating || !isReady}
-            className="w-full px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:bg-gray-500"
-          >
-            {isSubmitting || isPending || isApproving || isSimulating
-              ? isSimulating 
-                ? 'Simulating...' 
-                : 'Processing...' 
-              : step === 'prepare' 
-                ? 'Continue' 
-                : step === 'approve' 
-                  ? 'Approve Tokens' 
-                  : 'Create Market'}
-          </button>
-          
-          {!isReady && (
-            <p className="mt-2 text-red-400 text-sm">
-              Please connect your wallet to create a market
-            </p>
           )}
-        </div>
-      </form>
+          
+          <div className="pt-4">
+            <button
+              type="submit"
+              disabled={isSubmitting || isPending || isApproving || isSimulating || !isReady}
+              className="w-full px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:bg-gray-500"
+            >
+              {isSubmitting || isPending || isApproving || isSimulating
+                ? isSimulating 
+                  ? 'Simulating...' 
+                  : 'Processing...' 
+                : step === 'prepare' 
+                  ? 'Continue' 
+                  : step === 'approve' 
+                    ? 'Approve Tokens' 
+                    : 'Create Market'}
+            </button>
+            
+            {!isReady && (
+              <p className="mt-2 text-red-400 text-sm">
+                Please connect your wallet to create a market
+              </p>
+            )}
+          </div>
+        </form>
+      )}
     </div>
   );
-} 
+}
