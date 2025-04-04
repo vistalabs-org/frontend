@@ -216,17 +216,17 @@ const PredictionMarketPage = ({
   return (
     <div className="max-w-screen-xl mx-auto py-6 text-primary">
       <div className="flex flex-col gap-6">
-        {/* Oracle Box - match Rules section style */}
+        {/* Oracle Box */}
         <div className="px-6">
-          <div className="rounded-lg bg-[#1E2631] p-6">
+          <div className="rounded-lg bg-white border border-gray-200 p-6">
             <div className="flex justify-between items-center">
               <div>
-                <h2 className="text-white text-base font-medium mb-1">Powered by AI Oracle</h2>
-                <p className="text-[#8896A7] text-sm">This market will be resolved using our decentralized AI oracle system</p>
+                <h2 className="text-gray-900 text-base font-medium mb-1">Powered by AI Oracle</h2>
+                <p className="text-gray-600 text-sm">This market will be resolved using our decentralized AI oracle system</p>
               </div>
               <Link 
                 href="/oracle" 
-                className="text-[#5AA1E9] hover:text-[#7AB5F2] text-sm"
+                className="text-blue-600 hover:text-blue-700 text-sm"
               >
                 See How It Works
               </Link>
