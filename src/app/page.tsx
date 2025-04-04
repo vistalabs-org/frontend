@@ -20,12 +20,6 @@ export default function Home() {
     <div className="app-container">
       <div className="main-content">
         
-        {/* Market Tabs */}
-        <div className="market-tabs-container">
-          <div className="market-tabs">
-            <button className="tab-button active">All Markets</button>
-          </div>
-        </div>
       
         {isLoading && (
           <div className="loading-container">
@@ -41,21 +35,20 @@ export default function Home() {
         )}
         
         <div className="markets-container">
-          {/* Only try to map over markets when it's definitely an array */}
           {marketsList.length > 0 ? (
-            // Use React.createElement approach to avoid key prop TypeScript issues
             marketsList.map((market, index) => {
-              // Check if market has an id property, otherwise fall back to index
               const marketId = market?.id || index.toString();
               console.log(`Creating market card for: ${market.title} with ID: ${marketId}`);
               
-              return React.createElement(
-                MarketCard, 
-                { 
-                  key: `fetched-${index}`,
-                  title: market.title || 'Untitled Market',
-                  url: `/${marketId}`
-                }
+              return (
+                <MarketCard
+                  key={`fetched-${index}`}
+                  title={market.title || 'Untitled Market'}
+                  description={market.description}
+                  yesPrice={market.yesPrice}
+                  noPrice={market.noPrice}
+                  url={`/${marketId}`}
+                />
               );
             })
           ) : (
