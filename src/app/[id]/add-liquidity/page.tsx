@@ -475,8 +475,7 @@ export default function AddLiquidityPage() {
       <div className="mb-6">
         <Link 
           href={`/${marketId}`}
-          className="text-primary-color hover:underline flex items-center"
-          style={{ color: 'var(--primary-color)' }}
+          className="text-blue-600 hover:text-blue-700 hover:underline flex items-center"
         >
           <svg className="w-4 h-4 mr-1" viewBox="0 0 24 24" fill="currentColor">
             <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/>
@@ -485,42 +484,42 @@ export default function AddLiquidityPage() {
         </Link>
       </div>
       
-      <h1 className="text-2xl font-bold mb-6">Add Liquidity</h1>
+      <h1 className="text-2xl font-bold text-gray-900 mb-6">Add Liquidity</h1>
       
-      <div className="bg-[#2D3745] rounded-lg p-6">
-        <p className="text-secondary mb-4">
+      <div className="bg-white rounded-lg shadow p-6 border border-gray-200">
+        <p className="text-gray-600 mb-4">
           Add liquidity to this prediction market to earn fees from trades.
         </p>
         
         {txError && (
-          <div className="mb-4 p-3 bg-red-900/30 border border-red-500 rounded-md text-red-200">
+          <div className="mb-4 p-3 bg-red-50 border border-red-400 rounded-md text-red-700">
             <p className="font-medium">Transaction Error</p>
             <p className="text-sm">{txError}</p>
           </div>
         )}
         
         <div className="mb-6">
-          <label className="block text-sm font-medium mb-2">
+          <label className="block text-gray-700 font-medium mb-2">
             Pool Selection
           </label>
           <div className="grid grid-cols-2 gap-4">
             <div 
-              className={`border border-border-color rounded-md p-3 cursor-pointer hover:bg-[#1E2530] ${
-                selectedPool === 'YES' ? 'bg-[#1E2530] border-primary-color' : ''
+              className={`border rounded-md p-3 cursor-pointer hover:bg-gray-50 ${
+                selectedPool === 'YES' ? 'bg-gray-50 border-blue-500' : 'border-gray-300'
               }`}
               onClick={() => setSelectedPool('YES')}
             >
-              <div className="font-medium">Yes Pool</div>
-              <div className="text-sm text-secondary">Add liquidity to the Yes outcome</div>
+              <div className="font-medium text-gray-900">Yes Pool</div>
+              <div className="text-sm text-gray-600">Add liquidity to the Yes outcome</div>
             </div>
             <div 
-              className={`border border-border-color rounded-md p-3 cursor-pointer hover:bg-[#1E2530] ${
-                selectedPool === 'NO' ? 'bg-[#1E2530] border-primary-color' : ''
+              className={`border rounded-md p-3 cursor-pointer hover:bg-gray-50 ${
+                selectedPool === 'NO' ? 'bg-gray-50 border-blue-500' : 'border-gray-300'
               }`}
               onClick={() => setSelectedPool('NO')}
             >
-              <div className="font-medium">No Pool</div>
-              <div className="text-sm text-secondary">Add liquidity to the No outcome</div>
+              <div className="font-medium text-gray-900">No Pool</div>
+              <div className="text-sm text-gray-600">Add liquidity to the No outcome</div>
             </div>
           </div>
         </div>
@@ -528,22 +527,22 @@ export default function AddLiquidityPage() {
         <div className="space-y-4 mb-6">
           <div>
             <div className="flex justify-between items-center mb-2">
-              <label className="text-sm font-medium">
+              <label className="text-gray-700 font-medium">
                 USDC Amount to Add
               </label>
-              <div className="text-sm text-secondary">
+              <div className="text-sm text-gray-600">
                 Balance: {formatBalance(usdcBalance)} USDC
               </div>
             </div>
             <div className="flex">
               <input 
                 type="number" 
-                className="flex-grow p-2 bg-[#1E2530] border border-border-color rounded-l-md focus:outline-none"
+                className="flex-grow p-2 bg-white border border-gray-300 rounded-l-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                 placeholder="0.0"
                 value={amount0}
                 onChange={handleAmount0Change}
               />
-              <div className="bg-[#1E2530] border border-l-0 border-border-color rounded-r-md p-2 flex items-center">
+              <div className="bg-gray-50 border border-l-0 border-gray-300 rounded-r-md p-2 flex items-center text-gray-700">
                 USDC
               </div>
             </div>
@@ -551,94 +550,63 @@ export default function AddLiquidityPage() {
 
           <div>
             <div className="flex justify-between items-center mb-2">
-              <label className="text-sm font-medium">
+              <label className="text-gray-700 font-medium">
                 {selectedPool} Token Amount to Add
               </label>
-              <div className="text-sm text-secondary">
+              <div className="text-sm text-gray-600">
                 Balance: {formatBalance(outcomeTokenBalance)} {selectedPool}
               </div>
             </div>
             <div className="flex">
               <input 
                 type="number" 
-                className="flex-grow p-2 bg-[#1E2530] border border-border-color rounded-l-md focus:outline-none"
+                className="flex-grow p-2 bg-white border border-gray-300 rounded-l-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                 placeholder="0.0"
                 value={amount1}
                 onChange={handleAmount1Change}
               />
-              <div className="bg-[#1E2530] border border-l-0 border-border-color rounded-r-md p-2 flex items-center">
+              <div className="bg-gray-50 border border-l-0 border-gray-300 rounded-r-md p-2 flex items-center text-gray-700">
                 {selectedPool}
               </div>
             </div>
           </div>
           
-          {/* Price Range Field */}
-          <div>
-            <div className="mb-2">
-              <label className="text-sm font-medium">
-                Price Range
-              </label>
+          <div className="mt-3 p-3 bg-gray-50 rounded-md border border-gray-300">
+            <div className="flex justify-between items-center">
+              <span className="text-gray-700">Current Price:</span>
+              <span className="font-medium text-gray-900">{getCurrentPrice()}%</span>
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="flex flex-col">
-                <label className="text-xs text-secondary mb-1">Low</label>
-                <input 
-                  type="number" 
-                  className="p-2 bg-[#1E2530] border border-border-color rounded-md focus:outline-none"
-                  value="0"
-                  disabled
-                />
-              </div>
-              <div className="flex flex-col">
-                <label className="text-xs text-secondary mb-1">High</label>
-                <input 
-                  type="number" 
-                  className="p-2 bg-[#1E2530] border border-border-color rounded-md focus:outline-none"
-                  value="1"
-                  disabled
-                />
-              </div>
+            <div className="mt-1 text-sm text-gray-600">
+              {selectedPool === 'YES' 
+                ? `1 USDC = ${getCurrentPrice()} YES tokens` 
+                : `1 USDC = ${getCurrentPrice()} NO tokens`}
             </div>
-            <div className="mt-1 text-xs text-secondary">
-              Full range (0 to 1) provides liquidity across all price points
+          </div>
+          
+          <div className="mt-3 p-3 bg-gray-50 rounded-md border border-gray-300">
+            <div className="flex justify-between items-center">
+              <span className="text-gray-700">Liquidity Amount:</span>
+              <span className="font-medium text-gray-900">{liquidityAmount}</span>
             </div>
-            
-            {/* Current Price Information */}
-            <div className="mt-3 p-3 bg-[#1E2530] rounded-md border border-border-color">
-              <div className="flex justify-between items-center">
-                <span className="text-sm">Current Price:</span>
-                <span className="text-sm font-medium">{getCurrentPrice()}%</span>
-              </div>
-              <div className="mt-1 text-xs text-secondary">
-                {selectedPool === 'YES' 
-                  ? `1 USDC = ${getCurrentPrice()} YES tokens` 
-                  : `1 USDC = ${getCurrentPrice()} NO tokens`}
-              </div>
-            </div>
-            
-            {/* Liquidity Amount Information */}
-            <div className="mt-3 p-3 bg-[#1E2530] rounded-md border border-border-color">
-              <div className="flex justify-between items-center">
-                <span className="text-sm">Liquidity Amount:</span>
-                <span className="text-sm font-medium">{liquidityAmount}</span>
-              </div>
-              <div className="mt-1 text-xs text-secondary">
-                Estimated liquidity based on your input amounts and current price
-              </div>
+            <div className="mt-1 text-sm text-gray-600">
+              Estimated liquidity based on your input amounts and current price
             </div>
           </div>
         </div>
         
         <button 
-          className="banner-button w-full" 
-          style={{ backgroundColor: 'var(--primary-color)' }}
+          className={`w-full px-6 py-4 font-semibold rounded-lg transition-colors ${
+            buttonState.disabled
+              ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
+              : 'bg-blue-600 text-white hover:bg-blue-700'
+          }`}
           disabled={buttonState.disabled}
           onClick={buttonState.onClick}
         >
           {buttonState.text}
         </button>
         
-        <div className="mt-4 text-sm text-secondary">
+        <div className="mt-4 text-sm text-gray-600">
           <p>Note: Adding liquidity will require approving USDC and outcome tokens.</p>
           <p>You will receive LP tokens representing your position in the pool.</p>
         </div>

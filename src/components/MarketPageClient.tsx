@@ -9,6 +9,7 @@ import { format } from 'date-fns';
 import { MintCollateralButton } from './MintCollateralButton';
 import { useAccount } from 'wagmi';
 import { useLiquidity } from '@/hooks/useStateView';
+import { useRouter } from 'next/navigation';
 
 // Create a new component to use the pool data hook
 const MarketWithPoolData = ({ marketId, market }: { marketId: string; market: any }) => {
