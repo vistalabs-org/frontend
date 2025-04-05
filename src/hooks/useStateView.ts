@@ -18,6 +18,7 @@ interface Slot0Data {
  * @returns Liquidity data for the pool
  */
 export function useLiquidity(poolId?: string) {
+  console.log('useLiquidity - poolId:', poolId);
   const { data, isLoading, isError, error } = useReadContract({
     address: STATE_VIEW_ADDRESS as `0x${string}`,
     abi: StateViewAbi,
@@ -28,6 +29,8 @@ export function useLiquidity(poolId?: string) {
   if (isError) {
     console.error('useLiquidity - Contract call error:', error);
   }
+
+  console.log('useLiquidity - data:', data);
   
   return {
     data, // Return the raw bigint liquidity value

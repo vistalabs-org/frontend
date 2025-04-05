@@ -72,6 +72,11 @@ const TokenBalances = ({ collateralBalance, yesBalance, noBalance }: {
 
 // Update PriceDisplay to show actual prices and raw liquidity
 const PriceDisplay = ({ yesPool, noPool, marketId }: { yesPool: any; noPool: any; marketId: string }) => {
+        // For debugging
+        console.log("PriceDisplay - yesPool:", yesPool);
+        console.log("PriceDisplay - noPool:", noPool);
+        console.log("PriceDisplay - yesPool liquidity:", yesPool?.liquidity);
+        console.log("PriceDisplay - noPool liquidity:", noPool?.liquidity);
   const formatPrice = (pool: any) => {
     if (!pool?.price) return '0.00';
     try {
@@ -83,13 +88,10 @@ const PriceDisplay = ({ yesPool, noPool, marketId }: { yesPool: any; noPool: any
       console.error('Error formatting price:', error);
       return '0.00';
     }
+
   };
 
-  // For debugging
-  console.log("PriceDisplay - yesPool:", yesPool);
-  console.log("PriceDisplay - noPool:", noPool);
-  console.log("PriceDisplay - yesPool liquidity:", yesPool?.liquidity);
-  console.log("PriceDisplay - noPool liquidity:", noPool?.liquidity);
+ 
 
   return (
     <div className="price-display p-8 text-center">

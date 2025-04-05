@@ -401,6 +401,7 @@ export default function AddLiquidityPage() {
         tickSpacing: poolKey.tickSpacing,
         hooks: poolKey.hooks
       };
+      console.log("abiCompatiblePoolKey", abiCompatiblePoolKey)
 
       // Simulate transaction
       const { request } = await getPublicClient(wagmiConfig).simulateContract({
