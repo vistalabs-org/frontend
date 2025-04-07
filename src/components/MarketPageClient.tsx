@@ -56,10 +56,6 @@ export default function MarketPageClient({ id }: { id: string }) {
     return 'Loading...';
   };
   
-  const handleResolveMarket = () => {
-    router.push(`/market/${id}/resolve`);
-  };
-  
   if (!isMounted || marketLoading) {
     return (
       <main className="app-container">

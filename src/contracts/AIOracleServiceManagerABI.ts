@@ -1,201 +1,878 @@
 export const AIOracleServiceManagerABI = [
   {
-    inputs: [
-      { name: "name", type: "string" }
-    ],
-    name: "createNewTask",
-    outputs: [
-      { 
-        components: [
-          { name: "name", type: "string" },
-          { name: "taskCreatedBlock", type: "uint32" }
-        ],
-        name: "",
-        type: "tuple"
+    "type": "constructor",
+    "inputs": [
+      {
+        "name": "_agentRegistry",
+        "type": "address",
+        "internalType": "address"
       }
     ],
-    stateMutability: "nonpayable",
-    type: "function"
+    "stateMutability": "nonpayable"
   },
   {
-    inputs: [
-      { name: "taskIndex", type: "uint32" }
-    ],
-    name: "taskStatus",
-    outputs: [
-      { name: "", type: "uint8" }
-    ],
-    stateMutability: "view",
-    type: "function"
-  },
-  {
-    inputs: [
-      { name: "taskIndex", type: "uint32" }
-    ],
-    name: "taskRespondents",
-    outputs: [
-      { name: "", type: "address[]" }
-    ],
-    stateMutability: "view",
-    type: "function"
-  },
-  {
-    inputs: [
-      { name: "taskIndex", type: "uint32" }
-    ],
-    name: "getConsensusResult",
-    outputs: [
-      { name: "result", type: "bytes" },
-      { name: "isResolved", type: "bool" }
-    ],
-    stateMutability: "view",
-    type: "function"
-  },
-  {
-    inputs: [],
-    name: "latestTaskNum",
-    outputs: [
-      { name: "", type: "uint32" }
-    ],
-    stateMutability: "view",
-    type: "function"
-  },
-  {
-    inputs: [
-      { name: "taskIndex", type: "uint32" },
-      { name: "signature", type: "bytes" }
-    ],
-    name: "respondToTask",
-    outputs: [],
-    stateMutability: "nonpayable",
-    type: "function"
-  },
-  {
-    inputs: [
-      { name: "taskIndex", type: "uint32" }
-    ],
-    name: "distributeRewards",
-    outputs: [],
-    stateMutability: "nonpayable",
-    type: "function"
-  },
-  {
-    inputs: [
-      { name: "taskIndex", type: "uint32" }
-    ],
-    name: "allTaskHashes",
-    outputs: [
-      { name: "", type: "bytes32" }
-    ],
-    stateMutability: "view",
-    type: "function"
-  },
-  {
-    inputs: [
-      { name: "operator", type: "address" },
-      { name: "taskIndex", type: "uint32" }
-    ],
-    name: "allTaskResponses",
-    outputs: [
-      { name: "", type: "bytes" }
-    ],
-    stateMutability: "view",
-    type: "function"
-  },
-  {
-    anonymous: false,
-    inputs: [
-      { indexed: true, name: "taskIndex", type: "uint32" },
-      { 
-        components: [
-          { name: "name", type: "string" },
-          { name: "taskCreatedBlock", type: "uint32" }
-        ],
-        indexed: false, 
-        name: "task", 
-        type: "tuple" 
+    "type": "function",
+    "name": "NO_HASH",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "bytes32",
+        "internalType": "bytes32"
       }
     ],
-    name: "NewTaskCreated",
-    type: "event"
+    "stateMutability": "view"
   },
   {
-    anonymous: false,
-    inputs: [
-      { indexed: true, name: "taskIndex", type: "uint32" },
-      { 
-        components: [
-          { name: "name", type: "string" },
-          { name: "taskCreatedBlock", type: "uint32" }
-        ],
-        indexed: false, 
-        name: "task", 
-        type: "tuple" 
+    "type": "function",
+    "name": "YES_HASH",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "addTestOperator",
+    "inputs": [
+      {
+        "name": "operator",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "agentRegistry",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "contract IAIAgentRegistry"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "allTaskHashes",
+    "inputs": [
+      {
+        "name": "",
+        "type": "uint32",
+        "internalType": "uint32"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "allTaskResponseHashes",
+    "inputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
       },
-      { indexed: true, name: "operator", type: "address" }
+      {
+        "name": "",
+        "type": "uint32",
+        "internalType": "uint32"
+      }
     ],
-    name: "TaskResponded",
-    type: "event"
+    "outputs": [
+      {
+        "name": "",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ],
+    "stateMutability": "view"
   },
   {
-    anonymous: false,
-    inputs: [
-      { indexed: true, name: "taskIndex", type: "uint32" },
-      { indexed: false, name: "consensusResult", type: "bytes" }
+    "type": "function",
+    "name": "allTaskResponses",
+    "inputs": [
+      {
+        "name": "operator",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "taskIndex",
+        "type": "uint32",
+        "internalType": "uint32"
+      }
     ],
-    name: "ConsensusReached",
-    type: "event"
+    "outputs": [
+      {
+        "name": "",
+        "type": "bytes",
+        "internalType": "bytes"
+      }
+    ],
+    "stateMutability": "view"
   },
   {
-    anonymous: false,
-    inputs: [
-      { indexed: true, name: "agent", type: "address" },
-      { indexed: true, name: "taskIndex", type: "uint32" },
-      { indexed: false, name: "amount", type: "uint256" }
+    "type": "function",
+    "name": "allTasks",
+    "inputs": [
+      {
+        "name": "",
+        "type": "uint32",
+        "internalType": "uint32"
+      }
     ],
-    name: "AgentRewarded",
-    type: "event"
-  }
-];
-
-export const AIAgentRegistryABI = [
-  {
-    inputs: [],
-    name: "getAllAgents",
-    outputs: [
-      { name: "", type: "address[]" }
+    "outputs": [
+      {
+        "name": "name",
+        "type": "string",
+        "internalType": "string"
+      },
+      {
+        "name": "taskCreatedBlock",
+        "type": "uint32",
+        "internalType": "uint32"
+      }
     ],
-    stateMutability: "view",
-    type: "function"
+    "stateMutability": "view"
   },
   {
-    inputs: [
-      { name: "agent", type: "address" }
+    "type": "function",
+    "name": "consensusResultHash",
+    "inputs": [
+      {
+        "name": "taskIndex",
+        "type": "uint32",
+        "internalType": "uint32"
+      }
     ],
-    name: "getAgentDetails",
-    outputs: [
-      { name: "modelType", type: "string" },
-      { name: "modelVersion", type: "string" },
-      { name: "tasksCompleted", type: "uint256" },
-      { name: "consensusParticipations", type: "uint256" },
-      { name: "rewardsEarned", type: "uint256" }
+    "outputs": [
+      {
+        "name": "",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
     ],
-    stateMutability: "view",
-    type: "function"
-  }
-];
-
-export const AIAgentABI = [
+    "stateMutability": "view"
+  },
   {
-    inputs: [],
-    name: "getAgentStats",
-    outputs: [
-      { name: "_tasksCompleted", type: "uint256" },
-      { name: "_consensusParticipations", type: "uint256" },
-      { name: "_totalRewards", type: "uint256" },
-      { name: "_currentStatus", type: "uint8" }
+    "type": "function",
+    "name": "consensusThreshold",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
     ],
-    stateMutability: "view",
-    type: "function"
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "createMarketResolutionTask",
+    "inputs": [
+      {
+        "name": "name",
+        "type": "string",
+        "internalType": "string"
+      },
+      {
+        "name": "marketId",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      },
+      {
+        "name": "hookAddress",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "taskIndex",
+        "type": "uint32",
+        "internalType": "uint32"
+      }
+    ],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "createNewTask",
+    "inputs": [
+      {
+        "name": "name",
+        "type": "string",
+        "internalType": "string"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "newTask",
+        "type": "tuple",
+        "internalType": "struct IAIOracleServiceManager.Task",
+        "components": [
+          {
+            "name": "name",
+            "type": "string",
+            "internalType": "string"
+          },
+          {
+            "name": "taskCreatedBlock",
+            "type": "uint32",
+            "internalType": "uint32"
+          }
+        ]
+      }
+    ],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "distributeRewards",
+    "inputs": [
+      {
+        "name": "taskIndex",
+        "type": "uint32",
+        "internalType": "uint32"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "getConsensusResult",
+    "inputs": [
+      {
+        "name": "taskIndex",
+        "type": "uint32",
+        "internalType": "uint32"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "result",
+        "type": "bytes",
+        "internalType": "bytes"
+      },
+      {
+        "name": "isResolved",
+        "type": "bool",
+        "internalType": "bool"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getHookAddressForTask",
+    "inputs": [
+      {
+        "name": "taskIndex",
+        "type": "uint32",
+        "internalType": "uint32"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "hookAddress",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getMarketIdForTask",
+    "inputs": [
+      {
+        "name": "taskIndex",
+        "type": "uint32",
+        "internalType": "uint32"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "marketId",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getTask",
+    "inputs": [
+      {
+        "name": "taskIndex",
+        "type": "uint32",
+        "internalType": "uint32"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "tuple",
+        "internalType": "struct IAIOracleServiceManager.Task",
+        "components": [
+          {
+            "name": "name",
+            "type": "string",
+            "internalType": "string"
+          },
+          {
+            "name": "taskCreatedBlock",
+            "type": "uint32",
+            "internalType": "uint32"
+          }
+        ]
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "hasResponded",
+    "inputs": [
+      {
+        "name": "",
+        "type": "uint32",
+        "internalType": "uint32"
+      },
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "bool",
+        "internalType": "bool"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "initialize",
+    "inputs": [
+      {
+        "name": "initialOwner",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "_minimumResponses",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "_consensusThreshold",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "_predictionMarketHook",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "latestTaskNum",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint32",
+        "internalType": "uint32"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "minimumResponses",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "owner",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "predictionMarketHook",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "renounceOwnership",
+    "inputs": [],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "respondToTask",
+    "inputs": [
+      {
+        "name": "referenceTaskIndex",
+        "type": "uint32",
+        "internalType": "uint32"
+      },
+      {
+        "name": "signature",
+        "type": "bytes",
+        "internalType": "bytes"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "responseVotes",
+    "inputs": [
+      {
+        "name": "",
+        "type": "uint32",
+        "internalType": "uint32"
+      },
+      {
+        "name": "",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "taskConsensusResultHash",
+    "inputs": [
+      {
+        "name": "",
+        "type": "uint32",
+        "internalType": "uint32"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "taskRespondents",
+    "inputs": [
+      {
+        "name": "taskIndex",
+        "type": "uint32",
+        "internalType": "uint32"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address[]",
+        "internalType": "address[]"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "taskStatus",
+    "inputs": [
+      {
+        "name": "taskIndex",
+        "type": "uint32",
+        "internalType": "uint32"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint8",
+        "internalType": "enum IAIOracleServiceManager.TaskStatus"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "taskToHookAddress",
+    "inputs": [
+      {
+        "name": "",
+        "type": "uint32",
+        "internalType": "uint32"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "taskToMarketId",
+    "inputs": [
+      {
+        "name": "",
+        "type": "uint32",
+        "internalType": "uint32"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "testOperators",
+    "inputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "bool",
+        "internalType": "bool"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "transferOwnership",
+    "inputs": [
+      {
+        "name": "newOwner",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "updateConsensusParameters",
+    "inputs": [
+      {
+        "name": "_minimumResponses",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "_consensusThreshold",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "event",
+    "name": "AgentRewarded",
+    "inputs": [
+      {
+        "name": "agent",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "taskIndex",
+        "type": "uint32",
+        "indexed": true,
+        "internalType": "uint32"
+      },
+      {
+        "name": "rewardAmount",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "ConsensusReached",
+    "inputs": [
+      {
+        "name": "taskIndex",
+        "type": "uint32",
+        "indexed": true,
+        "internalType": "uint32"
+      },
+      {
+        "name": "consensusResult",
+        "type": "bytes",
+        "indexed": false,
+        "internalType": "bytes"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "Initialized",
+    "inputs": [
+      {
+        "name": "version",
+        "type": "uint64",
+        "indexed": false,
+        "internalType": "uint64"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "MarketResolutionFailed",
+    "inputs": [
+      {
+        "name": "taskIndex",
+        "type": "uint32",
+        "indexed": true,
+        "internalType": "uint32"
+      },
+      {
+        "name": "marketId",
+        "type": "bytes32",
+        "indexed": true,
+        "internalType": "bytes32"
+      },
+      {
+        "name": "reason",
+        "type": "string",
+        "indexed": false,
+        "internalType": "string"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "MarketResolvedByOracle",
+    "inputs": [
+      {
+        "name": "taskIndex",
+        "type": "uint32",
+        "indexed": true,
+        "internalType": "uint32"
+      },
+      {
+        "name": "marketId",
+        "type": "bytes32",
+        "indexed": true,
+        "internalType": "bytes32"
+      },
+      {
+        "name": "outcome",
+        "type": "bool",
+        "indexed": false,
+        "internalType": "bool"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "NewTaskCreated",
+    "inputs": [
+      {
+        "name": "taskIndex",
+        "type": "uint32",
+        "indexed": true,
+        "internalType": "uint32"
+      },
+      {
+        "name": "task",
+        "type": "tuple",
+        "indexed": false,
+        "internalType": "struct IAIOracleServiceManager.Task",
+        "components": [
+          {
+            "name": "name",
+            "type": "string",
+            "internalType": "string"
+          },
+          {
+            "name": "taskCreatedBlock",
+            "type": "uint32",
+            "internalType": "uint32"
+          }
+        ]
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "OwnershipTransferred",
+    "inputs": [
+      {
+        "name": "previousOwner",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "newOwner",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "TaskResponded",
+    "inputs": [
+      {
+        "name": "taskIndex",
+        "type": "uint32",
+        "indexed": true,
+        "internalType": "uint32"
+      },
+      {
+        "name": "task",
+        "type": "tuple",
+        "indexed": false,
+        "internalType": "struct IAIOracleServiceManager.Task",
+        "components": [
+          {
+            "name": "name",
+            "type": "string",
+            "internalType": "string"
+          },
+          {
+            "name": "taskCreatedBlock",
+            "type": "uint32",
+            "internalType": "uint32"
+          }
+        ]
+      },
+      {
+        "name": "operator",
+        "type": "address",
+        "indexed": false,
+        "internalType": "address"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "error",
+    "name": "InvalidInitialization",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "NotInitializing",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "OwnableInvalidOwner",
+    "inputs": [
+      {
+        "name": "owner",
+        "type": "address",
+        "internalType": "address"
+      }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "OwnableUnauthorizedAccount",
+    "inputs": [
+      {
+        "name": "account",
+        "type": "address",
+        "internalType": "address"
+      }
+    ]
   }
 ]; 
