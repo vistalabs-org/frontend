@@ -6,6 +6,7 @@ export interface ChainConfig {
   STATE_VIEW_ADDRESS: string;
   ROUTER: string;
   POOL_MODIFY_LIQUIDITY_ROUTER: string;
+  COLLATERAL_TOKEN: string;
   ORACLE_SERVICE_MANAGER_ADDRESS: string;
   AGENT_REGISTRY_ADDRESS: string;
   // Add any other chain-specific constants here

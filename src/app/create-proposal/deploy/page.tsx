@@ -4,20 +4,26 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAccount, useReadContract } from 'wagmi';
-import { parseUnits } from 'viem';
+import { parseUnits, formatUnits } from 'viem';
 import { useCreateMarket } from '@/hooks/useCreateMarket';
 import { MockERC20Abi } from '@/contracts/MockERC20_abi';
-import { PREDICTION_MARKET_HOOK_ADDRESS } from '@/app/constants';
+import { usePredictionMarketHookAddress } from '@/config';
+import { useMintCollateral } from '@/hooks/useMintCollateral';
 
 export default function CreateMarket() {
   const router = useRouter();
   const { address } = useAccount();
+  const hookAddress = usePredictionMarketHookAddress();
   const { approveTokens, createMarket, isPending, isApproving, isSimulating, isReady } = useCreateMarket();
+  const { mint, isMinting, isClientReady } = useMintCollateral();
   const [formData, setFormData] = useState<any>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [step, setStep] = useState<'approve' | 'create'>('approve');
   const [tokenDecimals, setTokenDecimals] = useState<number | null>(null);
+  const [mintAmount, setMintAmount] = useState<string>('');
+  const [isMintingCollateral, setIsMintingCollateral] = useState(false);
+  const [mintSuccess, setMintSuccess] = useState(false);
 
   // Load form data from localStorage
   useEffect(() => {
@@ -50,6 +56,17 @@ export default function CreateMarket() {
     }
   });
 
+  // Get token balance
+  const { data: tokenBalance, refetch: refetchBalance } = useReadContract({
+    address: formData?.collateralAddress as `0x${string}`,
+    abi: MockERC20Abi,
+    functionName: 'balanceOf',
+    args: [address || '0x0'],
+    query: {
+      enabled: !!address && !!formData?.collateralAddress,
+    }
+  });
+
   // Update token decimals when data is available
   useEffect(() => {
     if (decimals !== undefined) {
@@ -63,7 +80,7 @@ export default function CreateMarket() {
     address: formData?.collateralAddress as `0x${string}`,
     abi: MockERC20Abi,
     functionName: 'allowance',
-    args: [address || '0x0', PREDICTION_MARKET_HOOK_ADDRESS],
+    args: [address || '0x0', hookAddress],
     query: {
       enabled: !!address && !!formData?.collateralAddress,
     }
@@ -128,6 +145,37 @@ export default function CreateMarket() {
     }
   };
 
+  // Handle minting collateral tokens
+  const handleMintCollateral = async () => {
+    if (!isClientReady || !formData?.collateralAddress || !mintAmount || tokenDecimals === null) return;
+    
+    setIsMintingCollateral(true);
+    setError(null);
+    setMintSuccess(false);
+    
+    try {
+      await mint(
+        formData.collateralAddress as `0x${string}`, 
+        mintAmount, 
+        tokenDecimals
+      );
+      setMintSuccess(true);
+      setMintAmount(''); // Reset input
+      await refetchBalance(); // Update balance
+      await refetchAllowance(); // Update allowance
+    } catch (err) {
+      console.error('Error minting tokens:', err);
+      setError(err instanceof Error ? err.message : 'Failed to mint tokens');
+    } finally {
+      setIsMintingCollateral(false);
+    }
+  };
+
+  // Format token balance for display
+  const formattedBalance = tokenBalance && tokenDecimals !== null
+    ? formatUnits(tokenBalance as bigint, tokenDecimals)
+    : '0';
+
   // Button state based on current step
   const buttonState = {
     text: step === 'approve' 
@@ -146,6 +194,51 @@ export default function CreateMarket() {
       {error && (
         <div className="bg-red-50 border border-red-400 text-red-700 p-3 rounded mb-4">
           {error}
+        </div>
+      )}
+
+      {mintSuccess && (
+        <div className="bg-green-50 border border-green-400 text-green-700 p-3 rounded mb-4">
+          Tokens minted successfully!
+        </div>
+      )}
+      
+      {/* Mint Collateral Form */}
+      {formData && tokenDecimals !== null && (
+        <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200 mb-6">
+          <h2 className="text-xl font-semibold text-gray-900 mb-4">Mint Collateral Tokens</h2>
+          
+          <div className="mb-3">
+            <p className="text-gray-600 mb-1">Current Balance:</p>
+            <p className="text-gray-900 font-medium">{formattedBalance} tokens</p>
+          </div>
+          
+          <div className="flex items-end gap-3">
+            <div className="flex-1">
+              <label htmlFor="mintAmount" className="block text-sm font-medium text-gray-700 mb-1">
+                Amount to Mint
+              </label>
+              <input
+                id="mintAmount"
+                type="text"
+                value={mintAmount}
+                onChange={(e) => setMintAmount(e.target.value)}
+                placeholder="Enter amount"
+                className="w-full p-2 border border-gray-300 rounded focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+            <button
+              onClick={handleMintCollateral}
+              disabled={isMintingCollateral || !isClientReady || !mintAmount}
+              className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded transition-colors disabled:bg-gray-300 disabled:text-gray-500 disabled:cursor-not-allowed"
+            >
+              {isMintingCollateral ? 'Minting...' : 'Mint Tokens'}
+            </button>
+          </div>
+          
+          <p className="mt-2 text-sm text-gray-500">
+            Mint test tokens to use for creating your market.
+          </p>
         </div>
       )}
       
@@ -172,7 +265,7 @@ export default function CreateMarket() {
             
             <div>
               <span className="text-gray-600">Collateral:</span>
-              <span className="text-gray-900 ml-2">{formData.collateralAmount} tokens ({formData.decimals} decimals)</span>
+              <span className="text-gray-900 ml-2">{formData.collateralAmount} tokens ({tokenDecimals} decimals)</span>
             </div>
           </div>
           

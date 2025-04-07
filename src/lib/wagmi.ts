@@ -28,7 +28,7 @@ export const unichain = defineChain({
     symbol: 'ETH',
   },
   rpcUrls: {
-    default: { http: ['https://rpc.unichain.world'] },
+    default: { http: ['https://unichain-rpc.publicnode.com'] },
   },
   blockExplorers: {
     default: { name: 'Explorer', url: 'https://explorer.unichain.world' },

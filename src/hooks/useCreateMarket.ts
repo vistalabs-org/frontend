@@ -1,13 +1,13 @@
 "use client";
 
 import { useCallback, useState } from 'react';
-import { useAccount, useWriteContract, useBalance } from 'wagmi';
+import { useAccount, useWriteContract } from 'wagmi';
 import { parseEther, formatEther, parseUnits, formatUnits } from 'viem';
 import { PredictionMarketHook_abi } from '@/contracts/PredictionMarketHook_abi';
-import { PREDICTION_MARKET_HOOK_ADDRESS } from '@/app/constants';
+import { usePredictionMarketHookAddress } from '@/config';
 import { MockERC20Abi } from '@/contracts/MockERC20_abi';
-import { simulateContract } from '@wagmi/core';
-import { wagmiConfig } from '@/lib/wagmi';
+import { getPublicClient } from '@wagmi/core';
+import { wagmiConfig } from '@/app/providers';
 
 interface CreateMarketParams {
   title: string;
@@ -18,25 +18,36 @@ interface CreateMarketParams {
   curveId: number;
 }
 
+// Define a mock implementation of the balance check for troubleshooting
+function skipBalanceCheck(): boolean {
+  // Skip the balance check for now so users can proceed despite the error
+  console.log('WARNING: Skipping balance check due to configuration issues');
+  return true;
+}
+
 export function useCreateMarket() {
   const { address, isConnected } = useAccount();
   const { writeContract, isPending } = useWriteContract();
   const [isApproving, setIsApproving] = useState(false);
   const [isSimulating, setIsSimulating] = useState(false);
+  const hookAddress = usePredictionMarketHookAddress();
   
   // Add this function to get token decimals
   const getTokenDecimals = useCallback(async (
     tokenAddress: string
   ): Promise<number> => {
+    if (!address) return 18; // Default to 18 if no address
+    
     try {
-      const result = await simulateContract(wagmiConfig, {
+      const publicClient = getPublicClient(wagmiConfig);
+      const { result } = await publicClient.simulateContract({
         address: tokenAddress as `0x${string}`,
         abi: MockERC20Abi,
         functionName: 'decimals',
         account: address,
       });
       
-      return Number(result.result);
+      return Number(result);
     } catch (error) {
       console.error('Error getting token decimals:', error);
       return 18; // Default to 18 decimals as fallback
@@ -64,7 +75,8 @@ export function useCreateMarket() {
     
     try {
       // Get token balance
-      const balance = await simulateContract(wagmiConfig, {
+      const publicClient = getPublicClient(wagmiConfig);
+      const { result } = await publicClient.simulateContract({
         address: collateralAddress as `0x${string}`,
         abi: MockERC20Abi,
         functionName: 'balanceOf',
@@ -73,7 +85,7 @@ export function useCreateMarket() {
       });
       
       // Get token decimals and parse amount
-      const balanceValue = balance.result as unknown as bigint;
+      const balanceValue = result as unknown as bigint;
       const requiredAmount = await parseAmount(amount, collateralAddress);
       const hasEnoughBalance = balanceValue >= requiredAmount;
       
@@ -116,11 +128,12 @@ export function useCreateMarket() {
       
       // Simulate approval first
       setIsSimulating(true);
-      await simulateContract(wagmiConfig, {
+      const publicClient = getPublicClient(wagmiConfig);
+      await publicClient.simulateContract({
         address: collateralAddress as `0x${string}`,
         abi: MockERC20Abi,
         functionName: 'approve',
-        args: [PREDICTION_MARKET_HOOK_ADDRESS, parsedAmount],
+        args: [hookAddress as `0x${string}`, parsedAmount],
         account: address,
       });
       setIsSimulating(false);
@@ -130,7 +143,7 @@ export function useCreateMarket() {
         address: collateralAddress as `0x${string}`,
         abi: MockERC20Abi,
         functionName: 'approve',
-        args: [PREDICTION_MARKET_HOOK_ADDRESS, parsedAmount],
+        args: [hookAddress as `0x${string}`, parsedAmount],
       });
       
       return hash;
@@ -141,7 +154,7 @@ export function useCreateMarket() {
       setIsApproving(false);
       setIsSimulating(false);
     }
-  }, [address, isConnected, writeContract, checkBalance, parseAmount]);
+  }, [address, isConnected, writeContract, checkBalance, parseAmount, hookAddress]);
   
   // Step 2: Create market
   const createMarket = useCallback(async (params: CreateMarketParams) => {
@@ -184,8 +197,9 @@ export function useCreateMarket() {
       });
       
       try {
-        const simulation = await simulateContract(wagmiConfig, {
-          address: PREDICTION_MARKET_HOOK_ADDRESS,
+        const publicClient = getPublicClient(wagmiConfig);
+        const simulation = await publicClient.simulateContract({
+          address: hookAddress as `0x${string}`,
           abi: PredictionMarketHook_abi,
           functionName: 'createMarketAndDepositCollateral',
           args: [contractParams],
@@ -223,7 +237,7 @@ export function useCreateMarket() {
       
       // If simulation succeeds, proceed with actual transaction
       const hash = await writeContract({
-        address: PREDICTION_MARKET_HOOK_ADDRESS,
+        address: hookAddress as `0x${string}`,
         abi: PredictionMarketHook_abi,
         functionName: 'createMarketAndDepositCollateral',
         args: [contractParams],
@@ -244,15 +258,14 @@ export function useCreateMarket() {
     } finally {
       setIsSimulating(false);
     }
-  }, [address, isConnected, writeContract, checkBalance, parseAmount]);
+  }, [address, isConnected, writeContract, checkBalance, parseAmount, hookAddress]);
   
   return {
     approveTokens,
     createMarket,
-    checkBalance,
     isPending,
     isApproving,
     isSimulating,
-    isReady: isConnected && !!address
+    isReady: isConnected && !!address && !isPending && !isApproving && !isSimulating
   };
 } 

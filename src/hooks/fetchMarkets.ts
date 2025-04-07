@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import {PredictionMarketHook_abi} from '@/contracts/PredictionMarketHook_abi'
 import { IPredictionMarketHookAbi } from '@/contracts/IPredictionMarketHook_abi';
 import { usePredictionMarketHookAddress } from '@/config';
+import { useChainId } from 'wagmi';
 
 // The ABI contains complex types for PoolKey and Market
 // Let's define TypeScript interfaces for these
@@ -36,11 +37,17 @@ interface Market {
 
 export const useMarketCount = () => {
   const hookAddress = usePredictionMarketHookAddress();
+  const chainId = useChainId();
   
   // Add a state to handle the case when the hook is called before the provider is ready
   const [count, setCount] = useState<number>(0);
   const [loading, setLoading] = useState<boolean>(true);
   const [hookError, setHookError] = useState<Error | null>(null);
+
+  // Log the hook address and chain ID
+  useEffect(() => {
+    console.log(`[useMarketCount] Chain ID: ${chainId}, Hook Address: ${hookAddress}`);
+  }, [chainId, hookAddress]);
 
   const result = useReadContract({
     address: hookAddress as `0x${string}`,
@@ -49,12 +56,13 @@ export const useMarketCount = () => {
   });
 
   useEffect(() => {
-    console.log(result.data)
+    console.log(`[useMarketCount] Data:`, result.data, `Error:`, result.error);
     if (result.data !== undefined) {
       setCount(Number(result.data));
       setLoading(false);
     }
     if (result.error) {
+      console.error(`[useMarketCount] Error fetching market count:`, result.error);
       setHookError(result.error as Error);
       setLoading(false);
     }
@@ -75,18 +83,26 @@ export const useMarketCount = () => {
  */
 export function useAllMarkets(enabled = true) {
   const hookAddress = usePredictionMarketHookAddress();
+  const chainId = useChainId();
   
+  // Log the contract address and chain ID
+  useEffect(() => {
+    console.log(`[useAllMarkets] Chain ID: ${chainId}, Hook Address: ${hookAddress}`);
+  }, [chainId, hookAddress]);
+
   const result = useReadContract({
     address: hookAddress as `0x${string}`,
     abi: PredictionMarketHook_abi,
     functionName: 'getAllMarkets',
   });
 
-  // Only log changes when data or error actually change
+  // Enhanced error logging
   useEffect(() => {
-    console.log("Contract data:", result.data);
-    console.log("Contract error:", result.error);
-    // if (result.error) console.error("Contract error:", result.error);
+    console.log(`[useAllMarkets] Data:`, result.data);
+    if (result.error) {
+      console.error(`[useAllMarkets] Error fetching all markets:`, result.error);
+      console.error(`Error details:`, JSON.stringify(result.error, null, 2));
+    }
   }, [result.data, result.error]);
 
   return {
@@ -119,13 +135,30 @@ export function usePaginatedMarkets(
   enabled = true
 ) {
   const hookAddress = usePredictionMarketHookAddress();
+  const chainId = useChainId();
   
+  // Log the contract address and chain ID
+  useEffect(() => {
+    console.log(`[usePaginatedMarkets] Chain ID: ${chainId}, Hook Address: ${hookAddress}, Offset: ${offset}, Limit: ${limit}`);
+  }, [chainId, hookAddress, offset, limit]);
+
   const { data, isLoading, isError, error } = useReadContract({
     address: hookAddress as `0x${string}`,
     abi: IPredictionMarketHookAbi,
     functionName: 'getMarkets',
     args: [BigInt(offset), BigInt(limit)],
   });
+
+  // Log error details
+  useEffect(() => {
+    if (error) {
+      console.error(`[usePaginatedMarkets] Error fetching markets:`, error);
+      console.error(`Error details:`, JSON.stringify(error, null, 2));
+    }
+    if (data) {
+      console.log(`[usePaginatedMarkets] Raw markets data:`, data);
+    }
+  }, [data, error]);
 
   // Process markets to add UI-specific fields
   const processedMarkets = data ? (data as Market[]).map((market, index) => {
@@ -160,27 +193,47 @@ export function usePaginatedMarkets(
  */
 export function useInfiniteMarkets(pageSize = 10) {
   const hookAddress = usePredictionMarketHookAddress();
+  const chainId = useChainId();
   
+  // Log the contract address and chain ID
+  useEffect(() => {
+    console.log(`[useInfiniteMarkets] Chain ID: ${chainId}, Hook Address: ${hookAddress}`);
+  }, [chainId, hookAddress]);
+
   const [markets, setMarkets] = useState<Market[]>([])
   const [currentOffset, setCurrentOffset] = useState(0)
   const [hasMore, setHasMore] = useState(true)
   const [isLoading, setIsLoading] = useState(false)
   
   // Get total count of markets
-  const { data: totalCountData } = useReadContract({
+  const { data: totalCountData, error: countError } = useReadContract({
     address: hookAddress as `0x${string}`,
     abi: PredictionMarketHook_abi,
     functionName: 'getMarketCount',
   })
   
+  // Log error for getMarketCount
+  useEffect(() => {
+    if (countError) {
+      console.error(`[useInfiniteMarkets] Error fetching market count:`, countError);
+    }
+  }, [countError]);
+  
   const totalCount = totalCountData ? Number(totalCountData) : 0
 
   // Fetch the current page of markets
-  const { markets: pageMarkets, isLoading: pageLoading } = usePaginatedMarkets(
+  const { markets: pageMarkets, isLoading: pageLoading, error: pageError } = usePaginatedMarkets(
     currentOffset,
     pageSize,
     currentOffset < totalCount // Only enable if there are more markets to fetch
   )
+  
+  // Log error for paginated markets
+  useEffect(() => {
+    if (pageError) {
+      console.error(`[useInfiniteMarkets] Error fetching page markets:`, pageError);
+    }
+  }, [pageError]);
   
   // Update markets when new page data is received
   useEffect(() => {

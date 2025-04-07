@@ -20,7 +20,7 @@ import { cookieToInitialState } from "@account-kit/core";
 const queryClient = new QueryClient();
 
 // Configure wagmi with RainbowKit
-const wagmiConfig = getDefaultConfig({
+export const wagmiConfig = getDefaultConfig({
   appName: 'Vista Markets',
   projectId: 'YOUR_WALLET_CONNECT_PROJECT_ID', // Get from https://cloud.walletconnect.com
   chains: [unichain, unichainSepolia],

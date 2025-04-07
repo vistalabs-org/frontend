@@ -16,9 +16,10 @@ export default function KpiMarketForm() {
     description: '',
     duration: 7, // Default 7 days
     collateralAmount: '10',
-    collateralAddress: '0x77a4d2324d8330a04a0187a36d35fa4b542d17eb', // test usdc unichain sepolia
+    collateralAddress: '0xA5a2250b0170bdb9bd0904C0440717f00A506023', // test usdc unichain sepolia
     curveId: 0
   });
+
   
   const [error, setError] = useState<string | null>(null);
   const [hasEnoughBalance, setHasEnoughBalance] = useState<boolean | null>(null);

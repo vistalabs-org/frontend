@@ -42,7 +42,7 @@ const NavBar = () => {
 
       {/* Right - Connect Button with Network Selection */}
       <div className="flex-1 flex justify-end items-center">
-        <ConnectButton showBalance={false} />
+        <ConnectButton />
       </div>
     </nav>
   );

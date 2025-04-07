@@ -4,14 +4,17 @@ import MarketCard from '@/components/MarketCard';
 import { usePaginatedMarkets } from '@/hooks/fetchMarkets';
 import { useChainId } from 'wagmi'
 import React, { useEffect, useState } from 'react';
+import { usePredictionMarketHookAddress } from '@/config';
 
 // Add edge runtime configuration
 export const runtime = 'edge';
 
 export default function Home() {
   const chainId = useChainId();
-  const {markets, isLoading, isError} = usePaginatedMarkets(0, 9);
+  const hookAddress = usePredictionMarketHookAddress();
+  const {markets, isLoading, isError, error} = usePaginatedMarkets(0, 9);
   const [chainName, setChainName] = useState<string>('');
+  const [errorInfo, setErrorInfo] = useState<string>('');
   
   // Set chain name based on chainId
   useEffect(() => {
@@ -24,10 +27,26 @@ export default function Home() {
     }
   }, [chainId]);
   
+  // Extract error information
+  useEffect(() => {
+    if (error) {
+      console.error("Market error details:", error);
+      try {
+        const errorMessage = typeof error === 'object' ? 
+          (error.message || JSON.stringify(error)) : 
+          String(error);
+        setErrorInfo(errorMessage);
+      } catch (e) {
+        setErrorInfo('Unknown error occurred');
+      }
+    }
+  }, [error]);
+  
   // Default empty array if markets is undefined or not an array
   const marketsList = Array.isArray(markets) ? markets : [];
 
   console.log("Markets for chain ID", chainId, ":", marketsList);
+  console.log("Using contract address:", hookAddress);
   
   return (
     <div className="app-container">
@@ -43,7 +62,9 @@ export default function Home() {
         
         {isError && (
           <div className="loading-container">
-            <p className="loading-text" style={{ color: 'var(--red)' }}>Error loading markets. Using example markets instead.</p>
+            <p className="loading-text" style={{ color: 'var(--red)' }}>
+              Error loading markets: {errorInfo}
+            </p>
           </div>
         )}
         
@@ -72,6 +93,14 @@ export default function Home() {
                 <p className="text-gray-500">
                   There are currently no prediction markets available on {chainName}.
                 </p>
+                <p className="text-gray-500 mt-2">
+                  Contract address: {hookAddress}
+                </p>
+                {isError && (
+                  <p className="text-red-500 mt-2">
+                    Error: {errorInfo}
+                  </p>
+                )}
                 <p className="text-gray-500 mt-4">
                   Try refreshing the page, switching networks, or create your own market!
                 </p>
