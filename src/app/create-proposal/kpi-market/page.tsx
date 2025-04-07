@@ -4,6 +4,14 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAccount } from 'wagmi';
 import { useCreateMarket } from '@/hooks/useCreateMarket';
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { AlertCircle } from 'lucide-react'; // Import icon for error alert
 
 export default function KpiMarketForm() {
   const router = useRouter();
@@ -14,7 +22,7 @@ export default function KpiMarketForm() {
   const [formData, setFormData] = useState({
     title: '',
     description: '',
-    duration: 7, // Default 7 days
+    duration: '7', // Keep as string to match select value
     collateralAmount: '10',
     collateralAddress: '0xA5a2250b0170bdb9bd0904C0440717f00A506023', // test usdc unichain sepolia
     curveId: 0
@@ -25,11 +33,19 @@ export default function KpiMarketForm() {
   const [hasEnoughBalance, setHasEnoughBalance] = useState<boolean | null>(null);
 
   // Form handling logic
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
       [name]: value
+    }));
+  };
+
+  // Handler specifically for ShadCN Select component
+  const handleSelectChange = (value: string) => {
+    setFormData(prev => ({
+      ...prev,
+      duration: value
     }));
   };
 
@@ -38,7 +54,11 @@ export default function KpiMarketForm() {
     console.log('Submitting form data:', formData);
     
     try {
-      // Store form data in localStorage
+      // Validate required fields (though HTML 'required' helps)
+      if (!formData.title || !formData.description || !formData.collateralAmount) {
+        setError("Please fill in all required fields.");
+        return;
+      }
       localStorage.setItem('marketFormData', JSON.stringify(formData));
       console.log('Form data saved to localStorage');
       
@@ -47,106 +67,104 @@ export default function KpiMarketForm() {
       window.location.href = '/create-proposal/deploy';
     } catch (error) {
       console.error('Error during form submission:', error);
-      setError('Failed to save form data. Please try again.');
+      const message = error instanceof Error ? error.message : 'Failed to save form data. Please try again.';
+      setError(message);
     }
   };
 
   return (
-    <div className="max-w-2xl mx-auto p-6">
-      <h1 className="text-3xl font-bold text-gray-900 mb-8">Create KPI Market</h1>
-      
-      {error && (
-        <div className="bg-red-50 border border-red-400 text-red-700 p-3 rounded mb-4">
-          {error}
-        </div>
-      )}
-      
-      <form onSubmit={handleSubmit} className="space-y-6">
-        <div>
-          <label htmlFor="title" className="block text-gray-700 font-medium mb-2">
-            Market Title
-          </label>
-          <input
-            type="text"
-            id="title"
-            name="title"
-            value={formData.title}
-            onChange={handleChange}
-            className="w-full p-3 bg-white border border-gray-300 rounded-lg text-gray-900 placeholder-gray-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-            placeholder="Will Protocol X reach 1M TVL by EOY?"
-            required
-          />
-        </div>
-        
-        <div>
-          <label htmlFor="description" className="block text-gray-700 font-medium mb-2">
-            Market Description
-          </label>
-          <textarea
-            id="description"
-            name="description"
-            value={formData.description}
-            onChange={handleChange}
-            rows={4}
-            className="w-full p-3 bg-white border border-gray-300 rounded-lg text-gray-900 placeholder-gray-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-            placeholder="Provide details about this market, including resolution criteria..."
-            required
-          />
-        </div>
-        
-        <div>
-          <label htmlFor="duration" className="block text-gray-700 font-medium mb-2">
-            Duration (days)
-          </label>
-          <select
-            id="duration"
-            name="duration"
-            value={formData.duration}
-            onChange={handleChange}
-            className="w-full p-3 bg-white border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-          >
-            <option value={1}>1 day</option>
-            <option value={7}>7 days</option>
-            <option value={30}>30 days</option>
-            <option value={90}>90 days</option>
-          </select>
-        </div>
-        
-        <div>
-          <label htmlFor="collateralAmount" className="block text-gray-700 font-medium mb-2">
-            Collateral Amount (USDC)
-          </label>
-          <input
-            type="number"
-            id="collateralAmount"
-            name="collateralAmount"
-            value={formData.collateralAmount}
-            onChange={handleChange}
-            className="w-full p-3 bg-white border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-            min="1"
-            required
-          />
-          <p className="mt-2 text-sm text-gray-600">
-            This amount will be used as collateral for the market.
-          </p>
-        </div>
-        
-        <div className="pt-6">
-          <button
+    <div className="max-w-2xl mx-auto p-4 md:p-6">
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-2xl">Create KPI Market</CardTitle>
+          <CardDescription>
+            Define the details for your Key Performance Indicator market.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          {error && (
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertTitle>Error</AlertTitle>
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="space-y-2">
+              <Label htmlFor="title">Market Title</Label>
+              <Input
+                id="title"
+                name="title"
+                value={formData.title}
+                onChange={handleChange}
+                placeholder="Will Protocol X reach 1M TVL by EOY?"
+                required
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="description">Market Description</Label>
+              <Textarea
+                id="description"
+                name="description"
+                value={formData.description}
+                onChange={handleChange}
+                rows={4}
+                placeholder="Provide details about this market, including resolution criteria..."
+                required
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="duration">Duration (days)</Label>
+              <Select name="duration" value={formData.duration} onValueChange={handleSelectChange}>
+                <SelectTrigger id="duration">
+                  <SelectValue placeholder="Select duration" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="1">1 day</SelectItem>
+                  <SelectItem value="7">7 days</SelectItem>
+                  <SelectItem value="30">30 days</SelectItem>
+                  <SelectItem value="90">90 days</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="collateralAmount">Collateral Amount (USDC)</Label>
+              <Input
+                type="number"
+                id="collateralAmount"
+                name="collateralAmount"
+                value={formData.collateralAmount}
+                onChange={handleChange}
+                min="1"
+                required
+              />
+              <p className="text-sm text-muted-foreground">
+                This amount provides initial liquidity and collateral for the market.
+              </p>
+            </div>
+          </form>
+        </CardContent>
+        <CardFooter className="flex flex-col items-center gap-2 pt-6">
+          <Button
             type="submit"
-            disabled={!isReady}
-            className="w-full px-6 py-4 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors disabled:bg-gray-300 disabled:text-gray-500 disabled:cursor-not-allowed"
+            form="kpi-market-form" // Associate button with form via id
+            disabled={!isReady} // Disable if wallet not ready/connected
+            className="w-full"
           >
             Continue to Next Step
-          </button>
+          </Button>
           
           {!isReady && (
-            <p className="mt-2 text-red-600 text-sm text-center">
-              Please connect your wallet to create a market
+            <p className="text-sm text-destructive text-center">
+              Please connect your wallet to continue.
             </p>
           )}
-        </div>
-      </form>
+        </CardFooter>
+      </Card>
+      <form id="kpi-market-form" onSubmit={handleSubmit}></form>
     </div>
   );
 }

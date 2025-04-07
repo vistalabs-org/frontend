@@ -1,0 +1,480 @@
+"use client"
+import React from 'react';
+import Image from 'next/image';
+import Link from 'next/link';
+import { format } from 'date-fns';
+import SwapFunction from '@/components/SwapFunction';
+import { useAccount } from 'wagmi';
+import { parseUnits, formatUnits } from 'ethers';
+import { MockERC20Abi } from '@/contracts/MockERC20_abi';
+import { ROUTER } from '@/app/constants';
+import { useRouter } from 'next/navigation';
+
+// --- Import Shadcn UI Components ---
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge, badgeVariants } from "@/components/ui/badge";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { Separator } from "@/components/ui/separator";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Loader2, ShieldAlert, BarChart, Clock, ThumbsUp, MessageSquare } from 'lucide-react';
+
+// TokenBalances Component using Shadcn structure
+const TokenBalances = ({ collateralBalance, yesBalance, noBalance }: {
+  collateralBalance?: string;
+  yesBalance?: string;
+  noBalance?: string;
+}) => {
+  return (
+    <div className="space-y-2 text-sm">
+      <div className="flex justify-between">
+        <span className="text-muted-foreground">USDC:</span>
+        <span>{collateralBalance || '0.00'}</span>
+      </div>
+      <div className="flex justify-between">
+        <span className="text-muted-foreground">Yes Tokens:</span>
+        <span>{yesBalance || '0.00'}</span>
+      </div>
+      <div className="flex justify-between">
+        <span className="text-muted-foreground">No Tokens:</span>
+        <span>{noBalance || '0.00'}</span>
+      </div>
+    </div>
+  );
+};
+
+// PriceDisplay Component using Shadcn structure
+const PriceDisplay = ({ yesPool, noPool, marketId }: { yesPool: any; noPool: any; marketId: string }) => {
+  const formatPricePercent = (pool: any) => {
+    if (pool?.price === undefined || pool?.price === null) return 'N/A';
+    try {
+      const priceAsNumber = Number(pool.price);
+      if (isNaN(priceAsNumber)) return 'N/A';
+      return `${(priceAsNumber * 100).toFixed(1)}%`;
+    } catch (error) {
+      console.error('Error formatting price:', error);
+      return 'N/A';
+    }
+  };
+
+  const formatLiquidity = (liquidity: any) => {
+     if (liquidity === undefined || liquidity === null) return '0';
+     try {
+       return BigInt(liquidity).toString();
+     } catch {
+       return '0';
+     }
+  }
+
+  let totalLiquidity = BigInt(0);
+  try {
+     const yesLiq = yesPool?.liquidity ? BigInt(yesPool.liquidity) : BigInt(0);
+     const noLiq = noPool?.liquidity ? BigInt(noPool.liquidity) : BigInt(0);
+     totalLiquidity = yesLiq + noLiq;
+  } catch {}
+
+  const yesPriceFormatted = formatPricePercent(yesPool);
+  const noPriceFormatted = formatPricePercent(noPool);
+
+  return (
+    <>
+      <div className="flex justify-around items-center mb-4">
+        <div className="text-center flex-1 px-2">
+          <div className={`text-3xl font-bold ${yesPriceFormatted !== 'N/A' ? 'text-green-600' : 'text-muted-foreground'} mb-1`}>
+            {yesPriceFormatted}
+          </div>
+          <div className="text-sm text-muted-foreground">Yes</div>
+        </div>
+        <Separator orientation="vertical" className="h-10" />
+        <div className="text-center flex-1 px-2">
+          <div className={`text-3xl font-bold ${noPriceFormatted !== 'N/A' ? 'text-red-600' : 'text-muted-foreground'} mb-1`}>
+            {noPriceFormatted}
+          </div>
+          <div className="text-sm text-muted-foreground">No</div>
+        </div>
+      </div>
+
+      <Separator className="my-4" />
+
+      <div>
+        <div className="mb-2">
+          <h4 className="text-sm font-medium text-center text-muted-foreground">Market Liquidity</h4>
+        </div>
+        <div className="flex justify-around items-center text-center">
+          <div className="flex-1">
+            <div className="text-lg font-medium text-foreground">
+              {formatLiquidity(yesPool?.liquidity)}
+            </div>
+            <div className="text-xs text-muted-foreground">Yes Pool</div>
+          </div>
+          <div className="flex-1">
+            <div className="text-lg font-medium text-foreground">
+              {formatLiquidity(noPool?.liquidity)}
+            </div>
+            <div className="text-xs text-muted-foreground">No Pool</div>
+          </div>
+        </div>
+        <div className="text-sm font-medium text-center text-muted-foreground mt-2">
+          Total: {totalLiquidity.toString()}
+        </div>
+      </div>
+    </>
+  );
+};
+
+// Define the expected shape of tokenBalance from SwapFunction hook
+interface SwapTokenBalances {
+  collateral: string;
+  yes: string;
+  no: string;
+}
+
+// Define structure for comment data for clarity
+interface CommentData {
+  username: string;
+  avatar?: string;
+  position?: string; // e.g., "Yes $100"
+  time: string;
+  content: string;
+}
+
+const PredictionMarketPage = ({ 
+  marketData, 
+  yesPool, 
+  noPool, 
+  endTimestamp, 
+  marketId,
+  mintCollateralButton
+}: any) => {
+  const [selectedAction, setSelectedAction] = React.useState<'Buy' | 'Sell'>('Buy');
+  const [selectedOption, setSelectedOption] = React.useState<'Yes' | 'No'>('Yes');
+  const [amount, setAmount] = React.useState('');
+  const { isConnected } = useAccount();
+  const router = useRouter();
+
+  const { 
+    handleSwap, 
+    isSwapping, 
+    expectedOutput, 
+    tokenBalance,
+    needsApproval,
+    handleApprove,
+    isApproving,
+  }: {
+    handleSwap: () => Promise<void>;
+    isSwapping: boolean;
+    expectedOutput: string;
+    tokenBalance: SwapTokenBalances;
+    needsApproval: boolean;
+    handleApprove: (params?: any) => Promise<void>;
+    isApproving: boolean;
+  } = SwapFunction({
+    marketId,
+    yesPool,
+    noPool,
+    market: marketData,
+    selectedAction,
+    selectedOption,
+    amount,
+    setAmount
+  });
+
+  let displayBalance = '0.00';
+  if (isConnected && tokenBalance) {
+    if (selectedAction === 'Buy') {
+      displayBalance = tokenBalance.collateral || '0.00';
+    } else {
+      displayBalance = selectedOption === 'Yes' ? (tokenBalance.yes || '0.00') : (tokenBalance.no || '0.00');
+    }
+  }
+
+  const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value.replace(/[^0-9.]/g, '');
+    if (value === '' || /^\d*\.?\d*$/.test(value)) {
+      setAmount(value);
+    }
+  };
+
+  const addAmount = (value: number) => {
+    const currentAmount = parseFloat(amount || '0');
+    setAmount((currentAmount + value).toString());
+  };
+
+  const setMaxAmount = () => {
+    const max = parseFloat(displayBalance) || 0;
+    setAmount(max > 0 ? displayBalance : '0');
+  };
+
+  const volume = marketData?.volume ? marketData.volume.toLocaleString() : '0';
+  const comments: CommentData[] = Array.isArray(marketData?.comments) ? marketData.comments : [];
+  const topHolders = marketData?.topHolders || [];
+  const activity = marketData?.activity || [];
+
+  const formattedEndDate = endTimestamp ? format(new Date(Number(endTimestamp) * 1000), "MMMM d, yyyy 'at' h:mm a") : "Loading...";
+
+  const isAmountInvalid = amount === '' || parseFloat(amount) <= 0;
+
+  return (
+    <div className="max-w-screen-xl mx-auto py-6 grid grid-cols-1 lg:grid-cols-3 gap-6 px-4">
+      <div className="lg:col-span-2 flex flex-col gap-6">
+        <Card>
+          <CardHeader className="flex flex-row items-start gap-4">
+            <Avatar className="w-16 h-16 border rounded-lg">
+              {marketData.icon ? (
+                 <AvatarImage src={marketData.icon} alt="Market icon" />
+              ) : null }
+              <AvatarFallback className="rounded-lg bg-muted">?</AvatarFallback>
+            </Avatar>
+            <div className="flex-1">
+              <CardTitle className="text-2xl mb-1">{marketData?.title || "Loading..."}</CardTitle>
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
+                <div className="flex items-center gap-1">
+                   <BarChart className="w-4 h-4" />
+                  <span>${volume} Vol.</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <Clock className="w-4 h-4" />
+                  <span>{formattedEndDate}</span>
+                </div>
+              </div>
+            </div>
+          </CardHeader>
+        </Card>
+
+        <Card>
+          <CardHeader>
+             <CardTitle>Market Price</CardTitle>
+             <CardDescription>Current probability based on pool prices.</CardDescription>
+          </CardHeader>
+          <CardContent>
+             <PriceDisplay yesPool={yesPool} noPool={noPool} marketId={marketId} />
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Details & Rules</CardTitle>
+          </CardHeader>
+          <CardContent>
+             <div className="prose prose-sm dark:prose-invert max-w-none text-muted-foreground">
+              <p>{marketData?.description || "Loading..."}</p>
+              <p>
+                <strong>Resolution Date:</strong> {formattedEndDate}
+              </p>
+             </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+           <Tabs defaultValue="Comments" className="w-full">
+             <TabsList className="grid w-full grid-cols-4 mb-4">
+               <TabsTrigger value="Comments"><MessageSquare className="w-4 h-4 mr-1"/> Comments ({comments.length})</TabsTrigger>
+               <TabsTrigger value="TopHolders" disabled>Top Holders</TabsTrigger>
+               <TabsTrigger value="Activity" disabled>Activity</TabsTrigger>
+               <TabsTrigger value="Related" disabled>Related</TabsTrigger>
+             </TabsList>
+
+             <TabsContent value="Comments">
+                <CardHeader>
+                   <CardTitle>Comments</CardTitle>
+                </CardHeader>
+               <CardContent className="space-y-4">
+                 <div className="flex gap-2">
+                    <Input
+                      type="text"
+                      placeholder="Add a comment..."
+                    />
+                     <Button disabled>Post</Button>
+                 </div>
+                  <Alert variant="default" className="border-yellow-500/50 bg-yellow-50 text-yellow-900 dark:border-yellow-700 dark:bg-yellow-900/20 dark:text-yellow-400">
+                     <ShieldAlert className="h-4 w-4 text-yellow-600 dark:text-yellow-400" />
+                    <AlertTitle className="text-yellow-800 dark:text-yellow-300">Security Notice</AlertTitle>
+                    <AlertDescription>
+                      Beware of external links, they may be phishing attacks. Do not share private keys.
+                    </AlertDescription>
+                  </Alert>
+
+                 <div className="space-y-4">
+                   {comments.length > 0 ? comments.map((comment: CommentData, index: number) => {
+                     const positionText = comment.position || '';
+                     let badgeVariant: "default" | "destructive" | "outline" = "outline";
+                     let badgeClass = '';
+                     if (positionText.toLowerCase().includes('yes')) {
+                        badgeVariant = 'default';
+                        badgeClass = 'border-green-500/50 bg-green-50 text-green-700 dark:border-green-700 dark:bg-green-900/20 dark:text-green-400';
+                     } else if (positionText.toLowerCase().includes('no')) {
+                        badgeVariant = 'destructive';
+                     }
+
+                     return (
+                       <div key={index} className="flex gap-3 border-b pb-4 last:border-b-0 last:pb-0">
+                         <Avatar className="w-10 h-10">
+                           <AvatarImage src={comment.avatar} alt={comment.username} />
+                           <AvatarFallback>{comment.username?.charAt(0)?.toUpperCase() || 'U'}</AvatarFallback>
+                         </Avatar>
+                         <div className="flex-grow">
+                           <div className="flex justify-between items-center mb-1">
+                             <div className="flex items-center gap-2">
+                               <span className="font-semibold text-foreground">{comment.username}</span>
+                               {comment.position && (
+                                 <Badge
+                                    variant={badgeVariant}
+                                    className={`text-xs ${badgeClass}`}
+                                 >
+                                   {comment.position}
+                                 </Badge>
+                               )}
+                             </div>
+                             <span className="text-muted-foreground text-xs">{comment.time}</span>
+                           </div>
+                           <p className="text-sm text-muted-foreground break-words">{comment.content}</p>
+                           <div className="flex gap-2 mt-2">
+                              <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-primary">
+                                 <ThumbsUp className="w-4 h-4 mr-1"/> Like
+                              </Button>
+                           </div> 
+                         </div>
+                       </div>
+                     );
+                   }) : (
+                      <p className="text-sm text-muted-foreground text-center py-4">No comments yet. Be the first to share your thoughts!</p>
+                   )}
+                 </div>
+               </CardContent>
+             </TabsContent>
+              <TabsContent value="TopHolders">
+                  <CardContent><p className="text-muted-foreground p-4 text-center">Top Holders feature coming soon.</p></CardContent>
+              </TabsContent>
+              <TabsContent value="Activity">
+                  <CardContent><p className="text-muted-foreground p-4 text-center">Activity feed coming soon.</p></CardContent>
+              </TabsContent>
+              <TabsContent value="Related">
+                 <CardContent><p className="text-muted-foreground p-4 text-center">Related markets feature coming soon.</p></CardContent>
+              </TabsContent>
+           </Tabs>
+        </Card>
+      </div>
+
+      <div className="lg:col-span-1">
+        <div className="sticky top-20 space-y-6">
+          <Card>
+            <CardHeader>
+               <ToggleGroup
+                type="single"
+                value={selectedAction}
+                onValueChange={(value) => { if (value) setSelectedAction(value as 'Buy' | 'Sell'); }}
+                className="grid grid-cols-2"
+              >
+                <ToggleGroupItem value="Buy" aria-label="Select Buy" className="data-[state=on]:bg-primary data-[state=on]:text-primary-foreground">
+                  Buy
+                </ToggleGroupItem>
+                <ToggleGroupItem value="Sell" aria-label="Select Sell" className="data-[state=on]:bg-primary data-[state=on]:text-primary-foreground">
+                  Sell
+                </ToggleGroupItem>
+              </ToggleGroup>
+            </CardHeader>
+            <CardContent className="space-y-4">
+               <ToggleGroup
+                 type="single"
+                 value={selectedOption}
+                 onValueChange={(value) => { if (value) setSelectedOption(value as 'Yes' | 'No'); }}
+                 className="grid grid-cols-2"
+               >
+                 <ToggleGroupItem value="Yes" aria-label="Select Yes" className="data-[state=on]:bg-green-600 data-[state=on]:text-white">
+                   Yes
+                 </ToggleGroupItem>
+                 <ToggleGroupItem value="No" aria-label="Select No" className="data-[state=on]:bg-red-600 data-[state=on]:text-white">
+                   No
+                 </ToggleGroupItem>
+               </ToggleGroup>
+
+              <div className="space-y-1">
+                <Label htmlFor="amount">Amount</Label>
+                <div className="relative">
+                  <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-muted-foreground sm:text-sm">$</span>
+                  <Input
+                    type="text"
+                    inputMode="decimal"
+                    id="amount"
+                    className="pl-7 pr-12"
+                    placeholder="0.00"
+                    value={amount}
+                    onChange={handleAmountChange}
+                  />
+                </div>
+                <div className="text-xs text-muted-foreground pt-1">
+                   Balance: {displayBalance} {selectedAction === 'Buy' ? 'USDC' : selectedOption + ' Tokens'}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-5 gap-2 pt-1">
+                 <Button variant="outline" size="sm" onClick={() => addAmount(1)}>+$1</Button>
+                 <Button variant="outline" size="sm" onClick={() => addAmount(5)}>+$5</Button>
+                 <Button variant="outline" size="sm" onClick={() => addAmount(20)}>+$20</Button>
+                 <Button variant="outline" size="sm" onClick={() => addAmount(100)}>+$100</Button>
+                <Button variant="outline" size="sm" onClick={setMaxAmount}>Max</Button>
+              </div>
+
+              {amount && parseFloat(amount) > 0 && expectedOutput && (
+                <div className="mt-2 text-sm text-muted-foreground">
+                  Expected {selectedAction === 'Buy' ? 'output' : 'return'}: 
+                  <span className="font-medium text-foreground">
+                      {selectedAction === 'Buy'
+                        ? ` ${expectedOutput} ${selectedOption} tokens`
+                        : ` $${expectedOutput}`}
+                  </span>
+                </div>
+              )}
+            </CardContent>
+            <CardFooter>
+              {!isConnected ? (
+                <Button className="w-full" disabled>Connect Wallet</Button>
+              ) : needsApproval ? (
+                <Button
+                  className="w-full"
+                  onClick={() => handleApprove()}
+                  disabled={isApproving || isAmountInvalid}
+                >
+                  {isApproving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                  Approve {selectedAction === 'Buy' ? 'USDC' : selectedOption + ' Tokens'}
+                </Button>
+              ) : (
+                <Button
+                  className="w-full"
+                  onClick={handleSwap}
+                  disabled={isSwapping || isAmountInvalid}
+                >
+                  {isSwapping ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                  {selectedAction} {selectedOption}
+                </Button>
+              )}
+            </CardFooter>
+          </Card>
+
+          {mintCollateralButton}
+
+          {isConnected && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-sm font-medium">Your Balances</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <TokenBalances
+                  collateralBalance={tokenBalance?.collateral || '0.00'}
+                  yesBalance={tokenBalance?.yes || '0.00'}
+                  noBalance={tokenBalance?.no || '0.00'}
+                />
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default PredictionMarketPage;

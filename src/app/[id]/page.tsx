@@ -1,7 +1,7 @@
 // app/market/[id]/page.tsx
 import React from 'react';
 import { Metadata } from 'next';
-import MarketPageClient from '@/components/MarketPageClient';
+import MarketPageClient from '@/components/market/MarketPageClient';
 
 // Add edge runtime configuration
 export const runtime = 'edge';

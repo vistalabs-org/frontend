@@ -3,572 +3,506 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useMarketByIndex } from '@/hooks/fetchMarkets';
-import { useOracleTask, useCreateTask, useRegisteredAgents } from '@/hooks/useOracleData';
+import { useOracleTask, useCreateTask, useRegisteredAgents, TaskData, AgentData } from '@/hooks/useOracleData';
 import Link from 'next/link';
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge, badgeVariants } from "@/components/ui/badge";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from "@/components/ui/dialog";
+import { Progress } from "@/components/ui/progress";
+import { Loader2, Info, BookOpen, Users, X, CheckCircle, Clock, AlertCircle } from 'lucide-react';
 
-// Helper function to convert task status number to string
-const getStatusString = (status: number): string => {
+// Helper function returns standard variants
+const getStatusInfo = (status: number): { text: string; variant: "default" | "secondary" | "destructive" | "outline" } => {
   switch (status) {
-    case 0: return "Created";
-    case 1: return "In Progress";
-    case 2: return "Resolved";
-    default: return "Unknown";
+    case 0: return { text: "Created", variant: "secondary" };
+    case 1: return { text: "In Progress", variant: "default" };
+    case 2: return { text: "Resolved", variant: "default" }; // Use default, icon indicates success
+    default: return { text: "Unknown", variant: "outline" };
   }
 };
 
-// Helper function to get agent status string
-const getAgentStatusString = (status: number): string => {
+const getAgentStatusInfo = (status: number): { text: string; variant: "default" | "secondary" | "destructive" | "outline" } => {
   switch (status) {
-    case 0: return "Inactive";
-    case 1: return "Active";
-    case 2: return "Suspended";
-    default: return "Unknown";
+    case 0: return { text: "Inactive", variant: "outline" };
+    case 1: return { text: "Active", variant: "default" }; // Use default, icon indicates active
+    case 2: return { text: "Suspended", variant: "destructive" };
+    default: return { text: "Unknown", variant: "secondary" };
   }
 };
-
-// Helper function to get status color
-const getStatusColor = (status: number): string => {
-  switch (status) {
-    case 0: return "var(--primary-color)";
-    case 1: return "var(--primary-color)";
-    case 2: return "var(--green)";
-    default: return "var(--text-secondary)";
-  }
-};
-
-// Type definitions
-interface TaskData {
-  id: number;
-  status: number;
-  respondents: string[];
-  consensusResult: {
-    result: string;
-    isResolved: boolean;
-  };
-}
-
-interface AgentData {
-  address: string;
-  modelType: string;
-  modelVersion: string;
-  tasksCompleted: number;
-  consensusParticipations: number;
-  rewardsEarned: number;
-  status: number;
-}
 
 export default function MarketResolutionClient() {
   const params = useParams();
   const router = useRouter();
   const marketId = typeof params.id === 'string' ? params.id : '';
-  
+
   const [taskId, setTaskId] = useState<number | undefined>(undefined);
   const [isCreatingTask, setIsCreatingTask] = useState(false);
   const [activeTab, setActiveTab] = useState<'overview' | 'agents' | 'process'>('overview');
-  const [selectedAgent, setSelectedAgent] = useState<AgentData | null>(null);
-  const [showAgentDetails, setShowAgentDetails] = useState(false);
-  
-  // Fetch market data
-  const { market, isLoading: marketLoading } = useMarketByIndex(marketId);
-  
-  // Fetch task data (if we have a taskId)
-  const { task, loading: taskLoading } = useOracleTask(taskId);
-  
-  // Hook for creating tasks
-  const { createTask, isLoading: createTaskLoading, isSuccess: createTaskSuccess } = useCreateTask();
-  
-  // Fetch registered agents
-  const { agents, loading: agentsLoading } = useRegisteredAgents();
 
-  // Handle task creation
-  const handleCreateTask = () => {
-    if (market && !isCreatingTask) {
+  // Use 'error' property from hooks
+  const { market, isLoading: marketLoading, error: marketError } = useMarketByIndex(marketId);
+  const { task, loading: taskLoading, error: taskError } = useOracleTask(taskId);
+  const { createTask, isLoading: createTaskLoading, isSuccess: createTaskSuccess } = useCreateTask();
+  const { agents, loading: agentsLoading, error: agentsError } = useRegisteredAgents();
+
+  const handleCreateTask = async () => {
+    if (market && !isCreatingTask && !createTaskLoading) {
       setIsCreatingTask(true);
-      createTask(market.title);
+      try {
+        await createTask(market.title);
+      } catch (error) {
+        console.error("Failed to create task:", error);
+        setIsCreatingTask(false);
+      }
     }
   };
 
-  // Handle agent click
-  const handleAgentClick = (agent: AgentData) => {
-    setSelectedAgent(agent);
-    setShowAgentDetails(true);
-  };
-
-  // Update taskId if creation was successful
   useEffect(() => {
     if (createTaskSuccess) {
-      // In a real implementation, you'd get the taskId from the transaction receipt
-      // For now, let's simulate by checking the latest task
-      setTaskId(Math.floor(Math.random() * 1000)); // Mock taskId for demo
+      console.log("Task creation successful, simulating taskId fetch...");
+      setTaskId(Math.floor(Math.random() * 1000));
       setIsCreatingTask(false);
     }
   }, [createTaskSuccess]);
 
-  // Calculate consensus percentage
   const getConsensusProgress = (): number => {
     if (!task || !task.respondents || task.respondents.length === 0) return 0;
-    
-    // This is a simplified version - in a real app, you would count YES responses
-    // For now, we'll just assume 75% consensus for demonstration
-    return 75;
+    return task.status === 2 ? 75 : 40; // Simplified
   };
 
-  // Calculate response progress
   const getResponsesProgress = (): number => {
     if (!task || !task.respondents) return 0;
-    
-    // Assuming we need at least 5 responses for consensus
     const minimumResponses = 5;
     return Math.min(100, Math.round((task.respondents.length / minimumResponses) * 100));
   };
 
   if (marketLoading) {
     return (
-      <main className="app-container">
-        <div className="main-content">
-          <div className="loading-container">
-            <div className="spinner"></div>
-            <p className="loading-text">Loading market data...</p>
-          </div>
+      <main className="max-w-screen-xl mx-auto p-6 min-h-screen flex items-center justify-center">
+        <div className="flex items-center text-muted-foreground">
+          <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+          <p>Loading market data...</p>
         </div>
       </main>
     );
   }
 
-  if (!market) {
+  // Check for marketError
+  if (marketError || !market) {
     return (
-      <main className="app-container">
-        <div className="main-content">
-          <div className="error-container">
-            <p>Market not found</p>
-            <Link href="/" className="button">Return to Markets</Link>
+      <main className="max-w-screen-xl mx-auto p-6 min-h-screen flex items-center justify-center">
+        <Alert variant="destructive" className="max-w-md">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Error Loading Market</AlertTitle>
+          <AlertDescription>
+            Failed to load market data. {marketError?.message || `Market ID ${marketId} might be invalid or there was a network issue.`}
+          </AlertDescription>
+          <div className="mt-4">
+            <Link href="/" passHref>
+              <Button variant="outline">Back to Markets</Button>
+            </Link>
           </div>
-        </div>
+        </Alert>
       </main>
     );
   }
+
+  const taskStatusInfo = task ? getStatusInfo(task.status) : getStatusInfo(-1);
 
   return (
-    <main className="app-container">
-      <div className="main-content">
-        <div className="resolution-header">
-          <h1>Market Resolution</h1>
-          <Link href={`/market/${marketId}`} className="button">
-            Back to Market
-          </Link>
-        </div>
+    <main className="max-w-screen-xl mx-auto p-4 sm:p-6 lg:p-8">
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-bold">Market Resolution</h1>
+        <Link href={`/${marketId}`} passHref>
+          <Button variant="outline">Back to Market</Button>
+        </Link>
+      </div>
 
-        {/* Market Info Card */}
-        <div className="market-card p-4 mb-6" style={{ backgroundColor: 'var(--card-background)' }}>
-          <h2 className="market-title">{market.title}</h2>
-          <p className="text-secondary">{market.description}</p>
-          <div className="mt-2 flex items-center">
-            <span className="text-secondary text-sm mr-2">End Date:</span>
-            <span>{new Date(Number(market.endTimestamp) * 1000).toLocaleDateString()}</span>
-          </div>
-          {task && (
-            <div className="mt-2 flex items-center">
-              <span className="text-secondary text-sm mr-2">Status:</span>
-              <span 
-                className="px-2 py-1 rounded-full text-xs text-white" 
-                style={{ backgroundColor: getStatusColor(task.status) }}
-              >
-                {getStatusString(task.status)}
-              </span>
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle>{market.title}</CardTitle>
+          <CardDescription>{market.description}</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+            <div>
+              <p className="text-muted-foreground">End Date</p>
+              <p>{new Date(Number(market.endTimestamp) * 1000).toLocaleDateString()}</p>
             </div>
-          )}
-        </div>
-
-        {/* Tab Navigation */}
-        <div className="border-b mb-6" style={{ borderColor: 'var(--border-color)' }}>
-          <div className="market-tabs">
-            <button
-              className={`tab-button ${activeTab === 'overview' ? 'active' : ''}`}
-              onClick={() => setActiveTab('overview')}
-            >
-              Overview
-            </button>
-            <button
-              className={`tab-button ${activeTab === 'process' ? 'active' : ''}`}
-              onClick={() => setActiveTab('process')}
-            >
-              Oracle Process
-            </button>
-            <button
-              className={`tab-button ${activeTab === 'agents' ? 'active' : ''}`}
-              onClick={() => setActiveTab('agents')}
-            >
-              AI Agents
-            </button>
+            <div>
+              <p className="text-muted-foreground">Status</p>
+              {task ? (
+                <Badge variant={taskStatusInfo.variant}>
+                  {taskStatusInfo.variant === 'default' && task.status === 2 && <CheckCircle className="mr-1 h-3 w-3 text-green-600" />} {/* Specific styling for Resolved icon */}
+                  {taskStatusInfo.text}
+                </Badge>
+              ) : (
+                <Badge variant="outline">Not Submitted</Badge>
+              )}
+            </div>
           </div>
-        </div>
+        </CardContent>
+      </Card>
 
-        {/* Overview Tab */}
-        {activeTab === 'overview' && (
-          <div className="resolution-status-card">
-            <h3 className="market-title mb-4">Resolution Status</h3>
-            
-            {taskId === undefined ? (
-              <div className="market-card p-4" style={{ backgroundColor: 'rgba(45, 156, 219, 0.1)' }}>
-                <div className="flex items-center mb-2">
-                  <svg className="w-5 h-5 text-blue-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v2H7a1 1 0 100 2h2v2a1 1 0 102 0v-2h2a1 1 0 100-2h-2V7z" clipRule="evenodd" />
-                  </svg>
-                  <h4 className="market-title">Create Oracle Task</h4>
-                </div>
-                <p className="text-sm text-secondary mb-4">
-                  This market has not been submitted to the AI Oracle yet. Create a new task to begin the resolution process.
-                </p>
-                <button 
-                  onClick={handleCreateTask} 
-                  disabled={isCreatingTask || createTaskLoading}
-                  className="create-task-button"
-                >
-                  {isCreatingTask || createTaskLoading ? (
-                    <>
-                      <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                      </svg>
-                      Creating...
-                    </>
-                  ) : (
-                    "Create Oracle Task"
-                  )}
-                </button>
-              </div>
-            ) : (
-              taskLoading ? (
-                <div className="loading-container">
-                  <div className="spinner"></div>
-                  <p>Loading task data...</p>
-                </div>
-              ) : task && (
+      <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as any)} className="w-full mb-6">
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="process">Oracle Process</TabsTrigger>
+          <TabsTrigger value="agents">AI Agents</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="overview">
+          <Card>
+            <CardHeader>
+              <CardTitle>Resolution Status</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {taskId === undefined ? (
+                // Use standard 'default' variant for info
+                <Alert variant="default">
+                   <Info className="h-4 w-4" />
+                  <AlertTitle>Create Oracle Task</AlertTitle>
+                  <AlertDescription>
+                    This market has not been submitted to the AI Oracle yet. Create a new task to begin the resolution process.
+                  </AlertDescription>
+                  <div className="mt-4">
+                    <Button
+                      onClick={handleCreateTask}
+                      disabled={isCreatingTask || createTaskLoading}
+                    >
+                      {isCreatingTask || createTaskLoading ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Creating...
+                        </>
+                      ) : (
+                        "Create Oracle Task"
+                      )}
+                    </Button>
+                  </div>
+                </Alert>
+              ) : taskLoading ? (
+                 <div className="flex items-center justify-center p-6 text-muted-foreground">
+                   <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                   <p>Loading task data...</p>
+                 </div>
+              // Check for taskError
+              ) : taskError || !task ? (
+                 <Alert variant="destructive">
+                   <AlertCircle className="h-4 w-4" />
+                   <AlertTitle>Error Loading Task</AlertTitle>
+                   <AlertDescription>
+                     Failed to load data for task ID: {taskId}. {taskError?.message || 'Please try again later.'}
+                   </AlertDescription>
+                 </Alert>
+              ) : (
                 <>
-                  <div className="market-card p-4 mb-4">
-                    <div className="task-info mb-4">
-                      <div className="grid grid-cols-2 gap-4">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Task Details</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
                         <div>
-                          <p className="text-secondary text-sm">Task ID</p>
+                          <p className="text-muted-foreground">Task ID</p>
                           <p className="font-medium">{task.id}</p>
                         </div>
                         <div>
-                          <p className="text-secondary text-sm">Status</p>
-                          <p>
-                            <span 
-                              className="px-2 py-1 rounded-full text-xs text-white" 
-                              style={{ backgroundColor: getStatusColor(task.status) }}
-                            >
-                              {getStatusString(task.status)}
-                            </span>
-                          </p>
+                          <p className="text-muted-foreground">Status</p>
+                          <Badge variant={taskStatusInfo.variant}>
+                             {taskStatusInfo.variant === 'default' && task.status === 2 && <CheckCircle className="mr-1 h-3 w-3 text-green-600" />}
+                             {taskStatusInfo.text}
+                          </Badge>
                         </div>
                       </div>
-                    </div>
-                    
-                    {task.status === 2 && (
-                      <div className="resolution-result p-4 rounded-md" style={{ backgroundColor: 'rgba(102, 204, 0, 0.1)' }}>
-                        <h4 className="market-title mb-2">Resolution Result</h4>
-                        <div className="result-box text-center p-4 bg-white rounded-md">
-                          <p className="result-value text-2xl font-bold" style={{ color: 'var(--green)' }}>YES</p>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                  
-                  {/* Progress Cards */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                    <div className="market-card p-4">
-                      <h4 className="market-title mb-2">Responses</h4>
-                      <div className="relative pt-1">
-                        <div className="text-secondary text-xs mb-1">
+                       {task.status === 2 && task.consensusResult?.isResolved && (
+                         // Use standard 'default' variant + styling for success indication
+                         <Alert variant="default" className="mt-4 border-green-500/50 bg-green-50 dark:bg-green-900/20">
+                           <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400" />
+                           <AlertTitle className="text-green-800 dark:text-green-300">Resolution Result</AlertTitle>
+                           <AlertDescription className="text-lg font-bold text-green-700 dark:text-green-400">
+                             {task.consensusResult.result || "Resolved"}
+                           </AlertDescription>
+                         </Alert>
+                       )}
+                    </CardContent>
+                  </Card>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="text-base">Responses</CardTitle>
+                        <CardDescription>
                           {task.respondents.length} of 5 required responses
-                        </div>
-                        <div className="overflow-hidden h-2 text-xs flex rounded" style={{ backgroundColor: 'var(--border-color)' }}>
-                          <div 
-                            className="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center"
-                            style={{ width: `${getResponsesProgress()}%`, backgroundColor: 'var(--primary-color)' }}
-                          ></div>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    <div className="market-card p-4">
-                      <h4 className="market-title mb-2">Consensus</h4>
-                      <div className="relative pt-1">
-                        <div className="text-secondary text-xs mb-1">
-                          {getConsensusProgress()}% YES consensus (threshold: 70%)
-                        </div>
-                        <div className="overflow-hidden h-2 text-xs flex rounded" style={{ backgroundColor: 'var(--border-color)' }}>
-                          <div 
-                            className="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center"
-                            style={{ 
-                              width: `${getConsensusProgress()}%`, 
-                              backgroundColor: getConsensusProgress() >= 70 ? 'var(--green)' : 'var(--primary-color)' 
-                            }}
-                          ></div>
-                        </div>
-                      </div>
-                    </div>
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <Progress value={getResponsesProgress()} className="w-full" />
+                      </CardContent>
+                    </Card>
+
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="text-base">Consensus</CardTitle>
+                        <CardDescription>
+                           {getConsensusProgress()}% consensus (threshold: 70%)
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                         {/* Removed invalid indicatorClassName. Use CSS/Tailwind for styling indicator if needed */}
+                         <Progress value={getConsensusProgress()} className="w-full" />
+                         {/* Example of potential indicator styling (adjust based on actual Progress implementation): */}
+                         {/* <Progress value={getConsensusProgress()} className="w-full [&>div]:bg-green-500" /> */}
+                      </CardContent>
+                    </Card>
                   </div>
-                  
-                  {/* Respondents Section */}
-                  <div className="market-card p-4">
-                    <h4 className="market-title mb-3">Respondents</h4>
-                    {task.respondents.length === 0 ? (
-                      <p className="text-secondary">No agents have responded yet.</p>
-                    ) : (
-                      <div className="respondents-list">
-                        {task.respondents.map((address: string, index: number) => (
-                          <div key={index} className="respondent-item p-3 mb-2 rounded" style={{ backgroundColor: 'var(--background-color)' }}>
-                            <div className="flex justify-between items-center">
-                              <span className="address font-mono">{address}</span>
-                              <span className="text-xs px-2 py-1 rounded-full" style={{ backgroundColor: 'rgba(102, 204, 0, 0.2)', color: 'var(--green)' }}>
-                                YES
-                              </span>
+
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Respondents</CardTitle>
+                       <CardDescription>Agents who have contributed to the resolution.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      {task.respondents.length === 0 ? (
+                        <p className="text-muted-foreground text-sm">No agents have responded yet.</p>
+                      ) : (
+                        <div className="space-y-2">
+                          {task.respondents.map((address: string, index: number) => (
+                            <div key={index} className="flex justify-between items-center p-3 border rounded-md text-sm">
+                              <span className="font-mono truncate mr-4">{address}</span>
+                               {/* Display the actual consensus result string if resolved, else 'Responded' */}
+                               {/* Assuming task.consensusResult.result is the string like 'YES' or 'NO' */}
+                               <Badge variant={task.status === 2 && task.consensusResult?.isResolved ? 'default' : 'outline'}>
+                                 {task.status === 2 && task.consensusResult?.isResolved ? task.consensusResult.result : 'Responded'}
+                               </Badge>
                             </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
+                          ))}
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
                 </>
-              )
-            )}
-          </div>
-        )}
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
 
-        {/* Process Tab */}
-        {activeTab === 'process' && (
-          <>
-            <div className="mb-8">
-              <h3 className="market-title mb-4">Oracle Resolution Process</h3>
-              
-              <div className="market-card p-4 mb-6" style={{ backgroundColor: 'rgba(45, 156, 219, 0.1)' }}>
-                <div className="flex items-center mb-2">
-                  <svg className="w-5 h-5 text-blue-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                    <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z" />
-                    <path fillRule="evenodd" d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h3a1 1 0 100-2h-3zm-3 4a1 1 0 100 2h.01a1 1 0 100-2H7zm3 0a1 1 0 100 2h3a1 1 0 100-2h-3z" clipRule="evenodd" />
-                  </svg>
-                  <h4 className="market-title">How It Works</h4>
-                </div>
-                <div className="space-y-3">
-                  <p className="text-secondary text-sm">
-                    <strong>1. Task Creation:</strong> A market resolution task is created on the Oracle Service Manager.
-                  </p>
-                  <p className="text-secondary text-sm">
-                    <strong>2. Agent Response:</strong> Multiple AI agents independently research and respond to the task.
-                  </p>
-                  <p className="text-secondary text-sm">
-                    <strong>3. Consensus Building:</strong> Responses are collected and consensus is determined.
-                  </p>
-                  <p className="text-secondary text-sm">
-                    <strong>4. Result Finalization:</strong> When enough agents agree, the result is finalized on-chain.
-                  </p>
-                  <p className="text-secondary text-sm">
-                    <strong>5. Reward Distribution:</strong> Agents that contributed to consensus are rewarded.
-                  </p>
-                </div>
-              </div>
-              
-              <div className="market-card p-4 mb-6">
-                <h4 className="market-title mb-3">Consensus Mechanism</h4>
-                <div className="space-y-3">
-                  <p className="text-secondary text-sm">
-                    <strong>Multi-agent verification:</strong> Each AI agent processes the task independently, using its own reasoning.
-                  </p>
-                  <p className="text-secondary text-sm">
-                    <strong>Threshold requirement:</strong> At least 5 agents must respond, and 70% must agree for a result to be considered valid.
-                  </p>
-                  <p className="text-secondary text-sm">
-                    <strong>Staked verification:</strong> Agents stake tokens to participate, aligning incentives for honest reporting.
-                  </p>
-                </div>
-              </div>
-              
-              <div className="market-card p-4">
-                <h4 className="market-title mb-3">Data Sources</h4>
-                <p className="text-secondary text-sm mb-4">
-                  AI Agents analyze data from multiple sources to determine market resolution:
-                </p>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="p-3 rounded" style={{ backgroundColor: 'var(--background-color)' }}>
-                    <div className="flex justify-between items-center mb-1">
-                      <h5 className="font-medium">Official Government Sources</h5>
-                      <span className="text-xs px-2 py-1 rounded-full" style={{ backgroundColor: 'rgba(102, 204, 0, 0.2)', color: 'var(--green)' }}>
-                        Primary
-                      </span>
-                    </div>
-                    <p className="text-secondary text-sm">
-                      Official statements, websites, and documents published by relevant government bodies.
-                    </p>
-                  </div>
-                  <div className="p-3 rounded" style={{ backgroundColor: 'var(--background-color)' }}>
-                    <div className="flex justify-between items-center mb-1">
-                      <h5 className="font-medium">Major News Outlets</h5>
-                      <span className="text-xs px-2 py-1 rounded-full" style={{ backgroundColor: 'rgba(45, 156, 219, 0.2)', color: 'var(--primary-color)' }}>
-                        Secondary
-                      </span>
-                    </div>
-                    <p className="text-secondary text-sm">
-                      Reports from established and reputable news organizations.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </>
-        )}
+        <TabsContent value="process">
+          <Card>
+            <CardHeader>
+              <CardTitle>Oracle Resolution Process</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {/* Use standard 'default' variant */}
+              <Alert variant="default">
+                <Info className="h-4 w-4" />
+                <AlertTitle>How It Works</AlertTitle>
+                <AlertDescription>
+                  <ol className="list-decimal list-inside space-y-1 text-sm mt-2">
+                    <li>A market resolution task is created on the Oracle Service Manager.</li>
+                    <li>Multiple AI agents independently research and respond to the task.</li>
+                    <li>Responses are collected, and consensus is determined based on a threshold.</li>
+                    <li>When enough agents agree, the result is finalized on-chain.</li>
+                    <li>Agents that contributed to consensus are rewarded.</li>
+                  </ol>
+                </AlertDescription>
+              </Alert>
 
-        {/* Agents Tab */}
-        {activeTab === 'agents' && (
-          <div className="mb-8">
-            <h3 className="market-title mb-4">AI Agents</h3>
-            <p className="text-sm text-secondary mb-4">
-              These decentralized AI agents analyze market data and provide resolution consensus:
-            </p>
-            
-            {agentsLoading ? (
-              <div className="loading-container">
-                <div className="spinner"></div>
-                <p>Loading agents...</p>
-              </div>
-            ) : agents && agents.length === 0 ? (
-              <p className="text-secondary">No AI agents registered.</p>
-            ) : (
-              <div className="agents-grid grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {agents.map((agent: AgentData, index: number) => (
-                  <div 
-                    key={index} 
-                    className="agent-card cursor-pointer hover:shadow-md transition-shadow"
-                    onClick={() => handleAgentClick(agent)}
-                  >
-                    <div className="agent-header p-3 border-b" style={{ borderColor: 'var(--border-color)' }}>
-                      <div className="flex justify-between items-center">
-                        <h4 className="font-medium">{agent.modelType} v{agent.modelVersion}</h4>
-                        <span className={`agent-status text-xs px-2 py-1 rounded-full status-${getAgentStatusString(agent.status).toLowerCase()}`}>
-                          {getAgentStatusString(agent.status)}
-                        </span>
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">Consensus Mechanism</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2 text-sm text-muted-foreground">
+                  <p><strong>Multi-agent verification:</strong> Each AI agent processes the task independently.</p>
+                  <p><strong>Threshold requirement:</strong> At least 5 agents must respond, and 70% must agree.</p>
+                  <p><strong>Staked verification:</strong> Agents stake tokens to participate, ensuring honest reporting.</p>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">Data Sources</CardTitle>
+                   <CardDescription>AI Agents analyze data from multiple sources.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="p-3 border rounded-md">
+                      <div className="flex justify-between items-center mb-1">
+                        <h5 className="font-medium text-sm">Official Government Sources</h5>
+                        {/* Use standard 'default' variant */}
+                        <Badge variant="default">Primary</Badge>
                       </div>
-                    </div>
-                    <div className="agent-details p-3">
-                      <p className="mb-1">
-                        <span className="text-secondary">Address: </span>
-                        <span className="font-mono text-sm">{`${agent.address.substring(0, 6)}...${agent.address.substring(agent.address.length - 4)}`}</span>
-                      </p>
-                      <p className="mb-1">
-                        <span className="text-secondary">Tasks Completed: </span>
-                        <span>{agent.tasksCompleted}</span>
-                      </p>
-                      <p className="mb-1">
-                        <span className="text-secondary">Consensus Participations: </span>
-                        <span>{agent.consensusParticipations}</span>
-                      </p>
-                      <p>
-                        <span className="text-secondary">Rewards Earned: </span>
-                        <span>{agent.rewardsEarned}</span>
+                      <p className="text-muted-foreground text-xs">
+                        Official statements, websites, and documents published by relevant government bodies.
                       </p>
                     </div>
+                     <div className="p-3 border rounded-md">
+                       <div className="flex justify-between items-center mb-1">
+                         <h5 className="font-medium text-sm">Major News Outlets</h5>
+                         {/* Use standard 'secondary' variant */}
+                         <Badge variant="secondary">Secondary</Badge>
+                       </div>
+                       <p className="text-muted-foreground text-xs">
+                         Reports from established and reputable news organizations.
+                       </p>
+                     </div>
                   </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
+                </CardContent>
+              </Card>
+            </CardContent>
+          </Card>
+        </TabsContent>
 
-        {/* Agent Details Modal */}
-        {showAgentDetails && selectedAgent && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="market-card p-6 max-w-lg w-full">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="market-title">{selectedAgent.modelType} v{selectedAgent.modelVersion}</h3>
-                <button 
-                  onClick={() => setShowAgentDetails(false)}
-                  className="text-secondary hover:text-primary"
-                >
-                  <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-              
-              <div className="mb-4">
-                <div className="mb-4 p-3 rounded text-sm" style={{ backgroundColor: 'var(--background-color)' }}>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div>
-                      <p className="text-secondary">Address:</p>
-                      <p className="font-mono">{selectedAgent.address}</p>
-                    </div>
-                    <div>
-                      <p className="text-secondary">Status:</p>
-                      <p>
-                        <span className={`text-xs px-2 py-1 rounded-full status-${getAgentStatusString(selectedAgent.status).toLowerCase()}`}>
-                          {getAgentStatusString(selectedAgent.status)}
-                        </span>
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-secondary">Tasks Completed:</p>
-                      <p>{selectedAgent.tasksCompleted}</p>
-                    </div>
-                    <div>
-                      <p className="text-secondary">Consensus Participations:</p>
-                      <p>{selectedAgent.consensusParticipations}</p>
-                    </div>
-                    <div>
-                      <p className="text-secondary">Rewards Earned:</p>
-                      <p>{selectedAgent.rewardsEarned}</p>
-                    </div>
-                  </div>
+        <TabsContent value="agents">
+          <Card>
+            <CardHeader>
+              <CardTitle>AI Agents</CardTitle>
+              <CardDescription>
+                These decentralized AI agents analyze market data and provide resolution consensus. Click on an agent for more details.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {agentsLoading ? (
+                 <div className="flex items-center justify-center p-6 text-muted-foreground">
+                   <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                   <p>Loading agents...</p>
+                 </div>
+              // Check for agentsError
+              ) : agentsError ? (
+                  <Alert variant="destructive">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertTitle>Error Loading Agents</AlertTitle>
+                    <AlertDescription>
+                      Failed to load the list of registered AI agents. {agentsError?.message || 'Please try again later.'}
+                    </AlertDescription>
+                  </Alert>
+              ) : !agents || agents.length === 0 ? (
+                <p className="text-muted-foreground text-sm text-center py-4">No AI agents registered.</p>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {/* Assuming agents array contains objects compatible with AgentData */}
+                  {agents.map((agent: AgentData, index: number) => {
+                     const agentStatusInfo = getAgentStatusInfo(agent.status);
+                     return (
+                       <Dialog key={index}>
+                         <DialogTrigger asChild>
+                           <Card className="cursor-pointer hover:shadow-lg transition-shadow duration-200">
+                             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                               <CardTitle className="text-sm font-medium">
+                                 {agent.modelType || 'Unknown Model'} v{agent.modelVersion || '?'}
+                               </CardTitle>
+                               <Badge variant={agentStatusInfo.variant}>
+                                  {agentStatusInfo.variant === 'default' && <CheckCircle className="mr-1 h-3 w-3 text-green-600" />} {/* Icon for Active */}
+                                  {agentStatusInfo.text}
+                                </Badge>
+                             </CardHeader>
+                             <CardContent className="text-xs text-muted-foreground space-y-1">
+                               <p className="truncate">
+                                 <span className="font-medium text-foreground">Address: </span>
+                                 <span className="font-mono">{agent.address ? `${agent.address.substring(0, 6)}...${agent.address.substring(agent.address.length - 4)}` : 'N/A'}</span>
+                               </p>
+                               <p>
+                                 <span className="font-medium text-foreground">Tasks: </span>
+                                 {agent.tasksCompleted ?? 'N/A'}
+                               </p>
+                               <p>
+                                 <span className="font-medium text-foreground">Consensus: </span>
+                                 {agent.consensusParticipations ?? 'N/A'}
+                               </p>
+                               <p>
+                                 <span className="font-medium text-foreground">Rewards: </span>
+                                 {agent.rewardsEarned ?? 'N/A'}
+                               </p>
+                             </CardContent>
+                           </Card>
+                         </DialogTrigger>
+                         <DialogContent className="sm:max-w-[525px]">
+                           <DialogHeader>
+                             <DialogTitle>{agent.modelType} v{agent.modelVersion}</DialogTitle>
+                             <DialogDescription>
+                               Details and performance metrics for this AI agent.
+                             </DialogDescription>
+                           </DialogHeader>
+                           <div className="grid gap-4 py-4">
+                             <Card>
+                               <CardContent className="pt-6 grid grid-cols-2 gap-4 text-sm">
+                                 <div>
+                                   <p className="text-muted-foreground">Address</p>
+                                   <p className="font-mono break-all">{agent.address}</p>
+                                 </div>
+                                  <div>
+                                    <p className="text-muted-foreground">Status</p>
+                                    <Badge variant={agentStatusInfo.variant}>
+                                       {agentStatusInfo.variant === 'default' && <CheckCircle className="mr-1 h-3 w-3 text-green-600" />}
+                                       {agentStatusInfo.text}
+                                    </Badge>
+                                  </div>
+                                  <div>
+                                    <p className="text-muted-foreground">Tasks Completed</p>
+                                    <p>{agent.tasksCompleted}</p>
+                                  </div>
+                                  <div>
+                                    <p className="text-muted-foreground">Consensus Participations</p>
+                                    <p>{agent.consensusParticipations}</p>
+                                  </div>
+                                  <div className="col-span-2">
+                                    <p className="text-muted-foreground">Rewards Earned</p>
+                                    <p>{agent.rewardsEarned}</p>
+                                  </div>
+                                </CardContent>
+                             </Card>
+                              {/* Use standard 'default' variant */}
+                             <Alert variant="default">
+                                <Info className="h-4 w-4" />
+                                <AlertTitle>How This Agent Works</AlertTitle>
+                                <AlertDescription className="text-sm">
+                                   This AI agent uses a {agent.modelType} model to analyze data and predict outcomes. It monitors tasks, generates signed responses, and submits them to the Oracle contract.
+                                </AlertDescription>
+                             </Alert>
+                             <Card>
+                                <CardHeader>
+                                   <CardTitle className="text-base">Recent Performance</CardTitle>
+                                </CardHeader>
+                                <CardContent className="space-y-4">
+                                   <div>
+                                     <div className="flex justify-between items-center mb-1">
+                                        <span className="text-sm font-medium">Accuracy Rate</span>
+                                        <span className="text-sm text-muted-foreground">92%</span>
+                                     </div>
+                                     {/* Example styling for success progress */}
+                                     <Progress value={92} className="[&>div]:bg-green-500" />
+                                   </div>
+                                   <div>
+                                     <div className="flex justify-between items-center mb-1">
+                                        <span className="text-sm font-medium">Response Time (avg)</span>
+                                        <span className="text-sm text-muted-foreground">78 sec</span>
+                                     </div>
+                                     <Progress value={78} />
+                                   </div>
+                                </CardContent>
+                             </Card>
+                           </div>
+                           <DialogFooter>
+                             <DialogClose asChild>
+                               <Button type="button" variant="outline">
+                                 Close
+                               </Button>
+                             </DialogClose>
+                           </DialogFooter>
+                         </DialogContent>
+                       </Dialog>
+                     );
+                   })}
                 </div>
-                
-                <div className="p-4 rounded mb-4" style={{ backgroundColor: 'rgba(45, 156, 219, 0.1)' }}>
-                  <h4 className="market-title mb-2">How This Agent Works</h4>
-                  <p className="text-sm text-secondary mb-2">
-                    This AI agent uses a {selectedAgent.modelType} model to analyze data from multiple sources and predict the market outcome.
-                  </p>
-                  <p className="text-sm text-secondary">
-                    The agent monitors for new tasks, generates a response, signs it with its private key, and submits it to the Oracle contract.
-                  </p>
-                </div>
-                
-                <div className="p-4 rounded" style={{ backgroundColor: 'var(--background-color)' }}>
-                  <h4 className="market-title mb-2">Recent Performance</h4>
-                  <div className="mb-3">
-                    <p className="text-sm text-secondary mb-1">Accuracy Rate</p>
-                    <div className="w-full rounded-full h-2" style={{ backgroundColor: 'var(--border-color)' }}>
-                      <div 
-                        className="h-2 rounded-full"
-                        style={{ width: '92%', backgroundColor: 'var(--green)' }}
-                      ></div>
-                    </div>
-                    <p className="text-xs text-right mt-1">92%</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-secondary mb-1">Response Time (avg)</p>
-                    <div className="w-full rounded-full h-2" style={{ backgroundColor: 'var(--border-color)' }}>
-                      <div 
-                        className="h-2 rounded-full"
-                        style={{ width: '78%', backgroundColor: 'var(--primary-color)' }}
-                      ></div>
-                    </div>
-                    <p className="text-xs text-right mt-1">78 seconds</p>
-                  </div>
-                </div>
-              </div>
-              
-              <div className="mt-6 flex justify-end">
-                <button 
-                  onClick={() => setShowAgentDetails(false)} 
-                  className="banner-button"
-                >
-                  Close
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+      </Tabs>
     </main>
   );
 } 

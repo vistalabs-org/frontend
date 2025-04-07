@@ -47,7 +47,6 @@ jobs:
 
           NEXT_PUBLIC_ALCHEMY_API_KEY: ${{ secrets.ALCHEMY_API_KEY }}
           NEXT_PUBLIC_GAS_MANAGER_POLICY_ID: ${{ secrets.GAS_MANAGER_POLICY_ID }}
-          SEPOLIA_URL: ${{ secrets.SEPOLIA_URL }}
           NODE_VERSION: '20'
           
       - name: Install Wrangler CLI

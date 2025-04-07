@@ -1,12 +1,12 @@
 "use client";
 
 import React, { useEffect, useState } from 'react';
-import PredictionMarketPage from '@/components/PredictionMarketPage';
+import PredictionMarketPage from '@/components/market/PredictionMarketPage';
 import Link from 'next/link';
 import { useMarketByIndex } from '@/hooks/fetchMarkets';
 import { useMarketWithPoolData } from '@/hooks/usePoolData';
 import { format } from 'date-fns';
-import { MintCollateralButton } from './MintCollateralButton';
+import { MintCollateralButton } from '../MintCollateralButton';
 import { useAccount } from 'wagmi';
 import { useLiquidity } from '@/hooks/useStateView';
 import { useRouter } from 'next/navigation';
