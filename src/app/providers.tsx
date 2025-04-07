@@ -22,7 +22,7 @@ const queryClient = new QueryClient();
 // Configure wagmi with RainbowKit
 export const wagmiConfig = getDefaultConfig({
   appName: 'Vista Markets',
-  projectId: 'YOUR_WALLET_CONNECT_PROJECT_ID', // Get from https://cloud.walletconnect.com
+  projectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || 'YOUR_WALLET_CONNECT_PROJECT_ID',
   chains: [unichain, unichainSepolia],
   ssr: true
 });

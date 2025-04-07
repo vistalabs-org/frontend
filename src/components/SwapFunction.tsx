@@ -1,13 +1,12 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from 'react';
-import { useAccount, useBalance, useWriteContract, useContractRead, useReadContract } from 'wagmi';
+import { useState, useEffect, useMemo } from 'react';
+import { useAccount, useBalance, useWriteContract, useReadContract } from 'wagmi';
 import { parseUnits, formatUnits } from 'viem';
-import { PREDICTION_MARKET_HOOK_ADDRESS, ROUTER } from '@/app/constants';
+import { ROUTER } from '@/app/constants';
 import { PoolSwapTestAbi } from '@/contracts/PoolSwapTest_abi';
 import { MockERC20Abi } from '@/contracts/MockERC20_abi';
-import { simulateContract } from '@wagmi/core';
-import { wagmiConfig } from '@/lib/wagmi';
+import { wagmiConfig } from '@/app/providers';
 import { getPublicClient } from '@wagmi/core';
 
 type SwapFunctionProps = {

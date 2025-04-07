@@ -1,7 +1,7 @@
 // Unichain Mainnet config
 import { ChainConfig } from './common';
 
-export const config: ChainConfig = {
+export const unichainConfig: ChainConfig = {
   chainId: 130,
   name: 'Unichain',
   PREDICTION_MARKET_HOOK_ADDRESS: '0xcB9903081b324B3a743E536D451705f9e1450880',

@@ -5,8 +5,8 @@ import { useChainId } from 'wagmi';
 import { ChainConfig } from './chains/common';
 
 // Import all chain configurations
-import { config as unichainConfig } from './chains/130';
-import { config as unichainSepoliaConfig } from './chains/1301';
+import { unichainConfig } from './chains/130';
+import { unichainSepoliaConfig } from './chains/1301';
 
 // Map of chainId to config
 const chainConfigs: Record<number, ChainConfig> = {
