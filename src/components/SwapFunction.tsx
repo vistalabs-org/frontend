@@ -323,6 +323,11 @@ export default function SwapFunction({
     return success;
   }, [needsApproval, collateralAllowance, amount]);
 
+  // Helper function to safely format balances
+  const formatBalance = (balanceData: ReturnType<typeof useBalance>['data']) => {
+    return balanceData ? formatUnits(balanceData.value, balanceData.decimals) : '0.00';
+  };
+
   // At the end of the component, right before the return:
   console.log('FINAL VALUES before return:', { 
     needsApproval, 
@@ -336,12 +341,15 @@ export default function SwapFunction({
     handleSwap,
     isSwapping: isSwapping || isExecutingSwap,
     expectedOutput,
-    tokenBalance: getSelectedTokenBalance(),
+    tokenBalance: {
+      collateral: formatBalance(collateralBalance),
+      yes: formatBalance(yesTokenBalance),
+      no: formatBalance(noTokenBalance),
+    },
     needsApproval,
     handleApprove,
     isApproving: isApproving || isApprovingOutcome,
     isApproved,
-    // Add debug values 
     debug: {
       collateralAllowance: collateralAllowance?.toString(),
       outcomeTokenAllowance: outcomeTokenAllowance?.toString(),

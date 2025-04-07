@@ -36,21 +36,17 @@ export default async function RootLayout({
   const cookie = headerData.get("cookie") ?? undefined;
 
   return (
-    <html lang="en" className={inter.className}>
+    <html lang="en" >
       <head>
         <link rel="manifest" href="/manifest.json" />
         <link rel="apple-touch-icon" href="/icons/icon-192x192.png" />
       </head>
       <body>
         <Providers cookie={cookie}>
-              <div className="app-container">
-          
-                <NavBar />
-          
-                <main className="main-content">
-                  {children}
-                </main>
-              </div>
+              <NavBar />
+              <main className="flex-1 p-4 md:p-6">
+                {children}
+              </main>
         </Providers>
       </body>
     </html>

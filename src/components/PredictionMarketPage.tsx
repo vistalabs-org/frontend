@@ -10,39 +10,16 @@ import { MockERC20Abi } from '@/contracts/MockERC20_abi';
 import { ROUTER } from '@/app/constants';
 import { useRouter } from 'next/navigation';
 
-// Helper components
-const Badge = ({ children, color = 'green' }:any) => (
-  <span className={`px-2 py-1 text-sm font-medium rounded-full ${
-    color === 'green' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-  }`}>
-    {children}
-  </span>
-);
-
-const Card = ({ children, className = '' }:any) => (
-  <div className={`market-card ${className}`}>
-    {children}
-  </div>
-);
-
-const Button = ({ children, variant = 'primary', onClick, className = '', disabled = false }:any) => {
-  const baseClasses = 'px-4 py-2 rounded-lg font-medium transition-colors';
-  const variantClasses:any = {
-    primary: 'banner-button',
-    secondary: 'bg-gray-200 text-gray-800 hover:bg-gray-300',
-    outline: 'border border-border-color text-secondary hover:bg-opacity-10',
-  };
-
-  return (
-    <button 
-      className={`${baseClasses} ${variantClasses[variant]} ${className} ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
-      onClick={onClick}
-      disabled={disabled}
-    >
-      {children}
-    </button>
-  );
-};
+// --- Import Shadcn UI Components --- Ensured imports
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { Separator } from "@/components/ui/separator";
+import { Loader2 } from 'lucide-react';
 
 // First, add a TokenBalances component
 const TokenBalances = ({ collateralBalance, yesBalance, noBalance }: { 
@@ -71,85 +48,89 @@ const TokenBalances = ({ collateralBalance, yesBalance, noBalance }: {
   );
 };
 
-// Update PriceDisplay to show actual prices and raw liquidity
+// PriceDisplay Component - Use Shadcn Card components
 const PriceDisplay = ({ yesPool, noPool, marketId }: { yesPool: any; noPool: any; marketId: string }) => {
-  const formatPrice = (pool: any) => {
-    if (!pool?.price) return '0.00';
+  const formatPricePercent = (pool: any) => {
+    if (!pool?.price) return 'N/A';
     try {
-      // Convert the price to token0/token1 by taking reciprocal
       const priceAsNumber = Number(pool.price);
-      const token0Price = 1 / priceAsNumber;
-      return (token0Price * 100).toFixed(2);
+      if (isNaN(priceAsNumber) || priceAsNumber === 0) return 'N/A';
+      return `${(priceAsNumber * 100).toFixed(1)}%`;
     } catch (error) {
       console.error('Error formatting price:', error);
-      return '0.00';
+      return 'N/A';
     }
   };
 
-  // For debugging
-  console.log("PriceDisplay - yesPool:", yesPool);
-  console.log("PriceDisplay - noPool:", noPool);
-  console.log("PriceDisplay - yesPool liquidity:", yesPool?.liquidity);
-  console.log("PriceDisplay - noPool liquidity:", noPool?.liquidity);
+  const formatLiquidity = (liquidity: any) => {
+     if (liquidity === undefined || liquidity === null) return '0';
+     try {
+       return BigInt(liquidity).toString();
+     } catch { 
+       return '0';
+     }
+  }
+
+  const totalLiquidity = 
+    (yesPool?.liquidity ? BigInt(yesPool.liquidity) : BigInt(0)) + 
+    (noPool?.liquidity ? BigInt(noPool.liquidity) : BigInt(0));
 
   return (
-    <div className="price-display p-8 text-center">
-      <div className="flex justify-between items-center mb-6">
-        <div className="text-center flex-1">
-          <div className="text-4xl font-bold mb-2">{formatPrice(yesPool)}%</div>
-          <div className="text-sm text-secondary">Yes</div>
-        </div>
-        <div className="text-2xl text-secondary px-4">vs</div>
-        <div className="text-center flex-1">
-          <div className="text-4xl font-bold mb-2">{formatPrice(noPool)}%</div>
-          <div className="text-sm text-secondary">No</div>
-        </div>
-      </div>
-      <div className="text-sm text-secondary mb-4">
-        Current Market Price
-      </div>
-      
-      {/* Liquidity section with Add Liquidity link */}
-      <div className="border-t border-border-color pt-4">
-        <div className="flex justify-between items-center mb-2">
-          <div className="text-sm text-secondary">
-            Current Market Liquidity
+    <Card> 
+      <CardHeader className="text-center pb-2">
+        <CardDescription>Current Market Price</CardDescription>
+      </CardHeader>
+      <CardContent className="pb-4">
+        <div className="flex justify-around items-center mb-4">
+          <div className="text-center flex-1 px-2">
+            <div className="text-3xl font-bold text-success mb-1">{formatPricePercent(yesPool)}</div>
+            <div className="text-sm text-muted-foreground">Yes</div>
           </div>
-          <a 
-            href={`/${marketId}/add-liquidity`}
-            className="text-sm text-primary-color hover:underline flex items-center"
-            style={{ color: 'var(--primary-color)' }}
-          >
-            <svg className="w-3 h-3 mr-1" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
-            </svg>
-            Add Liquidity
-          </a>
+          <Separator orientation="vertical" className="h-10" />
+          <div className="text-center flex-1 px-2">
+            <div className="text-3xl font-bold text-destructive mb-1">{formatPricePercent(noPool)}</div>
+            <div className="text-sm text-muted-foreground">No</div>
+          </div>
         </div>
-        <div className="flex justify-between items-center">
-          <div className="text-center flex-1">
-            <div className="text-lg font-medium">
-              {yesPool?.liquidity ? yesPool.liquidity.toString() : '0'}
+        
+        <Separator className="my-4" />
+
+        {/* Liquidity section */}
+        <div>
+          <div className="flex justify-between items-center mb-2">
+            <div className="text-sm text-muted-foreground">
+              Market Liquidity
             </div>
-            <div className="text-xs text-secondary">Yes Pool</div>
           </div>
-          <div className="text-center flex-1">
-            <div className="text-lg font-medium">
-              {noPool?.liquidity ? noPool.liquidity.toString() : '0'}
+          <div className="flex justify-around items-center text-center">
+            <div className="flex-1">
+              <div className="text-lg font-medium text-foreground">
+                {formatLiquidity(yesPool?.liquidity)}
+              </div>
+              <div className="text-xs text-muted-foreground">Yes Pool</div>
             </div>
-            <div className="text-xs text-secondary">No Pool</div>
+            <div className="flex-1">
+              <div className="text-lg font-medium text-foreground">
+                {formatLiquidity(noPool?.liquidity)}
+              </div>
+              <div className="text-xs text-muted-foreground">No Pool</div>
+            </div>
+          </div>
+          <div className="text-sm font-medium text-center text-muted-foreground mt-2">
+            Total: {totalLiquidity.toString()}
           </div>
         </div>
-        <div className="text-sm font-medium mt-2">
-          Total: {
-            ((yesPool?.liquidity ? BigInt(yesPool.liquidity) : BigInt(0)) + 
-             (noPool?.liquidity ? BigInt(noPool.liquidity) : BigInt(0))).toString()
-          }
-        </div>
-      </div>
-    </div>
+      </CardContent>
+    </Card>
   );
 };
+
+// Define the expected shape of tokenBalance from SwapFunction hook
+interface SwapTokenBalances {
+  collateral: string;
+  yes: string;
+  no: string;
+}
 
 const PredictionMarketPage = ({ 
   marketData, 
@@ -159,8 +140,8 @@ const PredictionMarketPage = ({
   marketId,
   mintCollateralButton
 }: any) => {
-    const [selectedAction, setSelectedAction] = React.useState('Buy');
-    const [selectedOption, setSelectedOption] = React.useState('Yes');
+    const [selectedAction, setSelectedAction] = React.useState<'Buy' | 'Sell'>('Buy');
+    const [selectedOption, setSelectedOption] = React.useState<'Yes' | 'No'>('Yes');
   const [amount, setAmount] = React.useState('');
   const [activeTab, setActiveTab] = React.useState('Comments');
   const { isConnected } = useAccount();
@@ -176,27 +157,51 @@ const PredictionMarketPage = ({
     handleApprove,
     isApproving,
     isApproved
+  }: { 
+    handleSwap: () => Promise<void>;
+    isSwapping: boolean;
+    expectedOutput: string;
+    tokenBalance: SwapTokenBalances;
+    needsApproval: boolean;
+    handleApprove: (params: any) => Promise<void>;
+    isApproving: boolean;
+    isApproved: boolean;
   } = SwapFunction({
     marketId,
     yesPool,
     noPool,
     market: marketData,
-    selectedAction: selectedAction as 'Buy' | 'Sell',
-    selectedOption: selectedOption as 'Yes' | 'No',
+    selectedAction,
+    selectedOption,
     amount,
     setAmount
   });
 
-  const handleAmountChange = (e: { target: { value: string; }; }) => {
-    // Only allow numeric input with decimal point
+  // --- Determine which balance to display based on action/option --- 
+  let displayBalance = '0.00';
+  if (isConnected && tokenBalance) {
+    if (selectedAction === 'Buy') {
+      displayBalance = tokenBalance.collateral || '0.00'; 
+    } else { 
+      displayBalance = selectedOption === 'Yes' ? (tokenBalance.yes || '0.00') : (tokenBalance.no || '0.00');
+    }
+  }
+
+  const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value.replace(/[^0-9.]/g, '');
-    setAmount(value);
+    if (/^\d*\.?\d*$/.test(value)) { 
+      setAmount(value);
+    }
   };
 
   const addAmount = (value: number) => {
     const currentAmount = parseFloat(amount) || 0;
     setAmount((currentAmount + value).toString());
   };
+  
+  const setMaxAmount = () => {
+    setAmount(displayBalance); // Use displayBalance string
+  }
 
   // Add checks for all required properties
   const volume = marketData?.volume ? marketData.volume.toLocaleString() : '0';
@@ -218,26 +223,24 @@ const PredictionMarketPage = ({
   return (
     <div className="max-w-screen-xl mx-auto py-6 text-primary">
       <div className="flex flex-col gap-6">
-        {/* Oracle Box */}
-        <div className="px-6">
-          <div className="rounded-lg bg-white border border-gray-200 p-6">
-            <div className="flex justify-between items-center">
-              <div>
-                <h2 className="text-gray-900 text-base font-medium mb-1">Powered by AI Oracle</h2>
-                <p className="text-gray-600 text-sm">This market will be resolved using our decentralized AI oracle system</p>
-              </div>
-              <Button 
-                variant="primary"
-                onClick={() => {
-                  router.push(`/${marketId}/resolve`);
-                }}
-                className="text-sm px-3 py-1"
-              >
-                Resolve Market
-              </Button>
-            </div>
-          </div>
-        </div>
+        {/* AI Oracle Card */}
+        <Card className="bg-card">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-base font-medium">AI Oracle Resolution</CardTitle>
+          </CardHeader>
+          <CardContent className="flex items-center justify-between">
+            <p className="text-sm text-muted-foreground">
+              Market resolved by decentralized AI agents.
+            </p>
+            <Button 
+              variant="outline"
+              size="sm"
+              onClick={() => router.push(`/${marketId}/resolve`)}
+            >
+              View Details
+            </Button>
+          </CardContent>
+        </Card>
 
         {/* Main content area with market price and swap box */}
         <div className="px-6 flex gap-6">
@@ -288,11 +291,10 @@ const PredictionMarketPage = ({
 
               {/* Market Rules */}
               <Card className="mb-6">
-                <div className="market-header">
-                  <h2 className="market-title">Rules</h2>
-                </div>
-                
-                <div className="market-content">
+                <CardHeader>
+                  <CardTitle>Rules</CardTitle>
+                </CardHeader>
+                <CardContent>
                   <div className="prose max-w-none text-secondary">
                     <p className="mb-4">{marketData?.description || "Loading..."}</p>
                     <p className="mb-4">
@@ -320,111 +322,103 @@ const PredictionMarketPage = ({
                       </div>
                     </div>
                   </div>
-                </div>
+                </CardContent>
               </Card>
 
-              {/* Comments */}
-              <div className="market-card mb-6">
-                <div className="market-tabs">
-                  <button 
-                    className={`tab-button ${activeTab === 'Comments' ? 'active' : ''}`}
-                    onClick={() => setActiveTab('Comments')}
-                  >
-                    Comments ({comments.length})
-                  </button>
-                  <button 
-                    className={`tab-button ${activeTab === 'TopHolders' ? 'active' : ''}`}
-                    onClick={() => setActiveTab('TopHolders')}
-                  >
-                    Top Holders ({topHolders.length})
-                  </button>
-                  <button 
-                    className={`tab-button ${activeTab === 'Activity' ? 'active' : ''}`}
-                    onClick={() => setActiveTab('Activity')}
-                  >
-                    Activity ({activity.length})
-                  </button>
-                  <button 
-                    className={`tab-button ${activeTab === 'Related' ? 'active' : ''}`}
-                    onClick={() => setActiveTab('Related')}
-                  >
-                    Related
-                  </button>
-                </div>
+              {/* Comments / Tabs Section - ADD Shadcn Tabs Structure */}
+              <Tabs defaultValue="Comments" className="w-full mb-6">
+                <TabsList className="grid w-full grid-cols-4 mb-4">
+                  <TabsTrigger value="Comments">Comments ({comments.length})</TabsTrigger>
+                  <TabsTrigger value="TopHolders">Top Holders ({topHolders.length})</TabsTrigger>
+                  <TabsTrigger value="Activity">Activity ({activity.length})</TabsTrigger>
+                  <TabsTrigger value="Related">Related</TabsTrigger>
+                </TabsList>
                 
-                <div className="market-content py-4">
-                  <div className="mb-4">
-                    <input 
-                      type="text" 
-                      placeholder="Add a comment"
-                      className="w-full p-3 border border-border-color rounded-lg bg-card-background"
-                      style={{ backgroundColor: 'var(--card-background)', color: 'var(--text-primary)' }}
-                    />
-                  </div>
-                  
-                  <div className="flex items-center gap-2 p-2 rounded-lg mb-4 text-sm" style={{ backgroundColor: 'var(--card-background)' }}>
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="var(--text-secondary)">
-                      <path d="M20.995 6.9031C20.9789 6.73477 20.9203 6.57329 20.8246 6.43387C20.7289 6.29445 20.5993 6.18165 20.448 6.1061L12.475 2.1061C12.3363 2.03604 12.1832 1.99937 12.0278 1.99903C11.8724 1.99868 11.7191 2.03466 11.58 2.1041L3.55304 6.1041C3.25604 6.2541 3.05104 6.5411 3.00904 6.8711C2.99604 6.9681 1.86404 16.6121 11.55 21.8791C11.6989 21.9603 11.8661 22.0021 12.0357 22.0005C12.2053 21.999 12.3717 21.9541 12.519 21.8701C21.826 16.6111 21.033 7.2971 20.995 6.9031ZM12.018 19.8471C5.15804 15.8371 4.87804 9.4951 4.95504 7.6421L12.026 4.1191L19.024 7.6301C19.029 9.5001 18.543 15.8731 12.018 19.8471Z" fill="var(--text-secondary)"></path>
-                    </svg>
-                    <span className="text-secondary">Beware of external links, they may be phishing attacks.</span>
-                  </div>
-                  
-                  {comments.slice(0, 5).map((comment:any, index:any) => (
-                    <div key={index} className="border-b border-border-color py-4" style={{ borderColor: 'var(--border-color)' }}>
-                      <div className="flex gap-3">
-                        <div className="flex-shrink-0">
-                          {comment.avatar ? (
-                            <Image 
-                              src={comment.avatar} 
-                              alt={comment.username} 
-                              width={40} 
-                              height={40} 
-                              className="rounded-full"
-                            />
-                          ) : (
-                            <div className="w-10 h-10 rounded-full" style={{ backgroundColor: 'var(--border-color)' }}></div>
-                          )}
-                        </div>
-                        <div className="flex-grow">
-                          <div className="flex justify-between mb-1">
-                            <div className="flex items-center gap-2">
-                              <span className="font-semibold">{comment.username}</span>
-                              {comment.position && (
-                                <Badge color={comment.position.includes('Yes') ? 'green' : 'red'}>
-                                  {comment.position}
-                                </Badge>
-                              )}
-                              <span className="text-secondary text-sm">{comment.time}</span>
-                            </div>
-                          </div>
-                          <p className="mb-3 text-secondary">{comment.content}</p>
-                          <div className="flex items-center gap-2">
-                            <button className="flex items-center gap-1 text-secondary text-sm">
-                              <svg width="20" height="20" viewBox="0 0 20 20" fill="var(--text-secondary)">
-                                <path d="M10 3.82916C9.09203 2.99424 7.90353 2.53086 6.67002 2.53082C6.01714 2.5315 5.37084 2.66129 4.76831 2.91271C4.16577 3.16414 3.61891 3.53223 3.15919 3.99582C1.19836 5.96499 1.19919 9.04499 3.16086 11.0058L9.27086 17.1158C9.41253 17.365 9.68586 17.5258 10 17.5258C10.129 17.5246 10.2559 17.4931 10.3706 17.4339C10.4852 17.3747 10.5843 17.2894 10.66 17.185L16.8392 11.0058C18.8009 9.04416 18.8009 5.96499 16.8375 3.99249C16.378 3.52975 15.8316 3.1624 15.2297 2.91156C14.6277 2.66071 13.9821 2.53132 13.33 2.53082C12.0965 2.53102 10.9081 2.99438 10 3.82916ZM15.6592 5.17082C16.9617 6.47999 16.9625 8.52499 15.6609 9.82749L10 15.4883L4.33919 9.82749C3.03752 8.52499 3.03836 6.47999 4.33752 5.17416C4.97086 4.54416 5.79919 4.19749 6.67002 4.19749C7.54086 4.19749 8.36586 4.54416 8.99419 5.17249L9.41086 5.58916C9.48818 5.66661 9.58002 5.72806 9.68111 5.76998C9.78221 5.81191 9.89058 5.83349 10 5.83349C10.1095 5.83349 10.2178 5.81191 10.3189 5.76998C10.42 5.72806 10.5119 5.66661 10.5892 5.58916L11.0059 5.17249C12.2659 3.91499 14.4009 3.91832 15.6592 5.17082Z" fill="var(--text-secondary)"></path>
-                              </svg>
-                              {comment.likes}
-                            </button>
-                            {comment.replies && comment.replies.length > 0 && (
-                              <button className="text-sm" style={{ color: 'var(--primary-color)' }}>
-                                {comment.showReplies ? 'Hide' : 'Show'} {comment.replies.length} {comment.replies.length === 1 ? 'Reply' : 'Replies'}
-                              </button>
-                            )}
-                          </div>
-                        </div>
+                <TabsContent value="Comments">
+                  <Card>
+                    <CardContent className="pt-6"> {/* Added pt-6 for spacing */} 
+                      {/* Use Shadcn Input for Comment */}
+                      <Input 
+                        type="text" 
+                        placeholder="Add a comment..."
+                        className="mb-4"
+                      />
+                      
+                      {/* Optional: Warning Box - using muted colors */} 
+                      <div className="flex items-center gap-2 p-2 rounded-lg mb-4 text-sm bg-muted text-muted-foreground">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"> 
+                          <path d="M20.995 6.9031C20.9789 6.73477 20.9203 6.57329 20.8246 6.43387C20.7289 6.29445 20.5993 6.18165 20.448 6.1061L12.475 2.1061C12.3363 2.03604 12.1832 1.99937 12.0278 1.99903C11.8724 1.99868 11.7191 2.03466 11.58 2.1041L3.55304 6.1041C3.25604 6.2541 3.05104 6.5411 3.00904 6.8711C2.99604 6.9681 1.86404 16.6121 11.55 21.8791C11.6989 21.9603 11.8661 22.0021 12.0357 22.0005C12.2053 21.999 12.3717 21.9541 12.519 21.8701C21.826 16.6111 21.033 7.2971 20.995 6.9031ZM12.018 19.8471C5.15804 15.8371 4.87804 9.4951 4.95504 7.6421L12.026 4.1191L19.024 7.6301C19.029 9.5001 18.543 15.8731 12.018 19.8471Z" fill="currentColor"></path> 
+                        </svg>
+                        <span>Beware of external links, they may be phishing attacks.</span>
                       </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
+                      
+                      {/* Comments List */}
+                      <div className="space-y-4">
+                         {comments.length > 0 ? comments.slice(0, 5).map((comment:any, index:any) => (
+                           <div key={index} className="border-b border-border pb-4 last:border-b-0 last:pb-0"> 
+                              <div className="flex gap-3">
+                                <div className="flex-shrink-0">
+                                  {comment.avatar ? (
+                                    <Image 
+                                      src={comment.avatar} 
+                                      alt={comment.username} 
+                                      width={40} 
+                                      height={40} 
+                                      className="rounded-full"
+                                    />
+                                  ) : (
+                                     <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center text-muted-foreground">?</div> // Placeholder avatar
+                                  )}
+                                </div>
+                                <div className="flex-grow">
+                                  <div className="flex justify-between items-center mb-1">
+                                    <div className="flex items-center gap-2">
+                                      <span className="font-semibold text-foreground">{comment.username}</span>
+                                      {comment.position && (
+                                        <Badge 
+                                           variant="outline"
+                                           className={`text-xs ${comment.position.includes('Yes') 
+                                             ? 'bg-success/10 text-success border-success/20' 
+                                             : 'bg-destructive/10 text-destructive border-destructive/20'}`}
+                                        >
+                                          {comment.position}
+                                        </Badge>
+                                      )}
+                                    </div>
+                                    <span className="text-muted-foreground text-xs">{comment.time}</span>
+                                  </div>
+                                  <p className="text-sm text-muted-foreground">{comment.content}</p>
+                                  {/* TODO: Add like/reply functionality */} 
+                                </div>
+                              </div>
+                           </div>
+                         )) : (
+                            <p className="text-sm text-muted-foreground text-center py-4">No comments yet.</p>
+                         )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+                {/* Add TabsContent for TopHolders, Activity, Related here */}
+                <TabsContent value="TopHolders">
+                   <Card><CardContent><p className="text-muted-foreground p-4">Top Holders feature coming soon.</p></CardContent></Card>
+                </TabsContent>
+                <TabsContent value="Activity">
+                    <Card><CardContent><p className="text-muted-foreground p-4">Activity feed coming soon.</p></CardContent></Card>
+                </TabsContent>
+                <TabsContent value="Related">
+                   <Card><CardContent><p className="text-muted-foreground p-4">Related markets feature coming soon.</p></CardContent></Card>
+                </TabsContent>
+              </Tabs>
+
             </div>
           </div>
 
           {/* Right column - Swap box */}
           <div className="w-[400px]">
-            <div className="rounded-lg bg-card-background p-4">
-              <div className="market-content">
-                <div className="mb-4">
+            <div className="sticky top-20 space-y-6">
+              <Card>
+                <CardHeader>
                   <div className="flex border rounded-lg overflow-hidden" style={{ borderColor: 'var(--border-color)' }}>
                     <button 
                         className={`flex-1 py-2 font-medium ${selectedAction === 'Buy' ? 'bg-primary-color text-white' : 'bg-card-background text-secondary'}`}
@@ -441,141 +435,114 @@ const PredictionMarketPage = ({
                         Sell
                     </button>
                   </div>
-                </div>
-
-                <div className="mb-4">
-                  <div className="flex border rounded-lg overflow-hidden" style={{ borderColor: 'var(--border-color)' }}>
-                    <button 
-                      className={`flex-1 py-3 font-medium ${selectedOption === 'Yes' ? 'bg-green text-white' : 'bg-card-background text-secondary'}`}
-                      style={{ backgroundColor: selectedOption === 'Yes' ? 'var(--green)' : 'var(--card-background)' }}
-                      onClick={() => setSelectedOption('Yes')}
-                    >
-                      <div className="flex flex-col items-center">
-                        <span>Yes</span>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <div className="mb-4">
+                      <div className="flex border rounded-lg overflow-hidden" style={{ borderColor: 'var(--border-color)' }}>
+                        <button 
+                          className={`flex-1 py-3 font-medium ${selectedOption === 'Yes' ? 'bg-green text-white' : 'bg-card-background text-secondary'}`}
+                          style={{ backgroundColor: selectedOption === 'Yes' ? 'var(--green)' : 'var(--card-background)' }}
+                          onClick={() => setSelectedOption('Yes')}
+                        >
+                          <div className="flex flex-col items-center">
+                            <span>Yes</span>
+                          </div>
+                        </button>
+                        <button 
+                          className={`flex-1 py-3 font-medium ${selectedOption === 'No' ? 'bg-red text-white' : 'bg-card-background text-secondary'}`}
+                          style={{ backgroundColor: selectedOption === 'No' ? 'var(--red)' : 'var(--card-background)' }}
+                          onClick={() => setSelectedOption('No')}
+                        >
+                          <div className="flex flex-col items-center">
+                            <span>No</span>
+                          </div>
+                        </button>
                       </div>
-                    </button>
-                    <button 
-                      className={`flex-1 py-3 font-medium ${selectedOption === 'No' ? 'bg-red text-white' : 'bg-card-background text-secondary'}`}
-                      style={{ backgroundColor: selectedOption === 'No' ? 'var(--red)' : 'var(--card-background)' }}
-                      onClick={() => setSelectedOption('No')}
-                    >
-                      <div className="flex flex-col items-center">
-                        <span>No</span>
+                    </div>
+
+                    {/* Use Shadcn Label and Input */}
+                    <div className="space-y-1">
+                      <Label htmlFor="amount" >
+                        Amount
+                      </Label>
+                      <div className="relative">
+                        <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-muted-foreground sm:text-sm">$</span>
+                        <Input
+                          type="text" 
+                          id="amount"
+                          className="pl-7 pr-12" // Add padding for the prefix
+                          placeholder="0.00"
+                          value={amount}
+                          onChange={handleAmountChange}
+                        />
                       </div>
-                    </button>
-                  </div>
-                </div>
-
-                <div className="mb-6">
-                  <label className="block text-sm font-medium text-secondary mb-1">
-                    Amount
-                  </label>
-                  <div className="relative rounded-md">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <span className="text-secondary sm:text-sm">$</span>
                     </div>
-                    <input
-                      type="text"
-                      className="block w-full pl-7 pr-12 sm:text-sm border-border-color rounded-md bg-card-background text-primary"
-                      style={{ backgroundColor: 'var(--card-background)', borderColor: 'var(--border-color)' }}
-                      placeholder="0.00"
-                      value={amount}
-                      onChange={handleAmountChange}
-                    />
-                  </div>
-                  
-                  <div className="flex gap-2 mt-2">
-                    <Button variant="outline" className="text-sm" onClick={() => addAmount(1)}>+$1</Button>
-                    <Button variant="outline" className="text-sm" onClick={() => addAmount(20)}>+$20</Button>
-                    <Button variant="outline" className="text-sm" onClick={() => addAmount(100)}>+$100</Button>
-                    <Button variant="outline" className="text-sm" onClick={() => setAmount(tokenBalance)}>Max</Button>
-                  </div>
-                  
-                  {/* Add expected output display */}
-                  {amount && parseFloat(amount) > 0 && (
-                    <div className="mt-2 text-sm text-secondary">
-                      Expected {selectedAction === 'Buy' ? 'output' : 'return'}: 
-                      {selectedAction === 'Buy' 
-                        ? ` ${expectedOutput} ${selectedOption} tokens` 
-                        : ` $${expectedOutput}`}
+                    
+                    {/* Quick Add Buttons */} 
+                    <div className="flex gap-2 mt-2">
+                      <Button variant="outline" size="sm" className="flex-1" onClick={() => addAmount(1)}>+$1</Button>
+                      <Button variant="outline" size="sm" className="flex-1" onClick={() => addAmount(5)}>+$5</Button>
+                      <Button variant="outline" size="sm" className="flex-1" onClick={() => addAmount(20)}>+$20</Button>
+                      <Button variant="outline" size="sm" className="flex-1" onClick={() => addAmount(100)}>+$100</Button>
+                      <Button variant="outline" size="sm" className="flex-1" onClick={setMaxAmount}>Max</Button>
                     </div>
-                  )}
-                </div>
-
-                {isConnected ? (
-                  needsApproval && !isApproved ? (
-                    <button 
-                      className="banner-button w-full mb-4" 
-                      style={{ backgroundColor: 'var(--primary-color)' }}
-                      onClick={() => handleApprove({
-                        address: selectedAction === 'Buy' 
-                          ? marketData?.collateralAddress 
-                          : selectedOption === 'Yes' 
-                            ? marketData?.yesToken 
-                            : marketData?.noToken,
-                        abi: MockERC20Abi,
-                        functionName: 'approve',
-                        args: [ROUTER, parseUnits('1000000', selectedAction === 'Buy' ? 6 : 18)],
-                      })}
-                      disabled={isApproving}
+                    
+                    {/* Add expected output display */}
+                    {amount && parseFloat(amount) > 0 && (
+                      <div className="mt-2 text-sm text-secondary">
+                        Expected {selectedAction === 'Buy' ? 'output' : 'return'}: 
+                        {selectedAction === 'Buy' 
+                          ? ` ${expectedOutput} ${selectedOption} tokens` 
+                          : ` $${expectedOutput}`}
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+                <CardFooter>
+                  {/* Action Button: Approve or Swap */}
+                  {!isConnected ? (
+                    <Button className="w-full" disabled>Connect Wallet</Button>
+                  ) : needsApproval ? (
+                    <Button 
+                      className="w-full" 
+                      onClick={handleApprove}
+                      disabled={isApproving || amount === '' || parseFloat(amount) <= 0}
                     >
-                      {isApproving ? (
-                        <span className="flex items-center justify-center">
-                          <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                          </svg>
-                          Approving...
-                        </span>
-                      ) : `Approve ${selectedAction === 'Buy' ? 'USDC' : selectedOption}`}
-                    </button>
+                      {isApproving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                      Approve {selectedAction === 'Buy' ? 'USDC' : selectedOption}
+                    </Button>
                   ) : (
-                    <button 
-                      className="banner-button w-full mb-4" 
-                      style={{ backgroundColor: 'var(--primary-color)' }}
+                    <Button 
+                      className="w-full" 
                       onClick={handleSwap}
-                      disabled={isSwapping || !amount || parseFloat(amount) <= 0}
+                      disabled={isSwapping || amount === '' || parseFloat(amount) <= 0}
                     >
-                      {isSwapping ? (
-                        <span className="flex items-center justify-center">
-                          <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                          </svg>
-                          Processing...
-                        </span>
-                      ) : `${selectedAction} ${selectedOption}`}
-                    </button>
-                  )
-                ) : (
-                  <button className="banner-button w-full mb-4" style={{ backgroundColor: 'var(--primary-color)' }}>
-                    Connect Wallet to Trade
-                  </button>
-                )}
+                      {isSwapping ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                      {selectedAction} {selectedOption}
+                    </Button>
+                  )}
+                </CardFooter>
+              </Card>
 
-                {/* Show approval success message */}
-                {isApproved && (
-                  <div className="mb-4 p-2 bg-green-800 bg-opacity-20 text-green-400 rounded text-sm text-center">
-                    Token approval successful! You can now trade.
-                  </div>
-                )}
+              {/* Mint Collateral Button */}
+              {mintCollateralButton}
 
-                <p className="text-xs text-center text-secondary">
-                  By trading, you agree to the <Link href="/tos" className="text-primary-color underline" style={{ color: 'var(--primary-color)' }}>Terms of Use</Link>.
-                </p>
-
-                {/* Add mint button right after the swap content */}
-                {mintCollateralButton}
-
-                {/* Add token balances below mint button */}
-                {isConnected && (
-                  <TokenBalances 
-                    collateralBalance={tokenBalance}
-                    yesBalance={yesPool?.balance}
-                    noBalance={noPool?.balance}
-                  />
-                )}
-              </div>
+              {/* Display Balances */}
+              {isConnected && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-sm font-medium">Your Balances</CardTitle>
+                  </CardHeader>
+                  <CardContent className="text-sm space-y-1">
+                    <TokenBalances 
+                      collateralBalance={tokenBalance?.collateral || '0.00'}
+                      yesBalance={tokenBalance?.yes || '0.00'}
+                      noBalance={tokenBalance?.no || '0.00'}
+                    />
+                  </CardContent>
+                </Card>
+              )}
             </div>
           </div>
         </div>

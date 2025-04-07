@@ -5,6 +5,9 @@ import { usePaginatedMarkets } from '@/hooks/fetchMarkets';
 import { useChainId } from 'wagmi'
 import React, { useEffect, useState } from 'react';
 import { usePredictionMarketHookAddress } from '@/config';
+import { Loader2 } from 'lucide-react';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Terminal } from 'lucide-react'; // Or other relevant icon
 
 // Add edge runtime configuration
 export const runtime = 'edge';
@@ -49,66 +52,58 @@ export default function Home() {
   console.log("Using contract address:", hookAddress);
   
   return (
-    <div className="app-container">
-      <div className="main-content">
-        
+    <div className="max-w-screen-xl mx-auto p-4 sm:p-6 lg:p-8">
+      {isLoading && (
+        <div className="flex justify-center items-center h-64">
+          <Loader2 className="mr-2 h-8 w-8 animate-spin text-muted-foreground" />
+          <p className="text-muted-foreground">Loading markets...</p>
+        </div>
+      )}
       
-        {isLoading && (
-          <div className="loading-container">
-            <div className="spinner"></div>
-            <p className="loading-text">Loading markets...</p>
-          </div>
-        )}
-        
-        {isError && (
-          <div className="loading-container">
-            <p className="loading-text" style={{ color: 'var(--red)' }}>
-              Error loading markets: {errorInfo}
-            </p>
-          </div>
-        )}
-        
-        <div className="markets-container">
+      {isError && (
+        <div className="flex justify-center items-center h-64">
+          <Alert variant="destructive" className="max-w-md">
+            <Terminal className="h-4 w-4" />
+            <AlertTitle>Error</AlertTitle>
+            <AlertDescription>
+              Failed to load markets: {errorInfo}
+            </AlertDescription>
+          </Alert>
+        </div>
+      )}
+      
+      {!isLoading && !isError && (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {marketsList.length > 0 ? (
             marketsList.map((market, index) => {
-              const marketId = market?.id || index.toString();
-              console.log(`Creating market card for: ${market.title} with ID: ${marketId}`);
-              
+              const marketId = market?.id || `market-${index}`;
+              const marketUrl = `/${market.id}`; 
+                
               return (
                 <MarketCard
-                  key={`fetched-${index}`}
+                  key={marketId}
+                  id={market.id} 
                   title={market.title || 'Untitled Market'}
                   description={market.description}
                   yesPrice={market.yesPrice}
                   noPrice={market.noPrice}
-                  url={`/${marketId}`}
+                  url={marketUrl}
                 />
               );
             })
           ) : (
-            // Fallback static markets (these will show when API fails or returns empty)
-            <>
-              <div className="flex flex-col items-center justify-center p-8 text-center">
-                <h3 className="text-xl font-semibold mb-2">No markets detected</h3>
-                <p className="text-gray-500">
-                  There are currently no prediction markets available on {chainName}.
-                </p>
-                <p className="text-gray-500 mt-2">
-                  Contract address: {hookAddress}
-                </p>
-                {isError && (
-                  <p className="text-red-500 mt-2">
-                    Error: {errorInfo}
-                  </p>
-                )}
-                <p className="text-gray-500 mt-4">
-                  Try refreshing the page, switching networks, or create your own market!
-                </p>
-              </div>
-            </>
+            <div className="col-span-full flex flex-col items-center justify-center p-8 text-center">
+              <h3 className="text-xl font-semibold mb-2">No markets detected</h3>
+              <p className="text-muted-foreground">
+                There are currently no prediction markets available on {chainName}.
+              </p>
+              <p className="text-muted-foreground mt-4">
+                Try refreshing the page or switching networks.
+              </p>
+            </div>
           )}
         </div>
-      </div>
+      )}
     </div>
   );
 }

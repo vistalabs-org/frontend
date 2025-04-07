@@ -56,7 +56,6 @@ jobs:
         env:
           NEXT_PUBLIC_ALCHEMY_API_KEY: ${{ secrets.ALCHEMY_API_KEY }}
           NEXT_PUBLIC_GAS_MANAGER_POLICY_ID: ${{ secrets.GAS_MANAGER_POLICY_ID }}
-          SEPOLIA_URL: ${{ secrets.SEPOLIA_URL }}
         
       - name: Build with Cloudflare Adapter (Test)
         run: npx @cloudflare/next-on-pages
@@ -65,7 +64,6 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN_STAGING }}
           NEXT_PUBLIC_ALCHEMY_API_KEY: ${{ secrets.ALCHEMY_API_KEY }}
           NEXT_PUBLIC_GAS_MANAGER_POLICY_ID: ${{ secrets.GAS_MANAGER_POLICY_ID }}
-          SEPOLIA_URL: ${{ secrets.SEPOLIA_URL }}
 
       # If you have tests, uncomment and adjust the following step
       # - name: Run tests

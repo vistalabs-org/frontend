@@ -1,24 +1,18 @@
 // components/Header.tsx
 'use client';
 
-import { Roboto } from 'next/font/google';
 import Image from 'next/image';
 import Link from 'next/link';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
 
-const roboto = Roboto({
-  weight: ['700'],
-  subsets: ['latin'],
-});
-
 const NavBar = () => {
   return (
-    <nav className="flex items-center justify-between px-6 py-4 bg-white border-b border-gray-200">
+    <nav className="flex items-center justify-between px-6 py-4 bg-background border-b border-border">
       {/* Left - Create Proposal Link */}
       <div className="flex-1">
-        <Link 
-          href="/create-proposal" 
-          className="text-gray-600 hover:text-blue-600 transition-colors"
+        <Link
+          href="/create-proposal"
+          className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors"
         >
           Create Proposal
         </Link>
@@ -36,7 +30,7 @@ const NavBar = () => {
               priority
             />
           </div>
-          <h1 className={`${roboto.className} text-xl text-gray-900`}>Vista Market</h1>
+          <h1 className="text-xl font-semibold text-foreground">Vista Market</h1>
         </Link>
       </div>
 

@@ -1,8 +1,18 @@
 // components/MarketCard.tsx
 import React from 'react';
-import Image from 'next/image';
 import Link from 'next/link';
 import { truncateText } from '@/utils/text';
+
+// --- Import Shadcn UI Components ---
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
 
 export type MarketCardProps = {
   title: string;
@@ -10,6 +20,7 @@ export type MarketCardProps = {
   yesPrice?: number;
   noPrice?: number;
   url: string;
+  id?: string;
 };
 
 const MarketCard: React.FC<MarketCardProps> = ({
@@ -17,42 +28,42 @@ const MarketCard: React.FC<MarketCardProps> = ({
   description,
   yesPrice,
   noPrice,
-  url
+  url,
+  id // Ensure id prop is received if used
 }) => {
   return (
-    <div className="bg-white border border-gray-300 rounded-lg p-6 hover:bg-gray-50 transition-colors">
-      <h3 className="text-lg font-medium text-gray-900 mb-2">
-        {title}
-      </h3>
-      
-      {description && (
-        <p className="text-gray-600 mb-4">
-          {truncateText(description, 100)}
-        </p>
-      )}
-      
-      <div className="flex justify-between items-center mb-4">
-        <div className="text-sm">
-          <span className="text-gray-600">Yes Price: </span>
-          <span className="font-medium text-gray-900">
-            {yesPrice ? `${yesPrice.toFixed(3)} USDC` : 'N/A'}
-          </span>
+    <Card className="w-full flex flex-col h-full"> {/* Added h-full for consistent height */}
+      <CardHeader> 
+        <CardTitle className="line-clamp-2">{title}</CardTitle> {/* Added line-clamp */}
+        {/* Explicitly return null if description is falsy */}
+        {description ? (
+          <CardDescription className="line-clamp-3">{truncateText(description, 100)}</CardDescription>
+        ) : null}
+      </CardHeader>
+      <CardContent className="flex-grow grid grid-cols-2 gap-4"> 
+        {/* Use success colors */}
+        <div className="flex flex-col items-center justify-center space-y-1 p-4 rounded-md bg-success/10"> 
+          <p className="text-sm font-medium text-success">Yes</p> 
+          <p className="text-xl font-semibold text-success"> 
+             {yesPrice !== undefined ? `${(yesPrice * 100).toFixed(1)}%` : 'N/A'} 
+          </p>
         </div>
-        <div className="text-sm">
-          <span className="text-gray-600">No Price: </span>
-          <span className="font-medium text-gray-900">
-            {noPrice ? `${noPrice.toFixed(3)} USDC` : 'N/A'}
-          </span>
+        {/* Use destructive colors */}
+        <div className="flex flex-col items-center justify-center space-y-1 p-4 rounded-md bg-destructive/10"> 
+          <p className="text-sm font-medium text-destructive">No</p> 
+          <p className="text-xl font-semibold text-destructive"> 
+             {noPrice !== undefined ? `${(noPrice * 100).toFixed(1)}%` : 'N/A'} 
+          </p>
         </div>
-      </div>
-      
-      <Link 
-        href={url}
-        className="inline-block w-full text-center px-4 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors"
-      >
-        Go to market
-      </Link>
-    </div>
+      </CardContent>
+      <CardFooter> 
+        <Link href={url} className="w-full" passHref>
+          <Button className="w-full">
+            View Market
+          </Button>
+        </Link>
+      </CardFooter>
+    </Card>
   );
 };
 
