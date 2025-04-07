@@ -5,6 +5,7 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { Providers } from "./providers";
 import NavBar from "@/components/NavBar";
+import { ThemeProvider } from "next-themes";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -36,18 +37,25 @@ export default async function RootLayout({
   const cookie = headerData.get("cookie") ?? undefined;
 
   return (
-    <html lang="en" >
+    <html lang="en" suppressHydrationWarning>
       <head>
         <link rel="manifest" href="/manifest.json" />
         <link rel="apple-touch-icon" href="/icons/icon-192x192.png" />
       </head>
       <body>
-        <Providers cookie={cookie}>
-              <NavBar />
-              <main className="flex-1 p-4 md:p-6">
-                {children}
-              </main>
-        </Providers>
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          disableTransitionOnChange
+        >
+          <Providers cookie={cookie}>
+                <NavBar />
+                <main className="flex-1 p-4 md:p-6">
+                  {children}
+                </main>
+          </Providers>
+        </ThemeProvider>
       </body>
     </html>
   );

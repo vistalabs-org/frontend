@@ -4,8 +4,18 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
+import { useTheme } from "next-themes";
+import { Button } from "@/components/ui/button";
+import { Moon, Sun } from "lucide-react";
+import React from 'react';
 
 const NavBar = () => {
+  const { theme, setTheme } = useTheme();
+
+  const toggleTheme = () => {
+    setTheme(theme === 'dark' ? 'light' : 'dark');
+  };
+
   return (
     <nav className="flex items-center justify-between px-6 py-4 bg-background border-b border-border">
       {/* Left - Create Proposal Link */}
@@ -34,8 +44,12 @@ const NavBar = () => {
         </Link>
       </div>
 
-      {/* Right - Connect Button with Network Selection */}
-      <div className="flex-1 flex justify-end items-center">
+      {/* Right - Theme Toggle and Connect Button */}
+      <div className="flex-1 flex justify-end items-center gap-2">
+        <Button variant="ghost" size="icon" onClick={toggleTheme} aria-label="Toggle theme">
+          <Sun className="h-[1.2rem] w-[1.2rem] sun-icon" />
+          <Moon className="h-[1.2rem] w-[1.2rem] moon-icon" />
+        </Button>
         <ConnectButton />
       </div>
     </nav>
