@@ -16,7 +16,7 @@ import { AlertCircle } from 'lucide-react'; // Import icon for error alert
 export default function KpiMarketForm() {
   const router = useRouter();
   const { address, chain } = useAccount();
-  const { checkBalance, isReady } = useCreateMarket();
+  const { isReady } = useCreateMarket();
   
   // Initialize with proper form fields
   const [formData, setFormData] = useState({
