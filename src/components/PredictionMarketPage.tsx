@@ -8,6 +8,7 @@ import { useAccount } from 'wagmi';
 import { parseUnits, formatUnits } from 'ethers';
 import { MockERC20Abi } from '@/contracts/MockERC20_abi';
 import { ROUTER } from '@/app/constants';
+import { useRouter } from 'next/navigation';
 
 // Helper components
 const Badge = ({ children, color = 'green' }:any) => (
@@ -163,6 +164,7 @@ const PredictionMarketPage = ({
   const [amount, setAmount] = React.useState('');
   const [activeTab, setActiveTab] = React.useState('Comments');
   const { isConnected } = useAccount();
+  const router = useRouter();
 
   // Use the SwapFunction hook
   const { 
@@ -224,12 +226,15 @@ const PredictionMarketPage = ({
                 <h2 className="text-gray-900 text-base font-medium mb-1">Powered by AI Oracle</h2>
                 <p className="text-gray-600 text-sm">This market will be resolved using our decentralized AI oracle system</p>
               </div>
-              <Link 
-                href="/oracle" 
-                className="text-blue-600 hover:text-blue-700 text-sm"
+              <Button 
+                variant="primary"
+                onClick={() => {
+                  router.push(`/${marketId}/resolve`);
+                }}
+                className="text-sm px-3 py-1"
               >
-                See How It Works
-              </Link>
+                Resolve Market
+              </Button>
             </div>
           </div>
         </div>
@@ -577,79 +582,6 @@ const PredictionMarketPage = ({
       </div>
     </div>
   );
-};
-
-// Sample data for demonstration
-const sampleMarketData = {
-  title: "Will Trump end Department of Education in 2025?",
-  icon: "/market-icon.png",
-  volume: 621853,
-  endDate: "Dec 31, 2025",
-  currentYesPrice: 17,
-  priceChange: 17,
-  comments: [
-    {
-      username: "thakattack19",
-      avatar: null,
-      time: "6h ago",
-      content: "orange lard can't end a department without congressional approval. No way 60 votes.",
-      likes: 1,
-      position: null,
-    },
-    {
-      username: "CtrlAltHandsome",
-      avatar: "/user1.jpg",
-      time: "2d ago",
-      content: "why isnt this resolved yet?",
-      likes: 2,
-      position: "211 Yes",
-      replies: [
-        {
-          username: "username3",
-          content: "The executive order doesn't eliminate the department completely, just starts the process."
-        }
-      ],
-      showReplies: false
-    },
-    {
-      username: "vughtzuid",
-      avatar: "/user2.jpg",
-      time: "2d ago",
-      content: "Sounds like a good bet to me, even if the retarded orange monkey does not actually succeed in the end he'll cause plenty of doubt that he might",
-      likes: 0,
-      position: "50 Yes",
-      replies: [
-        {
-          username: "Icetea2",
-          content: "You're so scared that people might take you as a Republican when you bet on Trump that you have to specify \"retarded orange monkey\" in every single post of yours lmao"
-        }
-      ],
-      showReplies: false
-    },
-    {
-      username: "duderr",
-      avatar: "/user3.jpg",
-      time: "2d ago",
-      content: "damn am i cooked?",
-      likes: 0,
-      position: "200 No",
-      replies: [
-        {
-          username: "anonusergfbf",
-          content: "currently, you are winning - don't know why - Trump just signed the executive order."
-        }
-      ],
-      showReplies: false
-    },
-    {
-      username: "OneT",
-      avatar: null,
-      time: "2d ago",
-      content: "TRUMP TO SIGN ACTION ENDING EDUCATION DEPT. ON THURS: USA TODAY",
-      likes: 0,
-      position: null,
-    }
-  ]
 };
 
 export default PredictionMarketPage;

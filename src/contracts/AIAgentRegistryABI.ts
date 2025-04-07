@@ -1,183 +1,393 @@
 export const AIAgentRegistryABI = [
   {
-    inputs: [
-      { name: "_serviceManager", type: "address" }
-    ],
-    stateMutability: "nonpayable",
-    type: "constructor"
+    "type": "constructor",
+    "inputs": [],
+    "stateMutability": "nonpayable"
   },
   {
-    inputs: [
-      { name: "agent", type: "address" }
+    "type": "function",
+    "name": "agentConsensusParticipations",
+    "inputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
     ],
-    name: "registerAgent",
-    outputs: [],
-    stateMutability: "nonpayable",
-    type: "function"
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
   },
   {
-    inputs: [
-      { name: "agent", type: "address" }
+    "type": "function",
+    "name": "agentModelTypes",
+    "inputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
     ],
-    name: "unregisterAgent",
-    outputs: [],
-    stateMutability: "nonpayable",
-    type: "function"
+    "outputs": [
+      {
+        "name": "",
+        "type": "string",
+        "internalType": "string"
+      }
+    ],
+    "stateMutability": "view"
   },
   {
-    inputs: [
-      { name: "agent", type: "address" },
-      { name: "status", type: "uint8" }
+    "type": "function",
+    "name": "agentModelVersions",
+    "inputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
     ],
-    name: "updateAgentStatus",
-    outputs: [],
-    stateMutability: "nonpayable",
-    type: "function"
+    "outputs": [
+      {
+        "name": "",
+        "type": "string",
+        "internalType": "string"
+      }
+    ],
+    "stateMutability": "view"
   },
   {
-    inputs: [],
-    name: "getAllAgents",
-    outputs: [
-      { name: "", type: "address[]" }
+    "type": "function",
+    "name": "agentRewardsEarned",
+    "inputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
     ],
-    stateMutability: "view",
-    type: "function"
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
   },
   {
-    inputs: [],
-    name: "getAgentCount",
-    outputs: [
-      { name: "", type: "uint256" }
+    "type": "function",
+    "name": "agentTasksCompleted",
+    "inputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
     ],
-    stateMutability: "view",
-    type: "function"
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
   },
   {
-    inputs: [
-      { name: "agent", type: "address" }
+    "type": "function",
+    "name": "getAgentCount",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
     ],
-    name: "updateAgentStats",
-    outputs: [],
-    stateMutability: "nonpayable",
-    type: "function"
+    "stateMutability": "view"
   },
   {
-    inputs: [
-      { name: "agent", type: "address" }
+    "type": "function",
+    "name": "getAgentDetails",
+    "inputs": [
+      {
+        "name": "agent",
+        "type": "address",
+        "internalType": "address"
+      }
     ],
-    name: "getAgentDetails",
-    outputs: [
-      { name: "modelType", type: "string" },
-      { name: "modelVersion", type: "string" },
-      { name: "tasksCompleted", type: "uint256" },
-      { name: "consensusParticipations", type: "uint256" },
-      { name: "rewardsEarned", type: "uint256" }
+    "outputs": [
+      {
+        "name": "modelType",
+        "type": "string",
+        "internalType": "string"
+      },
+      {
+        "name": "modelVersion",
+        "type": "string",
+        "internalType": "string"
+      },
+      {
+        "name": "tasksCompleted",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "consensusParticipations",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "rewardsEarned",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
     ],
-    stateMutability: "view",
-    type: "function"
+    "stateMutability": "view"
   },
   {
-    inputs: [
-      { name: "", type: "uint256" }
+    "type": "function",
+    "name": "getAllAgents",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address[]",
+        "internalType": "address[]"
+      }
     ],
-    name: "registeredAgents",
-    outputs: [
-      { name: "", type: "address" }
-    ],
-    stateMutability: "view",
-    type: "function"
+    "stateMutability": "view"
   },
   {
-    inputs: [
-      { name: "", type: "address" }
+    "type": "function",
+    "name": "isRegistered",
+    "inputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
     ],
-    name: "isRegistered",
-    outputs: [
-      { name: "", type: "bool" }
+    "outputs": [
+      {
+        "name": "",
+        "type": "bool",
+        "internalType": "bool"
+      }
     ],
-    stateMutability: "view",
-    type: "function"
+    "stateMutability": "view"
   },
   {
-    inputs: [
-      { name: "", type: "address" }
+    "type": "function",
+    "name": "owner",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
     ],
-    name: "agentModelTypes",
-    outputs: [
-      { name: "", type: "string" }
-    ],
-    stateMutability: "view",
-    type: "function"
+    "stateMutability": "view"
   },
   {
-    inputs: [
-      { name: "", type: "address" }
+    "type": "function",
+    "name": "registerAgent",
+    "inputs": [
+      {
+        "name": "agent",
+        "type": "address",
+        "internalType": "address"
+      }
     ],
-    name: "agentModelVersions",
-    outputs: [
-      { name: "", type: "string" }
-    ],
-    stateMutability: "view",
-    type: "function"
+    "outputs": [],
+    "stateMutability": "nonpayable"
   },
   {
-    inputs: [
-      { name: "", type: "address" }
+    "type": "function",
+    "name": "registeredAgents",
+    "inputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
     ],
-    name: "agentTasksCompleted",
-    outputs: [
-      { name: "", type: "uint256" }
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
     ],
-    stateMutability: "view",
-    type: "function"
+    "stateMutability": "view"
   },
   {
-    inputs: [
-      { name: "", type: "address" }
-    ],
-    name: "agentConsensusParticipations",
-    outputs: [
-      { name: "", type: "uint256" }
-    ],
-    stateMutability: "view",
-    type: "function"
+    "type": "function",
+    "name": "renounceOwnership",
+    "inputs": [],
+    "outputs": [],
+    "stateMutability": "nonpayable"
   },
   {
-    inputs: [
-      { name: "", type: "address" }
+    "type": "function",
+    "name": "transferOwnership",
+    "inputs": [
+      {
+        "name": "newOwner",
+        "type": "address",
+        "internalType": "address"
+      }
     ],
-    name: "agentRewardsEarned",
-    outputs: [
-      { name: "", type: "uint256" }
-    ],
-    stateMutability: "view",
-    type: "function"
+    "outputs": [],
+    "stateMutability": "nonpayable"
   },
   {
-    anonymous: false,
-    inputs: [
-      { indexed: true, name: "agentAddress", type: "address" },
-      { indexed: false, name: "modelType", type: "string" },
-      { indexed: false, name: "modelVersion", type: "string" }
+    "type": "function",
+    "name": "unregisterAgent",
+    "inputs": [
+      {
+        "name": "agent",
+        "type": "address",
+        "internalType": "address"
+      }
     ],
-    name: "AgentRegistered",
-    type: "event"
+    "outputs": [],
+    "stateMutability": "nonpayable"
   },
   {
-    anonymous: false,
-    inputs: [
-      { indexed: true, name: "agentAddress", type: "address" }
+    "type": "function",
+    "name": "updateAgentStats",
+    "inputs": [
+      {
+        "name": "agent",
+        "type": "address",
+        "internalType": "address"
+      }
     ],
-    name: "AgentUnregistered",
-    type: "event"
+    "outputs": [],
+    "stateMutability": "nonpayable"
   },
   {
-    anonymous: false,
-    inputs: [
-      { indexed: true, name: "agentAddress", type: "address" },
-      { indexed: false, name: "status", type: "uint8" }
+    "type": "function",
+    "name": "updateAgentStatus",
+    "inputs": [
+      {
+        "name": "agent",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "status",
+        "type": "uint8",
+        "internalType": "enum AIAgent.AgentStatus"
+      }
     ],
-    name: "AgentStatusUpdated",
-    type: "event"
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "event",
+    "name": "AgentRegistered",
+    "inputs": [
+      {
+        "name": "agentAddress",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "modelType",
+        "type": "string",
+        "indexed": false,
+        "internalType": "string"
+      },
+      {
+        "name": "modelVersion",
+        "type": "string",
+        "indexed": false,
+        "internalType": "string"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "AgentStatusUpdated",
+    "inputs": [
+      {
+        "name": "agentAddress",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "status",
+        "type": "uint8",
+        "indexed": false,
+        "internalType": "enum AIAgent.AgentStatus"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "AgentUnregistered",
+    "inputs": [
+      {
+        "name": "agentAddress",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "OwnershipTransferred",
+    "inputs": [
+      {
+        "name": "previousOwner",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "newOwner",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "error",
+    "name": "OwnableInvalidOwner",
+    "inputs": [
+      {
+        "name": "owner",
+        "type": "address",
+        "internalType": "address"
+      }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "OwnableUnauthorizedAccount",
+    "inputs": [
+      {
+        "name": "account",
+        "type": "address",
+        "internalType": "address"
+      }
+    ]
   }
 ]; 
