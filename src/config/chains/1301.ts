@@ -1,0 +1,13 @@
+// Unichain Sepolia config
+import { ChainConfig } from './common';
+
+export const config: ChainConfig = {
+  chainId: 1301,
+  name: 'Unichain Sepolia',
+  PREDICTION_MARKET_HOOK_ADDRESS: '0x312D3B8A8aa25186F53ECb939Bdce6F5B403c880',
+  STATE_VIEW_ADDRESS: '0xc199f1072a74d4e905aba1a84d9a45e2546b6222', 
+  ROUTER: '0x9140a78c1a137c7ff1c151ec8231272af78a99a4',
+  POOL_MODIFY_LIQUIDITY_ROUTER: '0x5fa728c0a5cfd51bee4b060773f50554c0c8a7ab',
+  ORACLE_SERVICE_MANAGER_ADDRESS: '0x0000000000000000000000000000000000000000', // Update with real address
+  AGENT_REGISTRY_ADDRESS: '0x0000000000000000000000000000000000000000', // Update with real address
+}; 

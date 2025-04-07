@@ -40,9 +40,9 @@ const NavBar = () => {
         </Link>
       </div>
 
-      {/* Right - Connect Button */}
-      <div className="flex-1 flex justify-end">
-        <ConnectButton />
+      {/* Right - Connect Button with Network Selection */}
+      <div className="flex-1 flex justify-end items-center">
+        <ConnectButton showBalance={false} />
       </div>
     </nav>
   );

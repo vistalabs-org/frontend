@@ -2,8 +2,8 @@
 import { useReadContract } from 'wagmi'
 import { useEffect, useState } from 'react'
 import {PredictionMarketHook_abi} from '@/contracts/PredictionMarketHook_abi'
-import { PREDICTION_MARKET_HOOK_ADDRESS } from '@/app/constants'
 import { IPredictionMarketHookAbi } from '@/contracts/IPredictionMarketHook_abi';
+import { usePredictionMarketHookAddress } from '@/config';
 
 // The ABI contains complex types for PoolKey and Market
 // Let's define TypeScript interfaces for these
@@ -29,17 +29,21 @@ interface Market {
   title: string
   description: string
   endTimestamp: bigint
+  id?: string // Optional ID field that we can add for the UI
+  yesPrice?: number // Optional calculated field for UI
+  noPrice?: number // Optional calculated field for UI
 }
 
 export const useMarketCount = () => {
-
+  const hookAddress = usePredictionMarketHookAddress();
+  
   // Add a state to handle the case when the hook is called before the provider is ready
   const [count, setCount] = useState<number>(0);
   const [loading, setLoading] = useState<boolean>(true);
   const [hookError, setHookError] = useState<Error | null>(null);
 
   const result = useReadContract({
-    address: PREDICTION_MARKET_HOOK_ADDRESS,
+    address: hookAddress as `0x${string}`,
     abi: IPredictionMarketHookAbi,
     functionName: 'marketCount',
   });
@@ -70,10 +74,12 @@ export const useMarketCount = () => {
  * @returns Object containing markets data and loading state
  */
 export function useAllMarkets(enabled = true) {
+  const hookAddress = usePredictionMarketHookAddress();
+  
   const result = useReadContract({
-    address: PREDICTION_MARKET_HOOK_ADDRESS,
+    address: hookAddress as `0x${string}`,
     abi: PredictionMarketHook_abi,
-    functionName: '',
+    functionName: 'getAllMarkets',
   });
 
   // Only log changes when data or error actually change
@@ -112,15 +118,34 @@ export function usePaginatedMarkets(
   limit: number, 
   enabled = true
 ) {
+  const hookAddress = usePredictionMarketHookAddress();
+  
   const { data, isLoading, isError, error } = useReadContract({
-    address: PREDICTION_MARKET_HOOK_ADDRESS,
+    address: hookAddress as `0x${string}`,
     abi: IPredictionMarketHookAbi,
     functionName: 'getMarkets',
     args: [BigInt(offset), BigInt(limit)],
-  })
+  });
+
+  // Process markets to add UI-specific fields
+  const processedMarkets = data ? (data as Market[]).map((market, index) => {
+    // Generate an ID based on index or any unique identifier in the market
+    const marketId = `${index}`; // You might want to use a more robust ID generation
+    
+    // Calculate prices (simplified example - you'll need real price calculation logic)
+    const yesPrice = 0.5; // Placeholder - calculate actual price
+    const noPrice = 0.5; // Placeholder - calculate actual price
+    
+    return {
+      ...market,
+      id: marketId,
+      yesPrice,
+      noPrice
+    };
+  }) : undefined;
 
   return {
-    markets: data as Market[] | undefined,
+    markets: processedMarkets,
     isLoading,
     isError,
     error,
@@ -134,6 +159,8 @@ export function usePaginatedMarkets(
  * @returns Object containing all loaded markets and functions to load more
  */
 export function useInfiniteMarkets(pageSize = 10) {
+  const hookAddress = usePredictionMarketHookAddress();
+  
   const [markets, setMarkets] = useState<Market[]>([])
   const [currentOffset, setCurrentOffset] = useState(0)
   const [hasMore, setHasMore] = useState(true)
@@ -141,7 +168,7 @@ export function useInfiniteMarkets(pageSize = 10) {
   
   // Get total count of markets
   const { data: totalCountData } = useReadContract({
-    address: PREDICTION_MARKET_HOOK_ADDRESS,
+    address: hookAddress as `0x${string}`,
     abi: PredictionMarketHook_abi,
     functionName: 'getMarketCount',
   })
@@ -187,7 +214,6 @@ export function useInfiniteMarkets(pageSize = 10) {
 
 // Optional: A simpler version that combines the hooks
 export function useMarkets(
-  contractAddress: `0x${string}`,
   options?: {
     pagination?: { offset: number; limit: number };
     infinite?: boolean;

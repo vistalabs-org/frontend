@@ -3,8 +3,12 @@
 import { PropsWithChildren } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { WagmiProvider } from 'wagmi';
-import { getDefaultConfig, RainbowKitProvider } from '@rainbow-me/rainbowkit';
-import { unichainSepolia } from '@/lib/wagmi';
+import { 
+  getDefaultConfig, 
+  RainbowKitProvider,
+  lightTheme
+} from '@rainbow-me/rainbowkit';
+import { unichain, unichainSepolia } from '@/lib/wagmi';
 import '@rainbow-me/rainbowkit/styles.css';
 
 // Import Account Kit config and provider
@@ -19,7 +23,7 @@ const queryClient = new QueryClient();
 const wagmiConfig = getDefaultConfig({
   appName: 'Vista Markets',
   projectId: 'YOUR_WALLET_CONNECT_PROJECT_ID', // Get from https://cloud.walletconnect.com
-  chains: [unichainSepolia],
+  chains: [unichain, unichainSepolia],
   ssr: true
 });
 
@@ -35,7 +39,14 @@ export const Providers = ({ children, cookie }: ProviderProps) => {
   return (
     <WagmiProvider config={wagmiConfig}>
       <QueryClientProvider client={queryClient}>
-        <RainbowKitProvider>
+        <RainbowKitProvider
+          theme={lightTheme({
+            accentColor: '#3b82f6', // blue-500
+            accentColorForeground: 'white',
+            borderRadius: 'medium',
+            fontStack: 'system'
+          })}
+        >
           <AlchemyAccountProvider config={config} initialState={initialState} queryClient={queryClient}>
             {children}
           </AlchemyAccountProvider>
