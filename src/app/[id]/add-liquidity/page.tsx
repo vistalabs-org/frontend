@@ -13,7 +13,7 @@ import { POOL_MODIFY_LIQUIDITY_ROUTER } from '@/app/constants';
 import JSBI from 'jsbi';
 import { MockERC20Abi } from '@/contracts/MockERC20_abi';
 import { getPublicClient } from '@wagmi/core';
-import { wagmiConfig } from '@/lib/wagmi';
+import { wagmiConfig } from '@/app/providers';
 
 // Constants from Uniswap
 const Q96 = JSBI.exponentiate(JSBI.BigInt(2), JSBI.BigInt(96));
@@ -372,8 +372,8 @@ export default function AddLiquidityPage() {
       
       // Use the tick range from PredictionMarketHook
       // These ticks constrain the price between 0.01 and 0.99 USDC
-      const tickLower = -9200; // Slightly above 0.01 USDC
-      const tickUpper = -100;  // Slightly below 0.99 USDC
+      const tickLower = 0; // Slightly above 0.01 USDC
+      const tickUpper = 207000;  // Slightly below 0.99 USDC
       
       // Get the modify liquidity params
       const saltBytes = new Uint8Array(32);

@@ -101,8 +101,11 @@ const PriceDisplay = ({ yesPool, noPool, marketId }: { yesPool: any; noPool: any
       <Separator className="my-4" />
 
       <div>
-        <div className="mb-2">
+        <div className="mb-2 flex justify-center items-center gap-2">
           <h4 className="text-sm font-medium text-center text-muted-foreground">Market Liquidity</h4>
+          <Link href={`${marketId}/add-liquidity`} className="text-xs text-primary hover:underline">
+            + Add Liquidity
+          </Link>
         </div>
         <div className="flex justify-around items-center text-center">
           <div className="flex-1">
