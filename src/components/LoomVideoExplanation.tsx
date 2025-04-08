@@ -8,8 +8,6 @@ export const LoomVideoExplanation = () => {
         <iframe 
           src="https://www.loom.com/embed/14eebc7c6f0e4312b68431ae8b6d0189?sid=011b6192-4b9f-442a-bd1f-b62b4614c2b3" 
           frameBorder="0" 
-          webkitAllowFullScreen
-          mozAllowFullScreen
           allowFullScreen 
           className="absolute top-0 left-0 w-full h-full"
         ></iframe>

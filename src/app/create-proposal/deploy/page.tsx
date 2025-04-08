@@ -14,10 +14,19 @@ export default function CreateMarket() {
   const router = useRouter();
   const { address } = useAccount();
   const hookAddress = usePredictionMarketHookAddress();
-  const { approveTokens, createMarket, isPending, isApproving, isSimulating, isReady } = useCreateMarket();
+  const { 
+    approveTokens, 
+    createMarket, 
+    isApproving, 
+    isSimulating, 
+    isSubmitting,
+    isConfirming,
+    checkBalance,
+    isReady 
+  } = useCreateMarket();
   const { mint, isMinting, isClientReady } = useMintCollateral();
   const [formData, setFormData] = useState<any>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLocalSubmitting, setIsLocalSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [step, setStep] = useState<'approve' | 'create'>('approve');
   const [tokenDecimals, setTokenDecimals] = useState<number | null>(null);
@@ -110,38 +119,61 @@ export default function CreateMarket() {
   // Handle token approval
   const handleApprove = async () => {
     if (!isReady || !formData || tokenDecimals === null) return;
-    setIsSubmitting(true);
-    
+    setIsLocalSubmitting(true);
+    setError(null);
     try {
       await approveTokens(formData.collateralAddress, formData.collateralAmount);
       await refetchAllowance();
       setStep('create');
     } catch (err) {
+      console.error('Approval error:', err);
       setError(err instanceof Error ? err.message : 'Failed to approve tokens');
     } finally {
-      setIsSubmitting(false);
+      setIsLocalSubmitting(false);
     }
   };
 
-  // Handle market creation
+  // Handle market creation with added validation
   const handleCreateMarket = async () => {
-    if (!isReady || !formData) return;
-    setIsSubmitting(true);
-    
+    if (!isReady || !formData || tokenDecimals === null) {
+      setError("Form data or wallet not ready.");
+      return;
+    }
+
+    // Validate and prepare data right before calling the hook
+    const durationNum = Number(formData.duration);
+    // Default curveId to 0 if missing, null, undefined, or NaN
+    const curveIdNum = (formData.curveId === null || formData.curveId === undefined || isNaN(Number(formData.curveId))) 
+                       ? 0 
+                       : Number(formData.curveId);
+
+    if (isNaN(durationNum) || durationNum <= 0) {
+        setError(`Invalid duration value: ${formData.duration}`);
+        return;
+    }
+    // No need to check curveIdNum for NaN as we default it to 0
+
+    const marketParams = {
+      ...formData,
+      duration: durationNum, // Pass validated number
+      collateralAmount: formData.collateralAmount, // Keep as string for the hook
+      curveId: curveIdNum      // Pass validated number (or default 0)
+    };
+
+    console.log('Calling createMarket hook with params:', marketParams);
+
+    setIsLocalSubmitting(true);
+    setError(null);
     try {
-      // Pass token decimals to createMarket
-      await createMarket({
-        ...formData,
-        tokenDecimals: tokenDecimals || 18 // Fallback to 18 if not available
-      });
-      localStorage.removeItem('marketFormData'); // Clean up
+      await createMarket(marketParams);
+      localStorage.removeItem('marketFormData');
       alert('Market created successfully!');
       router.push('/');
     } catch (err) {
       console.error('Market creation error:', err);
       setError(err instanceof Error ? err.message : 'Failed to create market');
     } finally {
-      setIsSubmitting(false);
+      setIsLocalSubmitting(false);
     }
   };
 
@@ -160,9 +192,9 @@ export default function CreateMarket() {
         tokenDecimals
       );
       setMintSuccess(true);
-      setMintAmount(''); // Reset input
-      await refetchBalance(); // Update balance
-      await refetchAllowance(); // Update allowance
+      setMintAmount('');
+      await refetchBalance();
+      await refetchAllowance();
     } catch (err) {
       console.error('Error minting tokens:', err);
       setError(err instanceof Error ? err.message : 'Failed to mint tokens');
@@ -176,14 +208,31 @@ export default function CreateMarket() {
     ? formatUnits(tokenBalance as bigint, tokenDecimals)
     : '0';
 
-  // Button state based on current step
-  const buttonState = {
-    text: step === 'approve' 
-      ? (isSubmitting || isApproving ? 'Approving...' : 'Approve Tokens')
-      : (isSubmitting || isPending || isSimulating ? 'Creating Market...' : 'Create Market'),
-    onClick: step === 'approve' ? handleApprove : handleCreateMarket,
-    disabled: isSubmitting || (step === 'approve' ? isApproving : (isPending || isSimulating)) || !isReady || !formData || tokenDecimals === null
+  // Button state based on current step and hook states
+  const getButtonState = () => {
+    let text = '...';
+    let disabled = !isReady || !formData || tokenDecimals === null || isLocalSubmitting || isSimulating || isSubmitting || isConfirming;
+
+    if (step === 'approve') {
+      if (isConfirming) text = 'Confirming Approval...';
+      else if (isSubmitting) text = 'Approving (Check Wallet)...';
+      else if (isApproving) text = 'Preparing Approval...';
+      else text = 'Approve Tokens';
+    } else {
+      if (isConfirming) text = 'Confirming Creation...';
+      else if (isSubmitting) text = 'Creating (Check Wallet)...';
+      else if (isSimulating) text = 'Simulating...';
+      else text = 'Create Market';
+    }
+
+    return {
+      text,
+      onClick: step === 'approve' ? handleApprove : handleCreateMarket,
+      disabled,
+    };
   };
+
+  const buttonState = getButtonState();
 
   return (
     <div className="max-w-2xl mx-auto p-6">
@@ -281,13 +330,16 @@ export default function CreateMarket() {
         </div>
       )}
       
-      <button
-        onClick={buttonState.onClick}
-        disabled={buttonState.disabled}
-        className="w-full mt-6 bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 px-6 rounded-lg transition-colors disabled:bg-gray-300 disabled:text-gray-500 disabled:cursor-not-allowed"
-      >
-        {buttonState.text}
-      </button>
+      {/* Main Action Button */}
+      <div className="mt-8 text-center">
+        <button
+          onClick={buttonState.onClick}
+          disabled={buttonState.disabled}
+          className="w-full max-w-xs px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
+        >
+          {buttonState.text}
+        </button>
+      </div>
       
       {tokenDecimals === null && formData && (
         <p className="mt-2 text-yellow-600 text-sm">
