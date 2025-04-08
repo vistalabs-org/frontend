@@ -97,9 +97,7 @@ export function useMultipleLiquidity(poolIds: string[]) {
  * @param poolId The ID of the pool to query
  * @returns Slot0 data including price information
  */
-export function useSlot0(poolId?: string) {
-  console.log('useSlot0 - STATE_VIEW_ADDRESS:', STATE_VIEW_ADDRESS);
-  
+export function useSlot0(poolId?: string) {  
   const { data, isLoading, isError, error } = useReadContract({
     address: STATE_VIEW_ADDRESS as `0x${string}`,
     abi: StateViewAbi,
@@ -113,21 +111,12 @@ export function useSlot0(poolId?: string) {
   if (isError) {
     console.error('useSlot0 - Contract call error:', error);
   }
-  
-  console.log('useSlot0 - raw data:', data);
-  console.log('useSlot0 - isLoading:', isLoading);
-  console.log('useSlot0 - isError:', isError);
-  console.log('useSlot0 - error:', error);
 
   // Process the data to include calculated price
   const [processedData, setProcessedData] = useState<Slot0Data | null>(null);
 
   useEffect(() => {
-    console.log('useSlot0 - useEffect for processedData triggered');
-    
-    if (data) {
-      console.log('useSlot0 - processing data:', data);
-      
+    if (data) {      
       const [sqrtPriceX96, tick, protocolFee, lpFee] = data as [bigint, number, number, number];
       
       // Calculate price from sqrtPriceX96
@@ -135,9 +124,6 @@ export function useSlot0(poolId?: string) {
       const sqrtPrice = Number(sqrtPriceX96) / 2**96;
       const usdcYesPrice = sqrtPrice * sqrtPrice;
       const price = 1 / usdcYesPrice;  // Take reciprocal to get YES/USDC price
-      
-      console.log('useSlot0 - calculated sqrtPrice:', sqrtPrice);
-      console.log('useSlot0 - calculated price:', price);
       
       const newProcessedData = {
         sqrtPriceX96,
@@ -148,7 +134,6 @@ export function useSlot0(poolId?: string) {
         formattedPrice: `${(price * 100).toFixed(2)}%`
       };
       
-      console.log('useSlot0 - setting processedData:', newProcessedData);
       setProcessedData(newProcessedData);
     } else {
       console.log('useSlot0 - no data available, setting processedData to null');

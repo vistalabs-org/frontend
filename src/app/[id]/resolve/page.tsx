@@ -15,8 +15,6 @@ import {
   useMarketData
 } from '@/hooks/useMarketActions';
 import OracleLogicVisualizer from '@/components/OracleLogicVisualizer';
-import { useConfig } from 'wagmi';
-import { formatUnits } from 'ethers';
 
 // --- Import Shadcn UI Components ---
 import { Button } from "@/components/ui/button";

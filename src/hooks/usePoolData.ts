@@ -1,7 +1,9 @@
-import { useState, useEffect, useMemo } from 'react';
-import { useSlot0 } from '@/hooks/useStateView';
+import { useEffect, useMemo } from 'react';
+import { useSlot0, useLiquidity } from '@/hooks/useStateView';
 import { PoolKey, poolKeyToId } from '@/utils/poolUtils';
 import { useMarketByIndex } from '@/hooks/fetchMarkets';
+import { useReadContract } from 'wagmi';
+import { erc20Abi } from 'viem';
 
 // Helper to create stable dependency strings from complex objects
 const createStableDeps = (obj: any): string => {
@@ -23,136 +25,159 @@ const createStableDeps = (obj: any): string => {
 };
 
 /**
- * Comprehensive hook to get market data with pool information
+ * Comprehensive hook to get market data with pool information AND token decimals
  * @param marketId The market ID
- * @returns Market data with yes and no pool information
+ * @returns Market data with yes/no pool info (including liquidity) and token decimals
  */
 export function useMarketWithPoolData(marketId: string | number) {
-  console.log('useMarketWithPoolData called with marketId:', marketId);
   
   // Get the market data
-  const { market, isLoading: marketLoading, isError: marketError } = useMarketByIndex(marketId);
+  const { market: baseMarket, isLoading: marketLoading, isError: marketError } = useMarketByIndex(marketId);
   
-  console.log('useMarketWithPoolData - market data:', market);
-  console.log('useMarketWithPoolData - marketLoading:', marketLoading);
-  console.log('useMarketWithPoolData - marketError:', marketError);
+  // Fetch collateral token (currency0 in either pool, assuming it's the same) decimals
+  const { data: collateralDecimalsData, isLoading: collateralDecimalsLoading } = useReadContract({
+    address: baseMarket?.collateralAddress as `0x${string}` | undefined,
+    abi: erc20Abi,
+    functionName: 'decimals',
+    query: { enabled: !!baseMarket?.collateralAddress },
+  });
+  const collateralDecimals = typeof collateralDecimalsData === 'number' ? collateralDecimalsData : undefined;
+
+  // Fetch YES token (currency1 in YES pool) decimals
+  const { data: yesTokenDecimalsData, isLoading: yesTokenDecimalsLoading } = useReadContract({
+    address: baseMarket?.yesToken as `0x${string}` | undefined,
+    abi: erc20Abi,
+    functionName: 'decimals',
+    query: { enabled: !!baseMarket?.yesToken },
+  });
+  const yesTokenDecimals = typeof yesTokenDecimalsData === 'number' ? yesTokenDecimalsData : undefined;
+
+  // Fetch NO token (currency1 in NO pool) decimals
+  const { data: noTokenDecimalsData, isLoading: noTokenDecimalsLoading } = useReadContract({
+    address: baseMarket?.noToken as `0x${string}` | undefined,
+    abi: erc20Abi,
+    functionName: 'decimals',
+    query: { enabled: !!baseMarket?.noToken },
+  });
+  const noTokenDecimals = typeof noTokenDecimalsData === 'number' ? noTokenDecimalsData : undefined;
   
   // Generate pool IDs from pool keys
   const { yesPoolId, noPoolId } = useMemo(() => {
-    if (!market) return { yesPoolId: undefined, noPoolId: undefined };
-    try {
-      console.log('useMarketWithPoolData - market available, extracting pool keys');
-      console.log('useMarketWithPoolData - yesPoolKey:', market.yesPoolKey);
-      console.log('useMarketWithPoolData - noPoolKey:', market.noPoolKey);
-      
+    if (!baseMarket) return { yesPoolId: undefined, noPoolId: undefined };
+    try {      
       // Extract yes pool key
       const yesPoolKey: PoolKey = {
-        currency0: market.yesPoolKey.currency0,
-        currency1: market.yesPoolKey.currency1,
-        fee: market.yesPoolKey.fee || 500,
-        tickSpacing: market.yesPoolKey.tickSpacing || 10,
-        hooks: market.yesPoolKey.hooks || '0x0000000000000000000000000000000000000000'
+        currency0: baseMarket.yesPoolKey.currency0,
+        currency1: baseMarket.yesPoolKey.currency1,
+        fee: baseMarket.yesPoolKey.fee || 500,
+        tickSpacing: baseMarket.yesPoolKey.tickSpacing || 10,
+        hooks: baseMarket.yesPoolKey.hooks || '0x0000000000000000000000000000000000000000'
       };
       
       // Extract no pool key
       const noPoolKey: PoolKey = {
-        currency0: market.noPoolKey.currency0,
-        currency1: market.noPoolKey.currency1,
-        fee: market.noPoolKey.fee || 500,
-        tickSpacing: market.noPoolKey.tickSpacing || 10,
-        hooks: market.noPoolKey.hooks || '0x0000000000000000000000000000000000000000'
+        currency0: baseMarket.noPoolKey.currency0,
+        currency1: baseMarket.noPoolKey.currency1,
+        fee: baseMarket.noPoolKey.fee || 500,
+        tickSpacing: baseMarket.noPoolKey.tickSpacing || 10,
+        hooks: baseMarket.noPoolKey.hooks || '0x0000000000000000000000000000000000000000'
       };
-      
-      console.log('useMarketWithPoolData - constructed yesPoolKey:', yesPoolKey);
-      console.log('useMarketWithPoolData - constructed noPoolKey:', noPoolKey);
       
       // Convert to pool IDs
       const yesPoolId = poolKeyToId(yesPoolKey);
       const noPoolId = poolKeyToId(noPoolKey);
       
-      console.log('useMarketWithPoolData - generated yesPoolId:', yesPoolId);
-      console.log('useMarketWithPoolData - generated noPoolId:', noPoolId);
-      
+      console.log(`[usePoolData] Derived Pool IDs - Yes: ${yesPoolId}, No: ${noPoolId}`); // Log derived IDs
       return {
         yesPoolId,
         noPoolId
       };
     } catch (error) {
-      console.error('useMarketWithPoolData - Error generating pool IDs:', error);
       return { yesPoolId: undefined, noPoolId: undefined };
     }
-  }, [market?.yesPoolKey?.currency0, market?.yesPoolKey?.currency1, market?.yesPoolKey?.fee, market?.yesPoolKey?.tickSpacing, market?.yesPoolKey?.hooks, 
-      market?.noPoolKey?.currency0, market?.noPoolKey?.currency1, market?.noPoolKey?.fee, market?.noPoolKey?.tickSpacing, market?.noPoolKey?.hooks]);
+  }, [baseMarket?.yesPoolKey?.currency0, baseMarket?.yesPoolKey?.currency1, baseMarket?.yesPoolKey?.fee, baseMarket?.yesPoolKey?.tickSpacing, baseMarket?.yesPoolKey?.hooks,
+      baseMarket?.noPoolKey?.currency0, baseMarket?.noPoolKey?.currency1, baseMarket?.noPoolKey?.fee, baseMarket?.noPoolKey?.tickSpacing, baseMarket?.noPoolKey?.hooks]);
   
   // Get Slot0 data for yes pool
   const { 
-    data: yesSlot0Data, 
-    isLoading: yesSlot0Loading 
+    data: yesSlot0DataRaw, 
+    isLoading: yesSlot0Loading, 
+    error: yesSlot0Error 
   } = useSlot0(yesPoolId);
-  
-  console.log('useMarketWithPoolData - yesPoolId:', yesPoolId);
-  console.log('useMarketWithPoolData - yesSlot0Data:', yesSlot0Data);
-  console.log('useMarketWithPoolData - yesSlot0Loading:', yesSlot0Loading);
-  
+  // Log Slot0 results
+  useEffect(() => {
+      console.log(`[usePoolData] Yes Pool (${yesPoolId}) Slot0:`, { data: yesSlot0DataRaw, isLoading: yesSlot0Loading, error: yesSlot0Error });
+  }, [yesPoolId, yesSlot0DataRaw, yesSlot0Loading, yesSlot0Error]);
+  const yesSlot0Data = yesSlot0DataRaw; // Keep using the data variable
+
   // Get Slot0 data for no pool
   const { 
-    data: noSlot0Data, 
-    isLoading: noSlot0Loading 
+    data: noSlot0DataRaw, 
+    isLoading: noSlot0Loading, 
+    error: noSlot0Error 
   } = useSlot0(noPoolId);
-  
-  console.log('useMarketWithPoolData - noPoolId:', noPoolId);
-  console.log('useMarketWithPoolData - noSlot0Data:', noSlot0Data);
-  console.log('useMarketWithPoolData - noSlot0Loading:', noSlot0Loading);
-  
-  // Combine all data
+  // Log Slot0 results
+  useEffect(() => {
+      console.log(`[usePoolData] No Pool (${noPoolId}) Slot0:`, { data: noSlot0DataRaw, isLoading: noSlot0Loading, error: noSlot0Error });
+  }, [noPoolId, noSlot0DataRaw, noSlot0Loading, noSlot0Error]);
+  const noSlot0Data = noSlot0DataRaw;
+    
+  // Use the useLiquidity hook from useStateView
+  const { data: yesLiquidityData, isLoading: isYesLiquidityLoading, isError: isYesLiquidityError } = useLiquidity(yesPoolId);
+  const { data: noLiquidityData, isLoading: isNoLiquidityLoading, isError: isNoLiquidityError } = useLiquidity(noPoolId);
+
+  // Process the results
   const yesPool = useMemo(() => {
-    console.log('useMarketWithPoolData - yesPool useMemo triggered');
-    
-    if (!market?.yesPoolKey || !yesPoolId) {
-      console.log('useMarketWithPoolData - no yesPoolKey available');
-      return null;
+    if (yesPoolId && baseMarket?.yesToken && baseMarket?.yesPoolKey && yesSlot0Data && typeof yesLiquidityData === 'bigint') {
+      return {
+        id: yesPoolId,
+        currency0: baseMarket.yesPoolKey.currency0,
+        currency1: baseMarket.yesPoolKey.currency1,
+        fee: baseMarket.yesPoolKey.fee,
+        token: baseMarket.yesToken,
+        decimals0: collateralDecimals,
+        decimals1: yesTokenDecimals,
+        ...yesSlot0Data,
+        liquidity: yesLiquidityData
+      };
     }
-    
-    const result = {
-      poolId: yesPoolId,
-      currency0: market.yesPoolKey.currency0,
-      currency1: market.yesPoolKey.currency1,
-      fee: market.yesPoolKey.fee,
-      token: market.yesToken,
-      ...yesSlot0Data
-    };
-    
-    console.log('useMarketWithPoolData - yesPool result:', result);
-    return result;
-  }, [yesPoolId, market?.yesToken, market?.yesPoolKey?.currency0, market?.yesPoolKey?.currency1, market?.yesPoolKey?.fee, createStableDeps(yesSlot0Data)]);
+    return null;
+  }, [yesPoolId, baseMarket?.yesToken, baseMarket?.yesPoolKey?.currency0, baseMarket?.yesPoolKey?.currency1, baseMarket?.yesPoolKey?.fee, collateralDecimals, yesTokenDecimals, createStableDeps(yesSlot0Data), yesLiquidityData]);
   
   const noPool = useMemo(() => {
-    console.log('useMarketWithPoolData - noPool useMemo triggered');
-    
-    if (!market?.noPoolKey || !noPoolId) {
-      console.log('useMarketWithPoolData - no noPoolKey available');
-      return null;
+    if (noPoolId && baseMarket?.noToken && baseMarket?.noPoolKey && noSlot0Data && typeof noLiquidityData === 'bigint') {
+      return {
+        id: noPoolId,
+        currency0: baseMarket.noPoolKey.currency0,
+        currency1: baseMarket.noPoolKey.currency1,
+        fee: baseMarket.noPoolKey.fee,
+        token: baseMarket.noToken,
+        decimals0: collateralDecimals,
+        decimals1: noTokenDecimals,
+        ...noSlot0Data,
+        liquidity: noLiquidityData
+      };
     }
-    
-    const result = {
-      poolId: noPoolId,
-      currency0: market.noPoolKey.currency0,
-      currency1: market.noPoolKey.currency1,
-      fee: market.noPoolKey.fee,
-      token: market.noToken,
-      ...noSlot0Data
+    return null;
+  }, [noPoolId, baseMarket?.noToken, baseMarket?.noPoolKey?.currency0, baseMarket?.noPoolKey?.currency1, baseMarket?.noPoolKey?.fee, collateralDecimals, noTokenDecimals, createStableDeps(noSlot0Data), noLiquidityData]);
+  
+  // Combine base market data with decimals before returning
+  const market = useMemo(() => {
+    if (!baseMarket) return undefined;
+    return {
+      ...baseMarket,
+      collateralDecimals,
+      yesTokenDecimals,
+      noTokenDecimals
     };
-    
-    console.log('useMarketWithPoolData - noPool result:', result);
-    return result;
-  }, [noPoolId, market?.noToken, market?.noPoolKey?.currency0, market?.noPoolKey?.currency1, market?.noPoolKey?.fee, createStableDeps(noSlot0Data)]);
+  }, [baseMarket, collateralDecimals, yesTokenDecimals, noTokenDecimals]);
   
   const result = {
     market,
     yesPool,
     noPool,
-    isLoading: marketLoading || yesSlot0Loading || noSlot0Loading,
-    isError: marketError
+    isLoading: marketLoading || yesSlot0Loading || noSlot0Loading || collateralDecimalsLoading || yesTokenDecimalsLoading || noTokenDecimalsLoading || isYesLiquidityLoading || isNoLiquidityLoading,
+    isError: marketError || isYesLiquidityError || isNoLiquidityError
   };
   
   console.log('useMarketWithPoolData - final result:', result);
