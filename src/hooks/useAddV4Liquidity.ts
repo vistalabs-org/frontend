@@ -113,6 +113,15 @@ export function useAddV4Liquidity({
       const hookData: Hex = EMPTY_BYTES;
       
       console.log("Preparing modifyLiquidity call:", { key: poolKey, params: modifyParams, hookData });
+      
+      // ---> ADD LOGGING HERE <---
+      console.log("--- Data for simulateContract ---");
+      console.log("Account:", userAddress);
+      console.log("Pool Manager:", POSITION_MANAGER_ADDRESS);
+      console.log("Pool Key:", JSON.stringify(poolKey, (key, value) => typeof value === 'bigint' ? value.toString() : value)); // Stringify bigint
+      console.log("Modify Params:", JSON.stringify(modifyParams, (key, value) => typeof value === 'bigint' ? value.toString() : value));
+      console.log("Hook Data:", hookData);
+      console.log("-----------------------------------");
 
       // Simulate Contract Call
       console.log("--- Simulating modifyLiquidity --- ");
