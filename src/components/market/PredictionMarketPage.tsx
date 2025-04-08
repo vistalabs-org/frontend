@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { format } from 'date-fns';
 import SwapFunction from '@/components/SwapFunction';
 import { useAccount } from 'wagmi';
-import { parseUnits, formatUnits } from 'ethers';
+import { parseUnits, formatUnits } from 'viem';
 import { MockERC20Abi } from '@/contracts/MockERC20_abi';
 import { ROUTER } from '@/app/constants';
 import { useRouter } from 'next/navigation';
@@ -21,7 +21,7 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Loader2, ShieldAlert, BarChart, Clock, ThumbsUp, MessageSquare } from 'lucide-react';
+import { Loader2, ShieldAlert, BarChart, Clock, ThumbsUp, MessageSquare, Info } from 'lucide-react';
 
 // TokenBalances Component using Shadcn structure
 const TokenBalances = ({ collateralBalance, yesBalance, noBalance }: {
@@ -159,6 +159,42 @@ const PredictionMarketPage = ({
   const { isConnected } = useAccount();
   const router = useRouter();
 
+  // --- Calculate Total Liquidity ---
+  let totalLiquidity = BigInt(0);
+  try {
+     const yesLiq = yesPool?.liquidity ? BigInt(yesPool.liquidity) : BigInt(0);
+     const noLiq = noPool?.liquidity ? BigInt(noPool.liquidity) : BigInt(0);
+     totalLiquidity = yesLiq + noLiq;
+  } catch {}
+  const hasLiquidity = totalLiquidity > BigInt(0);
+  // --- End Calculate Total Liquidity ---
+
+  // --- Format End Date ---
+  const formattedEndDate = React.useMemo(() => {
+    if (!endTimestamp) return "Loading...";
+    
+    try {
+      // Handle both string and BigInt inputs
+      const timestamp = typeof endTimestamp === 'string' 
+        ? BigInt(endTimestamp) 
+        : endTimestamp;
+      
+      // Convert BigInt to number for Date constructor
+      const date = new Date(Number(timestamp) * 1000);
+      
+      // Validate the date
+      if (isNaN(date.getTime())) {
+        console.error('Invalid date from timestamp:', endTimestamp);
+        return "Invalid Date";
+      }
+      
+      return format(date, "MMMM d, yyyy 'at' h:mm a");
+    } catch (error) {
+      console.error('Error formatting end date:', error);
+      return "Error Loading Date";
+    }
+  }, [endTimestamp]);
+
   const { 
     handleSwap, 
     isSwapping, 
@@ -217,9 +253,8 @@ const PredictionMarketPage = ({
   const topHolders = marketData?.topHolders || [];
   const activity = marketData?.activity || [];
 
-  const formattedEndDate = endTimestamp ? format(new Date(Number(endTimestamp) * 1000), "MMMM d, yyyy 'at' h:mm a") : "Loading...";
-
   const isAmountInvalid = amount === '' || parseFloat(amount) <= 0;
+  const isTradingDisabled = !hasLiquidity || !isConnected; // Disable if no liquidity or not connected
 
   return (
     <div className="max-w-screen-xl mx-auto py-6 grid grid-cols-1 lg:grid-cols-3 gap-6 px-4">
@@ -371,6 +406,7 @@ const PredictionMarketPage = ({
                 value={selectedAction}
                 onValueChange={(value) => { if (value) setSelectedAction(value as 'Buy' | 'Sell'); }}
                 className="grid grid-cols-2"
+                disabled={!hasLiquidity}
               >
                 <ToggleGroupItem value="Buy" aria-label="Select Buy" className="data-[state=on]:bg-primary data-[state=on]:text-primary-foreground">
                   Buy
@@ -386,6 +422,7 @@ const PredictionMarketPage = ({
                  value={selectedOption}
                  onValueChange={(value) => { if (value) setSelectedOption(value as 'Yes' | 'No'); }}
                  className="grid grid-cols-2"
+                 disabled={!hasLiquidity}
                >
                  <ToggleGroupItem value="Yes" aria-label="Select Yes" className="data-[state=on]:bg-green-600 data-[state=on]:text-white">
                    Yes
@@ -394,6 +431,19 @@ const PredictionMarketPage = ({
                    No
                  </ToggleGroupItem>
                </ToggleGroup>
+
+              {!hasLiquidity && isConnected && (
+                 <Alert variant="default" className="border-blue-500/50 bg-blue-50 text-blue-900 dark:border-blue-700 dark:bg-blue-900/20 dark:text-blue-400">
+                   <Info className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                   <AlertTitle className="text-blue-800 dark:text-blue-300">Add Liquidity Required</AlertTitle>
+                   <AlertDescription>
+                     This market needs liquidity before trading can begin.
+                     <Link href={`${marketId}/add-liquidity`} className="ml-1 font-medium text-blue-700 dark:text-blue-300 hover:underline">
+                         Add Liquidity
+                     </Link>
+                   </AlertDescription>
+                 </Alert>
+              )}
 
               <div className="space-y-1">
                 <Label htmlFor="amount">Amount</Label>
@@ -407,6 +457,7 @@ const PredictionMarketPage = ({
                     placeholder="0.00"
                     value={amount}
                     onChange={handleAmountChange}
+                    disabled={isTradingDisabled}
                   />
                 </div>
                 <div className="text-xs text-muted-foreground pt-1">
@@ -415,14 +466,14 @@ const PredictionMarketPage = ({
               </div>
 
               <div className="grid grid-cols-5 gap-2 pt-1">
-                 <Button variant="outline" size="sm" onClick={() => addAmount(1)}>+$1</Button>
-                 <Button variant="outline" size="sm" onClick={() => addAmount(5)}>+$5</Button>
-                 <Button variant="outline" size="sm" onClick={() => addAmount(20)}>+$20</Button>
-                 <Button variant="outline" size="sm" onClick={() => addAmount(100)}>+$100</Button>
-                <Button variant="outline" size="sm" onClick={setMaxAmount}>Max</Button>
+                 <Button variant="outline" size="sm" onClick={() => addAmount(1)} disabled={isTradingDisabled}>+$1</Button>
+                 <Button variant="outline" size="sm" onClick={() => addAmount(5)} disabled={isTradingDisabled}>+$5</Button>
+                 <Button variant="outline" size="sm" onClick={() => addAmount(20)} disabled={isTradingDisabled}>+$20</Button>
+                 <Button variant="outline" size="sm" onClick={() => addAmount(100)} disabled={isTradingDisabled}>+$100</Button>
+                <Button variant="outline" size="sm" onClick={setMaxAmount} disabled={isTradingDisabled}>Max</Button>
               </div>
 
-              {amount && parseFloat(amount) > 0 && expectedOutput && (
+              {amount && parseFloat(amount) > 0 && expectedOutput && hasLiquidity && (
                 <div className="mt-2 text-sm text-muted-foreground">
                   Expected {selectedAction === 'Buy' ? 'output' : 'return'}: 
                   <span className="font-medium text-foreground">
@@ -436,11 +487,13 @@ const PredictionMarketPage = ({
             <CardFooter>
               {!isConnected ? (
                 <Button className="w-full" disabled>Connect Wallet</Button>
+              ) : !hasLiquidity ? (
+                 <Button className="w-full" disabled>Add Liquidity to Trade</Button>
               ) : needsApproval ? (
                 <Button
                   className="w-full"
                   onClick={() => handleApprove()}
-                  disabled={isApproving || isAmountInvalid}
+                  disabled={isApproving || isAmountInvalid || isTradingDisabled}
                 >
                   {isApproving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                   Approve {selectedAction === 'Buy' ? 'USDC' : selectedOption + ' Tokens'}
@@ -449,7 +502,7 @@ const PredictionMarketPage = ({
                 <Button
                   className="w-full"
                   onClick={handleSwap}
-                  disabled={isSwapping || isAmountInvalid}
+                  disabled={isSwapping || isAmountInvalid || isTradingDisabled}
                 >
                   {isSwapping ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                   {selectedAction} {selectedOption}

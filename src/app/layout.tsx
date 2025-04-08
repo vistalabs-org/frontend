@@ -10,7 +10,7 @@ import { ThemeProvider } from "next-themes";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: 'Market',
+  title: 'Vista Market',
   description: 'Vista Market - Prediction Markets on Uniswap v4',
   manifest: '/manifest.json',
   appleWebApp: {

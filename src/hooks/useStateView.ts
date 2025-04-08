@@ -105,6 +105,9 @@ export function useSlot0(poolId?: string) {
     abi: StateViewAbi,
     functionName: 'getSlot0',
     args: poolId ? [poolId] : undefined,
+    query: {
+      enabled: !!poolId,
+    }
   });
 
   if (isError) {

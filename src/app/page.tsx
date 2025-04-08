@@ -47,9 +47,6 @@ export default function Home() {
   
   // Default empty array if markets is undefined or not an array
   const marketsList = Array.isArray(markets) ? markets : [];
-
-  console.log("Markets for chain ID", chainId, ":", marketsList);
-  console.log("Using contract address:", hookAddress);
   
   // Skeleton loader component for MarketCard
   const MarketCardSkeleton = () => (

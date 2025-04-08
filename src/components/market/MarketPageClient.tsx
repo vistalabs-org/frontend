@@ -44,13 +44,44 @@ export default function MarketPageClient({ id }: { id: string }) {
   const { data: yesLiquidity } = useLiquidity(yesPool?.poolId);
   const { data: noLiquidity } = useLiquidity(noPool?.poolId);
   
+  // Log market data for debugging
+  useEffect(() => {
+    if (market) {
+      console.log('Market data:', {
+        id,
+        endTimestamp: market.endTimestamp,
+        endTimestampType: typeof market.endTimestamp,
+        title: market.title
+      });
+    }
+  }, [market, id]);
+  
   // Format the timestamp (converts from seconds to milliseconds)
-  const formatEndDate = (timestamp: bigint | number) => {
-    // Convert BigInt to number for Date constructor
-    const numTimestamp = typeof timestamp === 'bigint' ? Number(timestamp) : timestamp;
-    if (isNaN(numTimestamp)) return "Invalid Date"; // Handle potential NaN
-    const date = new Date(numTimestamp * 1000);
-    return format(date, "MMMM d, yyyy 'at' h:mm a");
+  const formatEndDate = (timestamp: bigint | number | string) => {
+    try {
+      // Handle different input types
+      const numTimestamp = typeof timestamp === 'bigint' 
+        ? Number(timestamp) 
+        : typeof timestamp === 'string' 
+          ? Number(timestamp) 
+          : timestamp;
+          
+      if (isNaN(numTimestamp)) {
+        console.error('Invalid timestamp:', timestamp);
+        return "Invalid Date";
+      }
+      
+      const date = new Date(numTimestamp * 1000);
+      if (isNaN(date.getTime())) {
+        console.error('Invalid date from timestamp:', timestamp);
+        return "Invalid Date";
+      }
+      
+      return format(date, "MMMM d, yyyy 'at' h:mm a");
+    } catch (error) {
+      console.error('Error formatting end date:', error);
+      return "Error Loading Date";
+    }
   };
   
   const getYesPrice = () => {
@@ -74,15 +105,10 @@ export default function MarketPageClient({ id }: { id: string }) {
   }
   
   if (isError || !market) {
-    // Use Shadcn/Tailwind styling for error state
     return (
       <main className="flex min-h-screen items-center justify-center p-4">
-        <div className="text-center">
-          <p className="text-lg font-semibold text-destructive mb-2">Market Not Found</p>
-          <p className="text-muted-foreground mb-4">Could not load data for market ID: {id}</p>
-          <Link href="/" passHref>
-             <Button variant="outline">Back to Markets</Button> 
-          </Link>
+        <div className="text-red-500">
+          Error loading market data
         </div>
       </main>
     );
@@ -90,7 +116,7 @@ export default function MarketPageClient({ id }: { id: string }) {
   
   return (
     // Use padding/max-width for main content layout
-    <main className="max-w-screen-lg mx-auto p-4 sm:p-6 lg:p-8">
+    <main className="max-w-screen-xl mx-auto p-4 sm:p-6 lg:p-8">
       {/* Breadcrumbs navigation */}
       <div className="breadcrumbs mb-6 flex justify-between items-center">
         <div> 
@@ -110,10 +136,7 @@ export default function MarketPageClient({ id }: { id: string }) {
         marketData={marketWithPools || market}
         yesPool={yesPool ? {...yesPool, liquidity: yesLiquidity} : undefined}
         noPool={noPool ? {...noPool, liquidity: noLiquidity} : undefined}
-        yesPrice={getYesPrice()}
-        yesPercentage={yesPool?.price ? yesPool.price * 100 : 50}
-        description={market.description}
-        endDateString={formatEndDate(market.endTimestamp)}
+        endTimestamp={market.endTimestamp}
         marketId={id}
         mintCollateralButton={
           isConnected && marketWithPools?.collateralAddress ? (
