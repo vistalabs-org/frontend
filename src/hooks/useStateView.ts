@@ -130,7 +130,8 @@ export function useSlot0(poolId?: string) {
       // Calculate price from sqrtPriceX96
       // For a prediction market, price is typically between 0-1
       const sqrtPrice = Number(sqrtPriceX96) / 2**96;
-      const price = sqrtPrice * sqrtPrice;
+      const usdcYesPrice = sqrtPrice * sqrtPrice;
+      const price = 1 / usdcYesPrice;  // Take reciprocal to get YES/USDC price
       
       console.log('useSlot0 - calculated sqrtPrice:', sqrtPrice);
       console.log('useSlot0 - calculated price:', price);
