@@ -4,10 +4,10 @@ import { useState, useEffect, useMemo } from 'react';
 import { useAccount, useBalance, useWriteContract, useReadContract } from 'wagmi';
 import { parseUnits, formatUnits } from 'viem';
 import { ROUTER } from '@/app/constants';
-import { PoolSwapTestAbi } from '@/contracts/PoolSwapTest_abi';
 import { MockERC20Abi } from '@/contracts/MockERC20_abi';
 import { wagmiConfig } from '@/app/providers';
 import { getPublicClient } from '@wagmi/core';
+import { useUniversalRouter } from '@/hooks/useUniversalRouter';
 
 type SwapFunctionProps = {
   marketId: string;
@@ -59,8 +59,8 @@ export default function SwapFunction({
   // Approve outcome token (for selling)
   const { writeContract: approveOutcomeToken, isPending: isApprovingOutcome } = useWriteContract();
   
-  // Swap via router
-  const { writeContract: executeSwap, isPending: isExecutingSwap } = useWriteContract();
+  // Use the Universal Router hook
+  const { swapExactInputSingle, loading: isRouterLoading, error: routerError } = useUniversalRouter();
   
   // Update the allowance hooks and type handling
   const { data: collateralAllowance } = useReadContract({
@@ -146,19 +146,8 @@ export default function SwapFunction({
       setExpectedOutput(outputAmount.toFixed(6));
     }
   }, [amount, selectedAction, selectedOption, yesPool?.price, noPool?.price]);
-  
-  // Add helper function to convert tick to sqrtPriceX96
-  const tickToSqrtPriceX96 = (tick: number): bigint => {
-    // These are the actual sqrt price values for our tick range
-    if (tick === 0) {
-      return BigInt('79228162514264337593543950336'); // 1.0001^0 * 2^96
-    } else if (tick === -9200) {
-      return BigInt('6743328256147649'); // 1.0001^(-9200/2) * 2^96
-    }
-    return BigInt(0);
-  };
 
-  // Handle the swap
+  // Handle the swap using Universal Router
   const handleSwap = async () => {
     if (!amount || !market || !address || !isConnected) {
       alert('Please connect your wallet and enter an amount');
@@ -178,52 +167,32 @@ export default function SwapFunction({
       
       console.log("Using pool key:", poolKey);
       
-      // Prepare swap parameters based on action and direction
-      const swapParams = selectedAction === 'Buy' 
-        ? {
-            zeroForOne: true, // Swapping token0 (USDC) for token1 (YES/NO)
-            amountSpecified: parseUnits(amount, 6),
-            // When buying (going down in price), set limit to min price
-            sqrtPriceLimitX96: tickToSqrtPriceX96(-9200) // Lower bound
-          }
-        : {
-            zeroForOne: false, // Swapping token1 (YES/NO) for token0 (USDC)
-            amountSpecified: parseUnits(amount, 18),
-            // When selling, we need to use the lower bound as the limit
-            sqrtPriceLimitX96: tickToSqrtPriceX96(-9200) // For sells, use lower bound
-          };
-
-      console.log('Swap params:', {
-        ...swapParams,
-        sqrtPriceLimitX96: swapParams.sqrtPriceLimitX96.toString()
-      });
-
-      const testSettings = {
-        takeClaims: true,
-        settleUsingBurn: false
+      // Set loading state
+      setIsSwapping(true);
+      
+      // Prepare parameters for the Universal Router
+      const swapParams = {
+        key: {
+          currency0: selectedAction === 'Buy' ? market.collateralAddress : (selectedOption === 'Yes' ? market.yesToken : market.noToken),
+          currency1: selectedAction === 'Buy' ? (selectedOption === 'Yes' ? market.yesToken : market.noToken) : market.collateralAddress,
+          fee: poolKey.fee,
+          tickSpacing: poolKey.tickSpacing,
+          hooks: poolKey.hooks
+        },
+        amountIn: selectedAction === 'Buy' 
+          ? parseUnits(amount, 6).toString() // USDC has 6 decimals
+          : parseUnits(amount, 18).toString(), // Outcome tokens have 18 decimals
+        minAmountOut: '0', // For simplicity, we're not calculating slippage here
+        deadline: Math.floor(Date.now() / 1000) + 1200 // 20 minutes from now
       };
 
-      // Simulate the swap first
-      console.log('Simulating swap with params:', {
-        poolKey,
-        swapParams,
-        testSettings
-      });
+      console.log('Universal Router swap params:', swapParams);
 
-      const { request } = await getPublicClient(wagmiConfig).simulateContract({
-        account: address,
-        address: ROUTER as `0x${string}`,
-        abi: PoolSwapTestAbi,
-        functionName: 'swap',
-        args: [poolKey, swapParams, testSettings, '0x'],
-      });
-
-      console.log('Simulation successful, sending transaction');
-
-      // If simulation succeeds, proceed with actual swap
-      setIsSwapping(true);
-      executeSwap(request);
-
+      // Execute the swap using the Universal Router
+      await swapExactInputSingle(swapParams);
+      
+      // Success handling is done in the useEffect below
+      
     } catch (error) {
       console.error('Swap error:', error);
       // Print detailed error information
@@ -325,7 +294,10 @@ export default function SwapFunction({
 
   // Helper function to safely format balances
   const formatBalance = (balanceData: ReturnType<typeof useBalance>['data']) => {
-    return balanceData ? formatUnits(balanceData.value, balanceData.decimals) : '0.00';
+    if (!balanceData) return '0.00';
+    // Type assertion to handle the balance data structure
+    const balance = balanceData as { value: bigint; decimals: number };
+    return formatUnits(balance.value, balance.decimals);
   };
 
   // At the end of the component, right before the return:
@@ -339,7 +311,7 @@ export default function SwapFunction({
 
   return {
     handleSwap,
-    isSwapping: isSwapping || isExecutingSwap,
+    isSwapping: isSwapping || isRouterLoading,
     expectedOutput,
     tokenBalance: {
       collateral: formatBalance(collateralBalance),
@@ -354,7 +326,8 @@ export default function SwapFunction({
       collateralAllowance: collateralAllowance?.toString(),
       outcomeTokenAllowance: outcomeTokenAllowance?.toString(),
       isConnected,
-      isApproved
+      isApproved,
+      routerError
     }
   };
 } 

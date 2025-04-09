@@ -5,7 +5,7 @@ export interface ChainConfig {
   PREDICTION_MARKET_HOOK_ADDRESS: string;
   STATE_VIEW_ADDRESS: string;
   POOL_MANAGER_ADDRESS: string;
-  ROUTER: string;
+  UNIVERSAL_ROUTER_ADDRESS: string;
   POSITION_MANAGER_ADDRESS: string;
   COLLATERAL_TOKEN: string;
   ORACLE_SERVICE_MANAGER_ADDRESS: string;

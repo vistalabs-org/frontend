@@ -41,8 +41,8 @@ export default function MarketPageClient({ id }: { id: string }) {
   const { market: marketWithPools, yesPool, noPool } = useMarketWithPoolData(id);
   
   // Add this to your existing hooks
-  const { data: yesLiquidity } = useLiquidity(yesPool?.poolId);
-  const { data: noLiquidity } = useLiquidity(noPool?.poolId);
+  const { data: yesLiquidity } = useLiquidity(yesPool?.id);
+  const { data: noLiquidity } = useLiquidity(noPool?.id);
   
   // Log market data for debugging
   useEffect(() => {
