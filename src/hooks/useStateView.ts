@@ -1,7 +1,7 @@
 import { useReadContract } from 'wagmi';
 import { useState, useEffect } from 'react';
 import { StateViewAbi } from '@/contracts/StateView';
-import { STATE_VIEW_ADDRESS } from '@/app/constants';
+import { useStateViewAddress } from '@/config';
 
 interface Slot0Data {
   sqrtPriceX96: bigint;
@@ -18,11 +18,16 @@ interface Slot0Data {
  * @returns Liquidity data for the pool
  */
 export function useLiquidity(poolId?: string) {
+  const stateViewAddress = useStateViewAddress();
+
   const { data, isLoading, isError, error } = useReadContract({
-    address: STATE_VIEW_ADDRESS as `0x${string}`,
+    address: stateViewAddress as `0x${string}`,
     abi: StateViewAbi,
     functionName: 'getLiquidity',
     args: poolId ? [poolId] : undefined,
+    query: {
+      enabled: !!poolId && !!stateViewAddress,
+    }
   });
 
   if (isError) {
@@ -98,13 +103,15 @@ export function useMultipleLiquidity(poolIds: string[]) {
  * @returns Slot0 data including price information
  */
 export function useSlot0(poolId?: string) {  
+  const stateViewAddress = useStateViewAddress();
+
   const { data, isLoading, isError, error } = useReadContract({
-    address: STATE_VIEW_ADDRESS as `0x${string}`,
+    address: stateViewAddress as `0x${string}`,
     abi: StateViewAbi,
     functionName: 'getSlot0',
     args: poolId ? [poolId] : undefined,
     query: {
-      enabled: !!poolId,
+      enabled: !!poolId && !!stateViewAddress,
     }
   });
 
@@ -116,24 +123,28 @@ export function useSlot0(poolId?: string) {
   const [processedData, setProcessedData] = useState<Slot0Data | null>(null);
 
   useEffect(() => {
-    if (data) {      
+    if (data) {
       const [sqrtPriceX96, tick, protocolFee, lpFee] = data as [bigint, number, number, number];
-      
-      // Calculate price from sqrtPriceX96
-      // For a prediction market, price is typically between 0-1
+
+      // Calculate the original price of Yes in USDC
       const sqrtPrice = Number(sqrtPriceX96) / 2**96;
-      const usdcYesPrice = sqrtPrice * sqrtPrice;
-      const price = 1 / usdcYesPrice;  // Take reciprocal to get YES/USDC price
-      
+      const priceOfYesInUsdc = sqrtPrice * sqrtPrice;
+
+      // Calculate the INVERTED price (USDC per YES, intended for display)
+      let invertedPrice = 0;
+      if (priceOfYesInUsdc > 0) {
+          invertedPrice = 1 / priceOfYesInUsdc;
+      }
+
       const newProcessedData = {
         sqrtPriceX96,
         tick,
         protocolFee,
         lpFee,
-        price,
-        formattedPrice: `${(price * 100).toFixed(2)}%`
+        price: invertedPrice,
+        formattedPrice: `${(invertedPrice * 100).toFixed(2)}%`
       };
-      
+
       setProcessedData(newProcessedData);
     } else {
       console.log('useSlot0 - no data available, setting processedData to null');
@@ -148,7 +159,7 @@ export function useSlot0(poolId?: string) {
     error,
   };
   
-  console.log('useSlot0 - final result:', result);
+  console.log('useSlot0 - final result (with inverted price display logic):', result);
   return result;
 }
 

@@ -7,7 +7,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { useAccount, useBalance, useChainId } from 'wagmi';
 import { useMarketWithPoolData } from '@/hooks/usePoolData';
 import { formatUnits, zeroAddress } from 'viem';
-import { POSITION_MANAGER_ADDRESS } from '@/app/constants';
+import { useChainConfig } from '@/config';
 import { Token } from '@uniswap/sdk-core'; // Import Token
 
 // Import UI components
@@ -60,6 +60,9 @@ export default function AddLiquidityPage() {
   const marketId = params.id as string;
   const { address: userAddress } = useAccount();
   const chainId = useChainId(); // Get current chain ID
+  // Get config for the current chain
+  const config = useChainConfig();
+  const positionManagerAddress = config.POSITION_MANAGER_ADDRESS; // Get address from config
 
   // Core state for pool selection
   const [selectedPool, setSelectedPool] = useState<'YES' | 'NO'>('YES');
@@ -96,6 +99,28 @@ export default function AddLiquidityPage() {
       query: { enabled: !!userAddress && !!token1Address }
   });
 
+  // --- Create Token Objects ---
+  const currentToken0 = useMemo((): Token | null => {
+      if (!chainId || !token0Address || token0Decimals === undefined) return null;
+      try {
+          // Using generic names for now, replace if specific symbols/names are available
+          return new Token(chainId, token0Address, token0Decimals, 'USDC', 'USD Coin');
+      } catch (e) { console.error("Error creating Token0:", e); return null; }
+  }, [chainId, token0Address, token0Decimals]);
+
+  const currentToken1 = useMemo((): Token | null => {
+      if (!chainId) return null;
+      const address = selectedPool === 'YES' ? marketWithPools?.yesToken : marketWithPools?.noToken;
+      const decimals = selectedPool === 'YES' ? marketWithPools?.yesTokenDecimals : marketWithPools?.noTokenDecimals;
+      const symbol = selectedPool === 'YES' ? 'YES' : 'NO';
+      const name = selectedPool === 'YES' ? 'YES Token' : 'NO Token';
+
+      if (!address || decimals === undefined) return null;
+      try {
+         return new Token(chainId, address as `0x${string}`, decimals, symbol, name);
+      } catch (e) { console.error("Error creating Token1:", e); return null; }
+  }, [chainId, selectedPool, marketWithPools?.yesToken, marketWithPools?.yesTokenDecimals, marketWithPools?.noToken, marketWithPools?.noTokenDecimals]);
+
   // --- Custom Hook Instantiation ---
 
   // 1. Liquidity Calculations Hook
@@ -129,7 +154,7 @@ export default function AddLiquidityPage() {
       amount0,
       amount1,
       hookAddress,
-      positionManagerAddress: POSITION_MANAGER_ADDRESS
+      positionManagerAddress: positionManagerAddress
   });
 
   // Callback for when adding liquidity succeeds
@@ -264,7 +289,9 @@ export default function AddLiquidityPage() {
     txHash: addLiquidityFinalTxHash
   } = useAddV4Liquidity({
       poolKey: currentPoolKey,
-      poolState: currentPoolState, // Pass the prepared pool state with live liquidity
+      poolState: currentPoolState,
+      token0: currentToken0, // Pass Token object
+      token1: currentToken1, // Pass Token object
       estimatedLiquidity,
       onSuccess: handleAddLiquiditySuccess,
   });

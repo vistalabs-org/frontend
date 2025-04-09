@@ -4,6 +4,7 @@ export interface ChainConfig {
   name: string;
   PREDICTION_MARKET_HOOK_ADDRESS: string;
   STATE_VIEW_ADDRESS: string;
+  POOL_MANAGER_ADDRESS: string;
   ROUTER: string;
   POSITION_MANAGER_ADDRESS: string;
   COLLATERAL_TOKEN: string;

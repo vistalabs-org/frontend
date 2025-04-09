@@ -1,24 +1,50 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAccount, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
-import { type Hex, parseUnits } from 'viem';
-import { PoolKey } from '@uniswap/v4-sdk';
-import { PoolManagerABI } from '@/contracts/PoolManagerABI';
-import { POSITION_MANAGER_ADDRESS } from '@/app/constants';
-import { getPublicClient } from '@wagmi/core';
+import { simulateContract } from 'wagmi/actions';
+import { type Hex } from 'viem';
+import { PoolKey, V4PositionManager, Position, Pool, type MintOptions } from '@uniswap/v4-sdk';
+import { Token, Percent } from '@uniswap/sdk-core';
+import { useChainConfig } from '@/config';
 import { wagmiConfig } from '@/app/providers';
 
 // Define constants
-const BYTES32_ZERO = '0x0000000000000000000000000000000000000000000000000000000000000000' as const;
-const EMPTY_BYTES = '0x' as Hex;
+const SLIPPAGE_TOLERANCE = new Percent(50, 10_000); // 0.5% slippage
+const DEADLINE_SECONDS = 60 * 20; // 20 minutes from now
+
+// --- Explicit ABI fragment for V4PositionManager multicall ---
+const positionManagerMulticallAbi = [
+  {
+    "inputs": [
+      {
+        "internalType": "bytes[]",
+        "name": "data",
+        "type": "bytes[]"
+      }
+    ],
+    "name": "multicall",
+    "outputs": [
+      {
+        "internalType": "bytes[]",
+        "name": "results",
+        "type": "bytes[]"
+      }
+    ],
+    "stateMutability": "payable",
+    "type": "function"
+  }
+] as const; // Use 'as const' for stricter typing
+// -----------------------------------------------------------
 
 interface UseAddV4LiquidityProps {
   poolKey: PoolKey | null;
-  poolState?: { 
+  poolState: { // Require poolState for Pool construction
       sqrtPriceX96: bigint;
-      tick: number;        
-      liquidity: bigint;   
-  } | null;
-  estimatedLiquidity: string; // Expecting raw bigint string
+      tick: number;
+      liquidity: bigint; // Not directly needed for Position construction? Check SDK Position/Pool constructor
+  } | null; // Make required
+  token0: Token | null; // NEW: Pass Token objects
+  token1: Token | null; // NEW: Pass Token objects
+  estimatedLiquidity: string; // Expecting raw bigint string (liquidity delta)
   onSuccess?: (txHash: Hex) => void;
 }
 
@@ -58,137 +84,152 @@ const getFullRangeTicks = (tickSpacing: number) => {
 
 export function useAddV4Liquidity({
   poolKey,
-  poolState, // Keep for potential future validation if needed
+  poolState,
+  token0,
+  token1,
   estimatedLiquidity,
   onSuccess,
 }: UseAddV4LiquidityProps): AddLiquidityStatus {
-  const { address: userAddress, chainId } = useAccount(); // Keep chainId for context
+  const { address: userAddress, chainId } = useAccount();
+  const config = useChainConfig();
+  const positionManagerAddress = config.POSITION_MANAGER_ADDRESS;
+
   const [internalError, setInternalError] = useState<string | null>(null);
   const [finalTxHash, setFinalTxHash] = useState<Hex | undefined>(undefined);
+  const [isExecutingAdd, setIsExecutingAdd] = useState<boolean>(false);
 
-  const publicClient = getPublicClient(wagmiConfig);
-
+  // --- Write Contract Hook & Receipt Hook (Simulation hook removed) ---
   const { data: addLiquidityTxHash, writeContract: addLiquidityWriteContract, isPending: isAddingWrite, error: addWriteError } = useWriteContract();
   const { isLoading: isConfirming, isSuccess: isAddConfirmed, error: confirmationError } = useWaitForTransactionReceipt({ hash: addLiquidityTxHash });
 
+  // --- addLiquidity Callback (Updated Logic) ---
   const addLiquidity = useCallback(async () => {
-    console.log("useAddV4Liquidity: addLiquidity function entered.");
+    console.log("useAddV4Liquidity: addLiquidity callback entered.");
     setInternalError(null);
     setFinalTxHash(undefined);
+    setIsExecutingAdd(true); // Start loading state
 
-    // console.log("useAddV4Liquidity: Checking preconditions...", { userAddress, poolKey, estimatedLiquidity }); // Reduced verbosity
-
-    if (!userAddress || !poolKey || !estimatedLiquidity || BigInt(estimatedLiquidity) <= 0 || !POSITION_MANAGER_ADDRESS || !publicClient || !chainId) {
-      const errorMsg = "useAddV4Liquidity: Missing required data (user, poolKey, liquidity, config).";
-      console.error(errorMsg, { userAddress, poolKey, estimatedLiquidity, POSITION_MANAGER_ADDRESS, publicClientExists: !!publicClient, chainId });
-      setInternalError(errorMsg);
-      return;
+    // 1. Precondition Checks
+    if (!userAddress || !poolKey || !poolState || !token0 || !token1 || !estimatedLiquidity || BigInt(estimatedLiquidity) <= 0 || !positionManagerAddress || !chainId || !addLiquidityWriteContract) {
+        const errorMsg = "Add Liquidity preconditions failed (missing user, pool, tokens, liquidity, config, or write function).";
+        console.error(errorMsg, { userAddress, poolKey, poolState, token0, token1, estimatedLiquidity, positionManagerAddress, chainId, addLiquidityWriteContract: !!addLiquidityWriteContract });
+        setInternalError(errorMsg);
+        setIsExecutingAdd(false); // Stop loading state
+        return;
     }
 
-    // --- REMOVED Direct Allowance Check --- 
-
-    console.log("useAddV4Liquidity: Preparing modifyLiquidity transaction...");
     try {
+        // 2. Generate Calldata (Synchronously within the callback)
+        console.log("[addLiquidity] Generating calldata...");
+        const { tickLower, tickUpper } = getFullRangeTicks(poolKey.tickSpacing);
+        if (tickLower >= tickUpper) throw new Error(`Invalid tick range: ${tickLower} >= ${tickUpper}`);
 
-      const { tickLower, tickUpper } = getFullRangeTicks(poolKey.tickSpacing);
-      // console.log(`useAddV4Liquidity: Using Ticks: Lower=${tickLower}, Upper=${tickUpper}`); // Reduced verbosity
-      if (tickLower >= tickUpper) {
-        throw new Error(`Invalid tick range: ${tickLower} >= ${tickUpper}`);
-      }
+        const liquidityDelta = BigInt(estimatedLiquidity);
+        if (liquidityDelta <= 0) throw new Error("Estimated liquidity must be positive.");
 
-      const liquidityDelta = BigInt(estimatedLiquidity);
-      if (liquidityDelta <= 0) {
-          throw new Error("Estimated liquidity must be positive.");
-      }
+        const pool = new Pool(
+            token0, token1, poolKey.fee, poolKey.tickSpacing, poolKey.hooks, 
+            poolState.sqrtPriceX96.toString(), 
+            poolState.liquidity.toString(), 
+            poolState.tick, []
+        );
+        const position = new Position({ pool, tickLower, tickUpper, liquidity: liquidityDelta.toString() });
 
-      // Define ModifyLiquidity parameters for PoolManager
-      const modifyParams = {
-        tickLower: tickLower,
-        tickUpper: tickUpper,
-        liquidityDelta: liquidityDelta, 
-        salt: BYTES32_ZERO // Use correct bytes32 zero value for salt
-      };
-      
-      // Revert to using empty bytes for hookData
-      const hookData: Hex = EMPTY_BYTES;
-      
-      console.log("Preparing modifyLiquidity call:", { key: poolKey, params: modifyParams, hookData });
-      
-      // ---> ADD LOGGING HERE <---
-      console.log("--- Data for simulateContract ---");
-      console.log("Account:", userAddress);
-      console.log("Pool Manager:", POSITION_MANAGER_ADDRESS);
-      console.log("Pool Key:", JSON.stringify(poolKey, (key, value) => typeof value === 'bigint' ? value.toString() : value)); // Stringify bigint
-      console.log("Modify Params:", JSON.stringify(modifyParams, (key, value) => typeof value === 'bigint' ? value.toString() : value));
-      console.log("Hook Data:", hookData);
-      console.log("-----------------------------------");
+        const deadline = Math.floor(Date.now() / 1000) + DEADLINE_SECONDS;
+        const mintOptions: MintOptions = {
+            recipient: userAddress,
+            slippageTolerance: SLIPPAGE_TOLERANCE,
+            deadline: deadline.toString(),
+            createPool: false, // Assuming pool exists
+        };
+        
+        const { calldata, value } = V4PositionManager.addCallParameters(position, mintOptions);
+        console.log("[addLiquidity] Calldata generated:", { calldata, value });
 
-      // Simulate Contract Call
-      console.log("--- Simulating modifyLiquidity --- ");
-      const { request } = await publicClient.simulateContract({
-          account: userAddress,
-          address: POSITION_MANAGER_ADDRESS, 
-          abi: PoolManagerABI,          
-          functionName: 'modifyLiquidity',
-          args: [poolKey, modifyParams, hookData], 
-      });
-      console.log("Simulation successful, sending transaction...");
+        if (!calldata) {
+            throw new Error("Failed to generate transaction calldata.");
+        }
 
-      // Execute Transaction
-      addLiquidityWriteContract(request);
+        // 3. Simulate Transaction (Imperatively)
+        console.log("[addLiquidity] Simulating transaction...");
+        const simulationResult = await simulateContract(wagmiConfig, {
+            address: positionManagerAddress as `0x${string}`,
+            abi: positionManagerMulticallAbi,
+            functionName: 'multicall',
+            args: [[calldata as `0x${string}`]],
+            value: (value && BigInt(value) > BigInt(0)) ? BigInt(value) : undefined,
+            account: userAddress, // Specify the user account for simulation
+        });
+        console.log("[addLiquidity] Simulation successful:", simulationResult);
+
+        // 4. Execute Transaction (using simulation result)
+        if (!simulationResult?.request) {
+            throw new Error("Transaction simulation failed to return a valid request.");
+        }
+
+        console.log("[addLiquidity] Executing transaction via writeContract...");
+        addLiquidityWriteContract(simulationResult.request);
+        // isAddingWrite state will become true now
 
     } catch (error: any) {
-      console.error("Error during modifyLiquidity preparation or simulation:", error);
-      let readableError = error.message;
-      // Attempt to extract more specific revert reason
-      if (error.cause) {
-          const cause = error.cause as any;
-          if (cause.data?.args?.[0]) { // Check if revert reason string exists
-              readableError = `Transaction reverted: ${cause.data.args[0]}`;
-          } else if (cause.shortMessage) {
-              readableError = `Transaction simulation failed: ${cause.shortMessage}`;
-          } else {
-              readableError = `Transaction simulation failed: ${cause.message || error.message}`;
-          }
-      } else if (error.shortMessage) {
-          readableError = `Transaction simulation failed: ${error.shortMessage}`;
-      }
-      console.error("Simulation Error Full Details:", error);
-      setInternalError(`Failed: ${readableError}`);
+        console.error("[addLiquidity] Error during simulation or execution:", error);
+        const errorMsg = error.message || "An unknown error occurred during add liquidity.";
+        setInternalError(`Failed: ${errorMsg}`);
+        setIsExecutingAdd(false); // Stop loading state on error
     }
-  }, [
-    userAddress, chainId, poolKey, estimatedLiquidity, // Removed poolState from deps if not used
-    onSuccess, addLiquidityWriteContract, publicClient
-  ]);
+    // Note: We don't set isExecutingAdd to false on success here,
+    // because isAddingWrite takes over the loading state until the tx is sent.
 
-  // --- Effect for Handling Post-Confirmation --- 
+  }, [userAddress, chainId, poolKey, poolState, token0, token1, estimatedLiquidity, positionManagerAddress, addLiquidityWriteContract, onSuccess]);
+
+  // --- Effect for Handling Post-Confirmation ---
   useEffect(() => {
     if (isAddConfirmed && addLiquidityTxHash) {
       console.log(`useAddV4Liquidity: Transaction confirmed: ${addLiquidityTxHash}`);
       setFinalTxHash(addLiquidityTxHash);
+      setIsExecutingAdd(false); // Stop loading state now that it's confirmed
       if (onSuccess) {
         onSuccess(addLiquidityTxHash);
       }
     }
-  }, [isAddConfirmed, addLiquidityTxHash, onSuccess]);
+    // Also stop loading if confirmation fails
+    if (confirmationError) {
+        setIsExecutingAdd(false);
+    }
+  }, [isAddConfirmed, addLiquidityTxHash, confirmationError, onSuccess]);
 
-  // --- Combined Error Handling --- 
+  // --- Combined Error Handling --- (Fixing linter errors)
   useEffect(() => {
     let errorMsg: string | null = null;
-    if (internalError) {
-        errorMsg = internalError; // Prioritize simulation error
-    } else if (addWriteError) {
-      errorMsg = `Transaction submission failed: ${addWriteError.message}`;
+    // Simulation errors handled within the callback now
+    if (addWriteError) {
+       console.error("Add Liquidity Write Error:", addWriteError);
+       // Use .message, not .shortMessage
+       errorMsg = `Transaction submission failed: ${addWriteError.message}`;
+       setIsExecutingAdd(false); // Stop loading if write fails
     } else if (confirmationError) {
+      console.error("Add Liquidity Confirmation Error:", confirmationError);
+      // Use .message, not .shortMessage
       errorMsg = `Transaction confirmation failed: ${confirmationError.message}`;
-    } 
-    setInternalError(errorMsg);
-  }, [addWriteError, confirmationError, internalError]); // Add internalError dependency
+      // isExecutingAdd handled in confirmation effect
+    }
+
+    // Only set error if it's one of these, otherwise keep potential error from callback
+    if (errorMsg && (!internalError || internalError.startsWith("Failed:"))) {
+        setInternalError(errorMsg);
+    }
+    // Clear error if these specific errors resolve and no simulation error exists
+    else if (!addWriteError && !confirmationError && internalError && !internalError.startsWith("Failed:")) {
+        setInternalError(null);
+    }
+
+  }, [addWriteError, confirmationError, internalError]);
 
   return {
     addLiquidity,
-    isAdding: isAddingWrite, 
-    isConfirming, 
+    // isAdding reflects the entire process: executing the callback OR waiting for tx OR confirming
+    isAdding: isExecutingAdd || isAddingWrite,
+    isConfirming, // Still reflects tx receipt loading
     addError: internalError,
     txHash: finalTxHash,
   };
