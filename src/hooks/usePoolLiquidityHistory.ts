@@ -31,7 +31,7 @@ interface PoolsTvlAmountsResult {
   no?: TvlAmounts;
 }
 
-const ENVOI_ENDPOINT = 'http://localhost:8080/v1/graphql';
+const ENVOI_ENDPOINT = 'https://indexer.dev.hyperindex.xyz/e835e1f/v1/graphql';
 
 // Renamed function to fetch data for multiple pools
 async function fetchPoolsTvlAmounts(

@@ -233,18 +233,28 @@ const PredictionMarketPage = ({
 
   // --- Construct Prefixed Pool IDs ---
   const prefixedYesPoolId = React.useMemo(() => {
+    console.log(`[PredictionMarketPage useMemo - Yes] Running with chainId: ${chainId}, yesPool?.id: ${yesPool?.id}`); // Log inside memo
     if (chainId && yesPool?.id) {
-      return `${chainId}_${yesPool.id}`;
+      const id = `${chainId}_${yesPool.id}`;
+      console.log(`[PredictionMarketPage useMemo - Yes] Calculated ID: ${id}`);
+      return id;
     }
+    console.log(`[PredictionMarketPage useMemo - Yes] Returning undefined`);
     return undefined;
-  }, [chainId, yesPool?.id]);
+  }, [chainId, yesPool]); // Depend on chainId and the whole yesPool object
+
   const prefixedNoPoolId = React.useMemo(() => {
+    console.log(`[PredictionMarketPage useMemo - No] Running with chainId: ${chainId}, noPool?.id: ${noPool?.id}`); // Log inside memo
     if (chainId && noPool?.id) {
-      return `${chainId}_${noPool.id}`;
+      const id = `${chainId}_${noPool.id}`;
+      console.log(`[PredictionMarketPage useMemo - No] Calculated ID: ${id}`);
+      return id;
     }
+    console.log(`[PredictionMarketPage useMemo - No] Returning undefined`);
     return undefined;
-  }, [chainId, noPool?.id]);
-  console.log(`[PredictionMarketPage] Constructed Prefixed IDs - Yes: ${prefixedYesPoolId}, No: ${prefixedNoPoolId}`);
+  }, [chainId, noPool]); // Depend on chainId and the whole noPool object
+  
+  console.log(`[PredictionMarketPage RENDER] Prefixed IDs - Yes: ${prefixedYesPoolId}, No: ${prefixedNoPoolId}`);
   // --- End Construct Prefixed Pool IDs ---
 
   // --- Fetch Pools TVL Amounts (for current state) ---
@@ -253,14 +263,16 @@ const PredictionMarketPage = ({
     isLoading: isLoadingPoolsTvl,
     isError: isErrorPoolsTvl
   } = usePoolsTvlAmounts(prefixedYesPoolId, prefixedNoPoolId); 
+  console.log("[PredictionMarketPage] poolsTvlData:", { data: poolsTvlData, isLoading: isLoadingPoolsTvl, isError: isErrorPoolsTvl }); // Log TVL hook output
   // --- End Fetch Pools TVL Amounts ---
 
   // --- Fetch Swap History Deltas (for BOTH pools) ---
   const { 
-    data: swapDeltasByPool, // Renamed
+    data: swapDeltasByPool,
     isLoading: isLoadingSwapDeltas, 
     isError: isErrorSwapDeltas
-  } = usePoolSwapHistory(prefixedYesPoolId, prefixedNoPoolId); // Pass both IDs
+  } = usePoolSwapHistory(prefixedYesPoolId, prefixedNoPoolId); 
+  console.log("[PredictionMarketPage] swapDeltasByPool:", { data: swapDeltasByPool, isLoading: isLoadingSwapDeltas, isError: isErrorSwapDeltas }); // Log Swap hook output
   // --- End Fetch Swap History Deltas ---
 
   // --- Calculate Token0 History for BOTH pools ---
@@ -312,7 +324,9 @@ const PredictionMarketPage = ({
         else lastNo = merged[ts].noAmount;
     });
 
-    return Object.values(merged);
+    const result = Object.values(merged);
+    console.log("[PredictionMarketPage] Final chartData:", result); // Log merged chart data
+    return result;
   }, [yesToken0History, noToken0History]);
   // --- End Merge Data ---
 

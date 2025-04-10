@@ -102,14 +102,14 @@ export default function Token0AmountChart({ data, isLoading, isError }: Token0Am
         />
         <Legend />
         <defs>
-          {/* Define gradients for both lines */}
+          {/* Define solid fills for shadows */}
           <linearGradient id="colorYes" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="5%" stopColor="#10b981" stopOpacity={0.8}/> {/* Green */} 
-            <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+            <stop offset="5%" stopColor="#10b981" stopOpacity={0.8}/> 
+            <stop offset="95%" stopColor="#10b981" stopOpacity={0.8}/> {/* Make solid */} 
           </linearGradient>
           <linearGradient id="colorNo" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="5%" stopColor="#ef4444" stopOpacity={0.8}/> {/* Red */} 
-            <stop offset="95%" stopColor="#ef4444" stopOpacity={0}/>
+            <stop offset="5%" stopColor="#ef4444" stopOpacity={0.8}/> 
+            <stop offset="95%" stopColor="#ef4444" stopOpacity={0.8}/> {/* Make solid */} 
           </linearGradient>
         </defs>
         {/* Area for YES Pool */}
