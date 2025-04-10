@@ -8,6 +8,7 @@ import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
 import { Moon, Sun } from "lucide-react";
 import React from 'react';
+import HowItWorksOverlay from './HowItWorksOverlay';
 
 const NavBar = () => {
   const { theme, setTheme } = useTheme();
@@ -19,13 +20,14 @@ const NavBar = () => {
   return (
     <nav className="flex items-center justify-between px-6 py-4 bg-background border-b border-border">
       {/* Left - Create Proposal Link */}
-      <div className="flex-1">
+      <div className="flex-1 flex items-center gap-4">
         <Link
           href="/create-proposal"
           className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors"
         >
           Create Proposal
         </Link>
+        <HowItWorksOverlay />
       </div>
 
       {/* Center - Logo and Name */}
