@@ -27,8 +27,6 @@ export interface SwapDeltasByPoolResult {
     no: SwapDeltaDataPoint[];
 }
 
-const ENVOI_ENDPOINT = 'https://indexer.dev.hyperindex.xyz/e835e1f/v1/graphql';
-
 // Helper function to fetch swap history deltas for multiple pools
 async function fetchSwapDeltasForPools(
     yesPoolId: string | undefined,
@@ -36,10 +34,15 @@ async function fetchSwapDeltasForPools(
 ): Promise<SwapDeltasByPoolResult | null> {
   const poolIdsToFetch = [yesPoolId, noPoolId].filter(Boolean) as string[];
   if (poolIdsToFetch.length === 0) {
-    console.log("[fetchSwapDeltasForPools] No valid pool IDs provided.");
+    // console.log("[fetchSwapDeltasForPools] No valid pool IDs provided.");
     return null;
   }
-  console.log(`[fetchSwapDeltasForPools] Fetching swap deltas for pool IDs: ${poolIdsToFetch.join(', ')}`);
+  
+  const endpoint = process.env.NEXT_PUBLIC_ENVIO_ENDPOINT;
+  if (!endpoint) {
+      console.error("Error: NEXT_PUBLIC_ENVIO_ENDPOINT environment variable is not set.");
+      return null; // Or throw an error
+  }
 
   const query = `
     query GetSwapDeltasForPools($poolIds: [String!]) {
@@ -55,13 +58,24 @@ async function fetchSwapDeltasForPools(
     }
   `;
 
-  try {
-    const response = await fetch(ENVOI_ENDPOINT, {
+  // Prepare headers
+  const headers: HeadersInit = {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+  };
+  // Add Authorization header if API key is provided
+  const apiKey = process.env.NEXT_PUBLIC_ENVIO_API_KEY;
+  if (apiKey) {
+      headers['Authorization'] = `Bearer ${apiKey}`;
+  } else {
+      console.warn("[fetchSwapDeltasForPools] API Key (NEXT_PUBLIC_ENVIO_API_KEY) not found. Sending request without Authorization.");
+  }
+
+  try { 
+    // Use endpoint variable directly in fetch
+    const response = await fetch(endpoint, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-      },
+      headers: headers, 
       body: JSON.stringify({
         query,
         variables: { poolIds: poolIdsToFetch },

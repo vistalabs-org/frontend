@@ -31,8 +31,6 @@ interface PoolsTvlAmountsResult {
   no?: TvlAmounts;
 }
 
-const ENVOI_ENDPOINT = 'https://indexer.dev.hyperindex.xyz/e835e1f/v1/graphql';
-
 // Renamed function to fetch data for multiple pools
 async function fetchPoolsTvlAmounts(
   yesPoolId: string | undefined,
@@ -40,10 +38,15 @@ async function fetchPoolsTvlAmounts(
 ): Promise<PoolsTvlAmountsResult | null> {
   const poolIdsToFetch = [yesPoolId, noPoolId].filter(Boolean) as string[];
   if (poolIdsToFetch.length === 0) {
-    console.log("[fetchPoolsTvlAmounts] No valid pool IDs provided.");
+    // console.log("[fetchPoolsTvlAmounts] No valid pool IDs provided.");
     return null;
   }
-  console.log(`[fetchPoolsTvlAmounts] Fetching TVL amounts for pool IDs: ${poolIdsToFetch.join(', ')}`);
+
+  const endpoint = process.env.NEXT_PUBLIC_ENVIO_ENDPOINT;
+  if (!endpoint) {
+      console.error("Error: NEXT_PUBLIC_ENVIO_ENDPOINT environment variable is not set.");
+      return null; // Or throw an error
+  }
 
   // Query to fetch TVL amounts for multiple pools using _in filter
   const query = `
@@ -58,56 +61,72 @@ async function fetchPoolsTvlAmounts(
     }
   `;
 
-  const response = await fetch(ENVOI_ENDPOINT, {
-    method: 'POST',
-    headers: {
+  // Prepare headers
+  const headers: HeadersInit = {
       'Content-Type': 'application/json',
       'Accept': 'application/json',
-    },
-    body: JSON.stringify({
-      query,
-      variables: { poolIds: poolIdsToFetch }, // Pass array of IDs
-      operationName: 'GetPoolsTvlAmounts' // Changed operationName
-    }),
-  });
-
-  if (!response.ok) {
-    throw new Error(`Network response was not ok: ${response.statusText}`);
+  };
+  // Add Authorization header if API key is provided
+  const apiKey = process.env.NEXT_PUBLIC_ENVIO_API_KEY;
+  if (apiKey) {
+      headers['Authorization'] = `Bearer ${apiKey}`;
+  } else {
+      console.warn("[fetchPoolsTvlAmounts] API Key (NEXT_PUBLIC_ENVIO_API_KEY) not found. Sending request without Authorization.");
   }
 
-  const result: GraphQLResponse = await response.json();
-  console.log("[fetchPoolsTvlAmounts] Raw GraphQL response:", result);
+  try {
+    // Use endpoint variable directly in fetch
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: headers, 
+      body: JSON.stringify({
+        query,
+        variables: { poolIds: poolIdsToFetch },
+        operationName: 'GetPoolsTvlAmounts'
+      }),
+    });
 
-  if (result.errors) {
-    console.error('GraphQL Errors:', result.errors);
-    throw new Error(`GraphQL Error: ${result.errors.map(e => e.message).join(', ')}`);
-  }
+    if (!response.ok) {
+      throw new Error(`Network response was not ok: ${response.statusText}`);
+    }
 
-  // Extract and process pool data
-  const poolDataArray = result.data?.Pool ?? [];
-  console.log("[fetchPoolsTvlAmounts] Extracted pool data array:", poolDataArray);
+    const result: GraphQLResponse = await response.json();
+    console.log("[fetchPoolsTvlAmounts] Raw GraphQL response:", result);
 
-  if (poolDataArray.length === 0) {
-    console.warn("[fetchPoolsTvlAmounts] No pool data found for provided IDs.");
+    if (result.errors) {
+      console.error('GraphQL Errors:', result.errors);
+      throw new Error(`GraphQL Error: ${result.errors.map(e => e.message).join(', ')}`);
+    }
+
+    // Extract and process pool data
+    const poolDataArray = result.data?.Pool ?? [];
+    console.log("[fetchPoolsTvlAmounts] Extracted pool data array:", poolDataArray);
+
+    if (poolDataArray.length === 0) {
+      console.warn("[fetchPoolsTvlAmounts] No pool data found for provided IDs.");
+      return null;
+    }
+
+    // Organize the results by yes/no pool ID
+    const transformedData: PoolsTvlAmountsResult = {};
+    poolDataArray.forEach(poolData => {
+      const amounts: TvlAmounts = {
+          tvlToken0: parseFloat(poolData.totalValueLockedToken0) || 0,
+          tvlToken1: parseFloat(poolData.totalValueLockedToken1) || 0,
+      };
+      if (poolData.id === yesPoolId) {
+        transformedData.yes = amounts;
+      } else if (poolData.id === noPoolId) {
+        transformedData.no = amounts;
+      }
+    });
+
+    console.log("[fetchPoolsTvlAmounts] Transformed TVL amounts by pool:", transformedData);
+    return transformedData;
+  } catch (error) {
+    console.error('Error fetching TVL amounts:', error);
     return null;
   }
-
-  // Organize the results by yes/no pool ID
-  const transformedData: PoolsTvlAmountsResult = {};
-  poolDataArray.forEach(poolData => {
-    const amounts: TvlAmounts = {
-        tvlToken0: parseFloat(poolData.totalValueLockedToken0) || 0,
-        tvlToken1: parseFloat(poolData.totalValueLockedToken1) || 0,
-    };
-    if (poolData.id === yesPoolId) {
-      transformedData.yes = amounts;
-    } else if (poolData.id === noPoolId) {
-      transformedData.no = amounts;
-    }
-  });
-
-  console.log("[fetchPoolsTvlAmounts] Transformed TVL amounts by pool:", transformedData);
-  return transformedData;
 }
 
 // Renamed React Query hook

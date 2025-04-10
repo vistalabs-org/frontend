@@ -65,6 +65,8 @@ jobs:
           NEXT_PUBLIC_ALCHEMY_API_KEY: ${{ secrets.ALCHEMY_API_KEY }}
           NEXT_PUBLIC_GAS_MANAGER_POLICY_ID: ${{ secrets.GAS_MANAGER_POLICY_ID }}
           NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID: ${{ secrets.WALLETCONNECT_PROJECT_ID }}
+          NEXT_PUBLIC_ENVIO_ENDPOINT: ${{ secrets.ENVIO_ENDPOINT }}
+          NEXT_PUBLIC_ENVIO_API_KEY: ${{ secrets.ENVIO_API_KEY }}
 
       # If you have tests, uncomment and adjust the following step
       # - name: Run tests
