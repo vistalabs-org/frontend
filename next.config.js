@@ -20,7 +20,7 @@ const nextConfig = {
         os: require.resolve('os-browserify/browser'),
         buffer: require.resolve('buffer/'),
         util: require.resolve('util/'),
-        url: require.resolve('url/'),
+        url: require.resolve('url'),
         assert: require.resolve('assert/'),
         constants: require.resolve('constants-browserify')
       };
