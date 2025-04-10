@@ -35,3 +35,21 @@ export const unichain = defineChain({
   },
   testnet: false,
 });
+
+// Define Arbitrum chain
+export const arbitrum = defineChain({
+  id: 42161,
+  name: 'Arbitrum',
+  nativeCurrency: {
+    decimals: 18,
+    name: 'Ether',
+    symbol: 'ETH',
+  },
+  rpcUrls: {
+    default: { http: ['https://arb1.arbitrum.io/rpc'] },
+  },
+  blockExplorers: {
+    default: { name: 'Explorer', url: 'https://arbiscan.io' },
+  },
+  testnet: false,
+});

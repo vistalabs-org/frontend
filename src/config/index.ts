@@ -7,11 +7,12 @@ import { ChainConfig } from './chains/common';
 // Import all chain configurations
 import { unichainConfig } from './chains/130';
 import { unichainSepoliaConfig } from './chains/1301';
-
+import { arbitrumConfig } from './chains/42161';
 // Map of chainId to config
 const chainConfigs: Record<number, ChainConfig> = {
   130: unichainConfig,
   1301: unichainSepoliaConfig,
+  42161: arbitrumConfig,
 };
 
 // Default to Unichain if not connected or on an unsupported chain
