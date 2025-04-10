@@ -1,4 +1,4 @@
-import { useQuery, QueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 
 // Structure for individual swap event data from GraphQL
 interface SwapEventData {

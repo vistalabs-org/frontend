@@ -26,6 +26,8 @@ export default function Home() {
       setChainName('Unichain');
     } else if (chainId === 1301) {
       setChainName('Unichain Sepolia');
+    } else if (chainId === 42161) {
+      setChainName('Arbitrum');
     } else {
       setChainName('this network');
     }
