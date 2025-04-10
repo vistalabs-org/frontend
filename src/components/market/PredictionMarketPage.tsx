@@ -193,7 +193,7 @@ interface PredictionMarketPageProps {
   endTimestamp: any;
   marketId: string;
   chainId?: number; // Add chainId prop
-  mintCollateralButton: React.ReactNode;
+  mintCollateralButton?: React.ReactNode; // Make optional with ?
 }
 
 // --- Helper function to calculate history from deltas ---

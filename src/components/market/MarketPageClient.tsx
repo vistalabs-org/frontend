@@ -139,19 +139,6 @@ export default function MarketPageClient({ id }: { id: string }) {
         endTimestamp={market.endTimestamp}
         marketId={id}
         chainId={chainId}
-        mintCollateralButton={
-          isConnected && marketWithPools?.collateralAddress ? (
-            <div className="mt-6 pt-6 border-t">
-              <h3 className="text-base font-semibold mb-2">Mint Test Collateral</h3>
-              <p className="text-sm text-muted-foreground mb-3">
-                Need test tokens? Mint some collateral to use in this market.
-              </p>
-              <MintCollateralButton 
-                collateralAddress={marketWithPools.collateralAddress as `0x${string}`} 
-              />
-            </div>
-          ) : null
-        }
       />
     </main>
   );
