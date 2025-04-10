@@ -2,6 +2,7 @@
 const FsModulePlugin = require('./webpack-fs-plugin');
 
 const nextConfig = {
+  reactStrictMode: true,
   transpilePackages: ['@uniswap/widgets', '@fontsource/inter'],
   webpack: (config, { isServer }) => {
     if (!isServer) {
@@ -12,21 +13,23 @@ const nextConfig = {
         tls: false,
         crypto: require.resolve('crypto-browserify'),
         stream: require.resolve('stream-browserify'),
-        path: require.resolve('path-browserify'),
         zlib: require.resolve('browserify-zlib'),
         http: require.resolve('stream-http'),
         https: require.resolve('https-browserify'),
-        assert: require.resolve('assert/'),
+        path: require.resolve('path-browserify'),
         os: require.resolve('os-browserify/browser'),
-        url: require.resolve('url/'),
         buffer: require.resolve('buffer/'),
+        util: require.resolve('util/'),
+        url: require.resolve('url/'),
+        assert: require.resolve('assert/'),
+        constants: require.resolve('constants-browserify')
       };
 
       // Add polyfills
       config.plugins.push(
         new config.webpack.ProvidePlugin({
-          process: 'process/browser',
           Buffer: ['buffer', 'Buffer'],
+          process: 'process/browser',
         })
       );
       
