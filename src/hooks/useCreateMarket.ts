@@ -2,10 +2,10 @@
 
 import { useCallback, useState } from 'react';
 import { useAccount, useWriteContract } from 'wagmi';
-import { parseEther, formatEther, parseUnits, formatUnits } from 'viem';
-import { PredictionMarketHook_abi } from '@/contracts/PredictionMarketHook_abi';
+import { parseUnits, formatUnits } from 'viem';
+import PredictionMarketHook_abi from '@/contracts/PredictionMarketHook.json';
 import { usePredictionMarketHookAddress } from '@/config';
-import { MockERC20Abi } from '@/contracts/MockERC20_abi';
+import MockERC20Abi from '@/contracts/MockERC20.json';
 import { getPublicClient, waitForTransactionReceipt } from '@wagmi/core';
 import { wagmiConfig } from '@/app/providers';
 

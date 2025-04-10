@@ -1,4 +1,4 @@
-export const StateViewAbi = [
+[
   {
     "type": "constructor",
     "inputs": [

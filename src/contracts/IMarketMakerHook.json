@@ -1,4 +1,4 @@
-export const IMarketMakerHookAbi = [
+[
     {
       "type": "function",
       "name": "claimWinnings",
@@ -373,5 +373,5 @@ export const IMarketMakerHookAbi = [
       ],
       "anonymous": false
     }
-  ] as const;
+  ]
   

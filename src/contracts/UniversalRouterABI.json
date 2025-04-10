@@ -1,4 +1,4 @@
-export const UniversalRouterABI = [
+[
   {
     "inputs": [
       {
@@ -270,62 +270,72 @@ export const UniversalRouterABI = [
     "type": "error"
   },
   {
-    "inputs": [
-      {
-        "internalType": "uint256",
-        "name": "minAmountOutReceived",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "amountReceived",
-        "type": "uint256"
-      }
-    ],
+    "inputs": [],
+    "name": "V4CantMintLockNotAcquired",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "V4CantMintZeroAmount",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "V4InvalidAmount",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "V4InvalidCaller",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "V4InvalidPool",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "V4InvalidRecipient",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "V4InvalidSwapHook",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "V4IsLocked",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "V4NotEnoughIn",
+    "type": "error"
+  },
+  {
+    "inputs": [],
     "name": "V4TooLittleReceived",
     "type": "error"
   },
   {
-    "inputs": [
-      {
-        "internalType": "uint256",
-        "name": "maxAmountInRequested",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "amountRequested",
-        "type": "uint256"
-      }
-    ],
+    "inputs": [],
     "name": "V4TooMuchRequested",
     "type": "error"
   },
   {
-    "inputs": [],
-    "name": "V3_POSITION_MANAGER",
-    "outputs": [
+    "anonymous": false,
+    "inputs": [
       {
-        "internalType": "contract INonfungiblePositionManager",
-        "name": "",
-        "type": "address"
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "amount",
+        "type": "uint256"
       }
     ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "V4_POSITION_MANAGER",
-    "outputs": [
-      {
-        "internalType": "contract IPositionManager",
-        "name": "",
-        "type": "address"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
+    "name": "RewardsSent",
+    "type": "event"
   },
   {
     "inputs": [
@@ -369,29 +379,175 @@ export const UniversalRouterABI = [
     "type": "function"
   },
   {
-    "inputs": [],
-    "name": "msgSender",
-    "outputs": [
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "token",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "value",
+        "type": "uint256"
+      }
+    ],
+    "name": "lock",
+    "outputs": [],
+    "stateMutability": "payable",
+    "type": "function"
+  },
+  {
+    "inputs": [
       {
         "internalType": "address",
         "name": "",
         "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256[]",
+        "name": "",
+        "type": "uint256[]"
+      },
+      {
+        "internalType": "uint256[]",
+        "name": "",
+        "type": "uint256[]"
+      },
+      {
+        "internalType": "bytes",
+        "name": "",
+        "type": "bytes"
       }
     ],
-    "stateMutability": "view",
+    "name": "onERC1155BatchReceived",
+    "outputs": [
+      {
+        "internalType": "bytes4",
+        "name": "",
+        "type": "bytes4"
+      }
+    ],
+    "stateMutability": "pure",
     "type": "function"
   },
   {
-    "inputs": [],
-    "name": "poolManager",
-    "outputs": [
+    "inputs": [
       {
-        "internalType": "contract IPoolManager",
+        "internalType": "address",
         "name": "",
         "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      },
+      {
+        "internalType": "bytes",
+        "name": "",
+        "type": "bytes"
       }
     ],
-    "stateMutability": "view",
+    "name": "onERC1155Received",
+    "outputs": [
+      {
+        "internalType": "bytes4",
+        "name": "",
+        "type": "bytes4"
+      }
+    ],
+    "stateMutability": "pure",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      },
+      {
+        "internalType": "bytes",
+        "name": "",
+        "type": "bytes"
+      }
+    ],
+    "name": "onERC721Received",
+    "outputs": [
+      {
+        "internalType": "bytes4",
+        "name": "",
+        "type": "bytes4"
+      }
+    ],
+    "stateMutability": "pure",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes4",
+        "name": "interfaceId",
+        "type": "bytes4"
+      }
+    ],
+    "name": "supportsInterface",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "pure",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "int256",
+        "name": "amount0Delta",
+        "type": "int256"
+      },
+      {
+        "internalType": "int256",
+        "name": "amount1Delta",
+        "type": "int256"
+      },
+      {
+        "internalType": "bytes",
+        "name": "data",
+        "type": "bytes"
+      }
+    ],
+    "name": "uniswapV3MintCallback",
+    "outputs": [],
+    "stateMutability": "nonpayable",
     "type": "function"
   },
   {
@@ -418,26 +574,7 @@ export const UniversalRouterABI = [
     "type": "function"
   },
   {
-    "inputs": [
-      {
-        "internalType": "bytes",
-        "name": "data",
-        "type": "bytes"
-      }
-    ],
-    "name": "unlockCallback",
-    "outputs": [
-      {
-        "internalType": "bytes",
-        "name": "",
-        "type": "bytes"
-      }
-    ],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
     "stateMutability": "payable",
     "type": "receive"
   }
-];
+] 

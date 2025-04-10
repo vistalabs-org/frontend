@@ -1,57 +1,43 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAccount, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
 import { simulateContract } from 'wagmi/actions';
-import { type Hex } from 'viem';
-import { PoolKey, V4PositionManager, Position, Pool, type MintOptions } from '@uniswap/v4-sdk';
+import { type Hex, encodeAbiParameters, concat, toBytes, zeroAddress, maxUint128, numberToHex } from 'viem';
+import { PoolKey } from '@uniswap/v4-sdk';
 import { Token, Percent } from '@uniswap/sdk-core';
 import { useChainConfig } from '@/config';
 import { wagmiConfig } from '@/app/providers';
+import PositionManagerABI from '@/contracts/PositionManager.json';
 
 // Define constants
-const SLIPPAGE_TOLERANCE = new Percent(50, 10_000); // 0.5% slippage
 const DEADLINE_SECONDS = 60 * 20; // 20 minutes from now
 
-// --- Explicit ABI fragment for V4PositionManager multicall ---
-const positionManagerMulticallAbi = [
-  {
-    "inputs": [
-      {
-        "internalType": "bytes[]",
-        "name": "data",
-        "type": "bytes[]"
-      }
-    ],
-    "name": "multicall",
-    "outputs": [
-      {
-        "internalType": "bytes[]",
-        "name": "results",
-        "type": "bytes[]"
-      }
-    ],
-    "stateMutability": "payable",
-    "type": "function"
-  }
-] as const; // Use 'as const' for stricter typing
-// -----------------------------------------------------------
+// Actions Enum (approximated from typical usage, verify if necessary)
+const Actions = {
+    MINT_POSITION: 0,
+    COLLECT_POSITION: 1,
+    BURN_POSITION: 2,
+    SETTLE_PAIR: 3,
+    SWAP_TOKENS_FOR_EXACT_TOKENS: 4,
+    SWAP_EXACT_TOKENS_FOR_TOKENS: 5,
+};
 
 interface UseAddV4LiquidityProps {
   poolKey: PoolKey | null;
-  poolState: { // Require poolState for Pool construction
+  poolState: {
       sqrtPriceX96: bigint;
       tick: number;
-      liquidity: bigint; // Not directly needed for Position construction? Check SDK Position/Pool constructor
-  } | null; // Make required
-  token0: Token | null; // NEW: Pass Token objects
-  token1: Token | null; // NEW: Pass Token objects
+      liquidity: bigint;
+  } | null;
+  token0: Token | null;
+  token1: Token | null;
   estimatedLiquidity: string; // Expecting raw bigint string (liquidity delta)
   onSuccess?: (txHash: Hex) => void;
 }
 
 interface AddLiquidityStatus {
   addLiquidity: () => Promise<void>;
-  isAdding: boolean; // writeContract is pending
-  isConfirming: boolean; // Transaction is confirming
+  isAdding: boolean;
+  isConfirming: boolean;
   addError: string | null;
   txHash?: Hex;
 }
@@ -98,127 +84,170 @@ export function useAddV4Liquidity({
   const [finalTxHash, setFinalTxHash] = useState<Hex | undefined>(undefined);
   const [isExecutingAdd, setIsExecutingAdd] = useState<boolean>(false);
 
-  // --- Write Contract Hook & Receipt Hook (Simulation hook removed) ---
+  // --- Write Contract Hook & Receipt Hook (Using full ABI now) ---
   const { data: addLiquidityTxHash, writeContract: addLiquidityWriteContract, isPending: isAddingWrite, error: addWriteError } = useWriteContract();
   const { isLoading: isConfirming, isSuccess: isAddConfirmed, error: confirmationError } = useWaitForTransactionReceipt({ hash: addLiquidityTxHash });
 
   // --- addLiquidity Callback (Updated Logic) ---
   const addLiquidity = useCallback(async () => {
-    console.log("useAddV4Liquidity: addLiquidity callback entered.");
+    console.log("useAddV4Liquidity (modifyLiquidities approach): addLiquidity callback entered.");
     setInternalError(null);
     setFinalTxHash(undefined);
-    setIsExecutingAdd(true); // Start loading state
+    setIsExecutingAdd(true);
 
-    // 1. Precondition Checks
-    if (!userAddress || !poolKey || !poolState || !token0 || !token1 || !estimatedLiquidity || BigInt(estimatedLiquidity) <= 0 || !positionManagerAddress || !chainId || !addLiquidityWriteContract) {
-        const errorMsg = "Add Liquidity preconditions failed (missing user, pool, tokens, liquidity, config, or write function).";
-        console.error(errorMsg, { userAddress, poolKey, poolState, token0, token1, estimatedLiquidity, positionManagerAddress, chainId, addLiquidityWriteContract: !!addLiquidityWriteContract });
+    // 1. Precondition Checks (Simplified slightly as Pool/Position objects aren't directly used for calldata)
+    if (!userAddress || !poolKey || !estimatedLiquidity || BigInt(estimatedLiquidity) <= 0 || !positionManagerAddress || !chainId || !addLiquidityWriteContract) {
+        const errorMsg = "Add Liquidity preconditions failed (missing user, poolKey, liquidity, config, or write function).";
+        console.error(errorMsg, { userAddress, poolKey, estimatedLiquidity, positionManagerAddress, chainId, addLiquidityWriteContract: !!addLiquidityWriteContract });
         setInternalError(errorMsg);
-        setIsExecutingAdd(false); // Stop loading state
+        setIsExecutingAdd(false);
         return;
     }
 
     try {
-        // 2. Generate Calldata (Synchronously within the callback)
-        console.log("[addLiquidity] Generating calldata...");
+        // 2. Prepare Data for Encoding (mimicking AddLiquidity.sol)
+        console.log("[addLiquidity] Preparing data for modifyLiquidities...");
         const { tickLower, tickUpper } = getFullRangeTicks(poolKey.tickSpacing);
         if (tickLower >= tickUpper) throw new Error(`Invalid tick range: ${tickLower} >= ${tickUpper}`);
 
         const liquidityDelta = BigInt(estimatedLiquidity);
         if (liquidityDelta <= 0) throw new Error("Estimated liquidity must be positive.");
 
-        const pool = new Pool(
-            token0, token1, poolKey.fee, poolKey.tickSpacing, poolKey.hooks, 
-            poolState.sqrtPriceX96.toString(), 
-            poolState.liquidity.toString(), 
-            poolState.tick, []
+        // Mimic Solidity script's max amounts (WARNING: Use calculated amounts + slippage in production)
+        // Using maxUint128 as a large placeholder like type(uint256).max is often used in scripts
+        const amount0Max = maxUint128;
+        const amount1Max = maxUint128;
+        // const amount0Max = 1n * 10n**18n; // Mimic 1 ether if tokens have 18 decimals
+        // const amount1Max = 1n * 10n**18n;
+
+        const recipient = userAddress;
+        const salt = toBytes(''); // bytes("") equivalent
+
+        // 3. Encode Actions and Params
+        console.log("[addLiquidity] Encoding actions and parameters...");
+
+        // Encode actions: MINT_POSITION (0), SETTLE_PAIR (3) - Use Actions enum values
+        const actionsBytes = concat([
+            numberToHex(Actions.MINT_POSITION, { size: 1 }),
+            numberToHex(Actions.SETTLE_PAIR, { size: 1 })
+        ]);
+
+        // Encode params[0] for MINT_POSITION
+        const mintParams = encodeAbiParameters(
+            [
+                { type: 'tuple', components: [ // PoolKey struct
+                    { name: 'currency0', type: 'address' },
+                    { name: 'currency1', type: 'address' },
+                    { name: 'fee', type: 'uint24' },
+                    { name: 'tickSpacing', type: 'int24' },
+                    { name: 'hooks', type: 'address' }
+                ]},
+                { name: 'tickLower', type: 'int24' },
+                { name: 'tickUpper', type: 'int24' },
+                { name: 'liquidityDelta', type: 'uint128' },
+                { name: 'amount0Max', type: 'uint128' }, // Use uint128 based on SDK/contract expectations
+                { name: 'amount1Max', type: 'uint128' },
+                { name: 'recipient', type: 'address' },
+                { name: 'salt', type: 'bytes32' } // Salt is bytes32 in PositionManager, but script uses bytes("")? Let's use zero bytes32
+            ],
+            [
+                { // PoolKey value
+                    currency0: poolKey.currency0 as Hex, 
+                    currency1: poolKey.currency1 as Hex,
+                    fee: poolKey.fee,
+                    tickSpacing: poolKey.tickSpacing,
+                    hooks: poolKey.hooks as Hex // Assuming hooks is an address
+                },
+                tickLower,
+                tickUpper,
+                liquidityDelta,
+                amount0Max,
+                amount1Max,
+                recipient as Hex,
+                // salt // salt is bytes, encode parameter expects bytes32? Use zero bytes32 for now
+                 '0x0000000000000000000000000000000000000000000000000000000000000000' as Hex
+            ]
         );
-        const position = new Position({ pool, tickLower, tickUpper, liquidity: liquidityDelta.toString() });
 
-        const deadline = Math.floor(Date.now() / 1000) + DEADLINE_SECONDS;
-        const mintOptions: MintOptions = {
-            recipient: userAddress,
-            slippageTolerance: SLIPPAGE_TOLERANCE,
-            deadline: deadline.toString(),
-            createPool: false, // Assuming pool exists
-        };
-        
-        const { calldata, value } = V4PositionManager.addCallParameters(position, mintOptions);
-        console.log("[addLiquidity] Calldata generated:", { calldata, value });
+        // Encode params[1] for SETTLE_PAIR
+        const settleParams = encodeAbiParameters(
+            [ { name: 'currency0', type: 'address' }, { name: 'currency1', type: 'address' }],
+            [ poolKey.currency0 as Hex, poolKey.currency1 as Hex ]
+        );
 
-        if (!calldata) {
-            throw new Error("Failed to generate transaction calldata.");
-        }
+        // Create params array
+        const paramsArray: Hex[] = [mintParams, settleParams];
 
-        // 3. Simulate Transaction (Imperatively)
-        console.log("[addLiquidity] Simulating transaction...");
+        // Encode the final `unlockData` payload: abi.encode(actions, params)
+        const unlockData = encodeAbiParameters(
+            [ { type: 'bytes' }, { type: 'bytes[]' } ],
+            [ actionsBytes, paramsArray ]
+        );
+
+        const deadline = BigInt(Math.floor(Date.now() / 1000) + DEADLINE_SECONDS);
+
+        console.log("[addLiquidity] Encoded Data:", { actionsBytes, mintParams, settleParams, paramsArray, unlockData, deadline });
+
+        // 4. Simulate Transaction (using modifyLiquidities)
+        console.log("[addLiquidity] Simulating modifyLiquidities...");
         const simulationResult = await simulateContract(wagmiConfig, {
             address: positionManagerAddress as `0x${string}`,
-            abi: positionManagerMulticallAbi,
-            functionName: 'multicall',
-            args: [[calldata as `0x${string}`]],
-            value: (value && BigInt(value) > BigInt(0)) ? BigInt(value) : undefined,
-            account: userAddress, // Specify the user account for simulation
+            abi: PositionManagerABI, // Use the full ABI
+            functionName: 'modifyLiquidities',
+            // Args: [bytes unlockData, uint256 deadline]
+            args: [unlockData, deadline],
+            // value: 0n, // Assuming no ETH value needed, matching the script
+            account: userAddress,
         });
         console.log("[addLiquidity] Simulation successful:", simulationResult);
 
-        // 4. Execute Transaction (using simulation result)
+        // 5. Execute Transaction
         if (!simulationResult?.request) {
             throw new Error("Transaction simulation failed to return a valid request.");
         }
 
         console.log("[addLiquidity] Executing transaction via writeContract...");
         addLiquidityWriteContract(simulationResult.request);
-        // isAddingWrite state will become true now
 
     } catch (error: any) {
-        console.error("[addLiquidity] Error during simulation or execution:", error);
+        console.error("[addLiquidity] Error during encoding, simulation, or execution:", error);
         const errorMsg = error.message || "An unknown error occurred during add liquidity.";
         setInternalError(`Failed: ${errorMsg}`);
-        setIsExecutingAdd(false); // Stop loading state on error
+        setIsExecutingAdd(false);
     }
-    // Note: We don't set isExecutingAdd to false on success here,
-    // because isAddingWrite takes over the loading state until the tx is sent.
 
-  }, [userAddress, chainId, poolKey, poolState, token0, token1, estimatedLiquidity, positionManagerAddress, addLiquidityWriteContract, onSuccess]);
+  }, [userAddress, chainId, poolKey, estimatedLiquidity, positionManagerAddress, addLiquidityWriteContract, onSuccess]);
 
   // --- Effect for Handling Post-Confirmation ---
   useEffect(() => {
     if (isAddConfirmed && addLiquidityTxHash) {
       console.log(`useAddV4Liquidity: Transaction confirmed: ${addLiquidityTxHash}`);
       setFinalTxHash(addLiquidityTxHash);
-      setIsExecutingAdd(false); // Stop loading state now that it's confirmed
+      setIsExecutingAdd(false);
       if (onSuccess) {
         onSuccess(addLiquidityTxHash);
       }
     }
-    // Also stop loading if confirmation fails
     if (confirmationError) {
         setIsExecutingAdd(false);
     }
   }, [isAddConfirmed, addLiquidityTxHash, confirmationError, onSuccess]);
 
-  // --- Combined Error Handling --- (Fixing linter errors)
+  // --- Combined Error Handling --- (Mostly unchanged)
   useEffect(() => {
     let errorMsg: string | null = null;
-    // Simulation errors handled within the callback now
     if (addWriteError) {
        console.error("Add Liquidity Write Error:", addWriteError);
-       // Use .message, not .shortMessage
        errorMsg = `Transaction submission failed: ${addWriteError.message}`;
-       setIsExecutingAdd(false); // Stop loading if write fails
+       setIsExecutingAdd(false);
     } else if (confirmationError) {
       console.error("Add Liquidity Confirmation Error:", confirmationError);
-      // Use .message, not .shortMessage
       errorMsg = `Transaction confirmation failed: ${confirmationError.message}`;
-      // isExecutingAdd handled in confirmation effect
     }
 
-    // Only set error if it's one of these, otherwise keep potential error from callback
     if (errorMsg && (!internalError || internalError.startsWith("Failed:"))) {
         setInternalError(errorMsg);
     }
-    // Clear error if these specific errors resolve and no simulation error exists
     else if (!addWriteError && !confirmationError && internalError && !internalError.startsWith("Failed:")) {
         setInternalError(null);
     }
@@ -227,9 +256,8 @@ export function useAddV4Liquidity({
 
   return {
     addLiquidity,
-    // isAdding reflects the entire process: executing the callback OR waiting for tx OR confirming
     isAdding: isExecutingAdd || isAddingWrite,
-    isConfirming, // Still reflects tx receipt loading
+    isConfirming,
     addError: internalError,
     txHash: finalTxHash,
   };

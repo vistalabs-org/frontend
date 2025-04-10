@@ -1,4 +1,4 @@
-export const AIAgentRegistryABI = [
+[
   {
     "type": "constructor",
     "inputs": [],
@@ -390,4 +390,4 @@ export const AIAgentRegistryABI = [
       }
     ]
   }
-]; 
+]

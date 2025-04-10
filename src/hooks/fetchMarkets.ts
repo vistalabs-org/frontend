@@ -1,8 +1,8 @@
 // Import the ABI file and define types based on it
 import { useReadContract } from 'wagmi'
 import { useEffect, useState } from 'react'
-import {PredictionMarketHook_abi} from '@/contracts/PredictionMarketHook_abi'
-import { IPredictionMarketHookAbi } from '@/contracts/IPredictionMarketHook_abi';
+import PredictionMarketHook_abi from '@/contracts/PredictionMarketHook.json'
+import IPredictionMarketHookAbi from '@/contracts/IPredictionMarketHook.json';
 import { usePredictionMarketHookAddress } from '@/config';
 import { useChainId } from 'wagmi';
 

@@ -1,6 +1,6 @@
 import { useReadContract } from 'wagmi';
 import { useState, useEffect } from 'react';
-import { StateViewAbi } from '@/contracts/StateView';
+import StateViewAbi from '@/contracts/StateView.json';
 import { useStateViewAddress } from '@/config';
 
 interface Slot0Data {

@@ -6,9 +6,10 @@ import { useRouter } from 'next/navigation';
 import { useAccount, useReadContract } from 'wagmi';
 import { parseUnits, formatUnits } from 'viem';
 import { useCreateMarket } from '@/hooks/useCreateMarket';
-import { MockERC20Abi } from '@/contracts/MockERC20_abi';
-import { usePredictionMarketHookAddress } from '@/config';
 import { useMintCollateral } from '@/hooks/useMintCollateral';
+import MockERC20Abi from '@/contracts/MockERC20.json';
+import { Button } from "@/components/ui/button";
+import { usePredictionMarketHookAddress } from '@/config';
 
 export default function CreateMarket() {
   const router = useRouter();

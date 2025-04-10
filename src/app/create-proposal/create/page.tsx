@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useAccount, useReadContract } from 'wagmi';
 import { parseUnits } from 'viem';
 import { useCreateMarket } from '@/hooks/useCreateMarket';
-import { MockERC20Abi } from '@/contracts/MockERC20_abi';
+import MockERC20Abi from '@/contracts/MockERC20.json';
 import { PREDICTION_MARKET_HOOK_ADDRESS } from '@/app/constants';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";

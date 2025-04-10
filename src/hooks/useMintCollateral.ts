@@ -2,8 +2,10 @@
 
 import { useCallback } from 'react';
 import { useAccount, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
-import { parseUnits } from 'viem';
-import { MockERC20Abi } from '@/contracts/MockERC20_abi';
+import { parseUnits, formatUnits, Log } from 'viem';
+import MockERC20Abi from '@/contracts/MockERC20.json';
+import { wagmiConfig } from '@/app/providers';
+import { getPublicClient } from '@wagmi/core';
 
 export function useMintCollateral() {
   const { address, isConnected } = useAccount();

@@ -1,4 +1,4 @@
-export const PredictionMarketHook_abi = [
+[
   {
     "type": "constructor",
     "inputs": [
@@ -1848,5 +1848,5 @@ export const PredictionMarketHook_abi = [
     "name": "NotPoolManager",
     "inputs": []
   }
-] as const;
+]
 

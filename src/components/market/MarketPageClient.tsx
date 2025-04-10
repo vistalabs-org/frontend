@@ -31,7 +31,7 @@ export default function MarketPageClient({ id }: { id: string }) {
   const router = useRouter();
   const [isMounted, setIsMounted] = useState(false);
   
-  const { isConnected } = useAccount();
+  const { isConnected, chainId } = useAccount();
   
   useEffect(() => {
     setIsMounted(true);
@@ -41,8 +41,8 @@ export default function MarketPageClient({ id }: { id: string }) {
   const { market: marketWithPools, yesPool, noPool } = useMarketWithPoolData(id);
   
   // Add this to your existing hooks
-  const { data: yesLiquidity } = useLiquidity(yesPool?.poolId);
-  const { data: noLiquidity } = useLiquidity(noPool?.poolId);
+  const { data: yesLiquidity } = useLiquidity(yesPool?.id);
+  const { data: noLiquidity } = useLiquidity(noPool?.id);
   
   // Log market data for debugging
   useEffect(() => {
@@ -134,10 +134,11 @@ export default function MarketPageClient({ id }: { id: string }) {
       {/* Main market UI */}
       <PredictionMarketPage 
         marketData={marketWithPools || market}
-        yesPool={yesPool ? {...yesPool, liquidity: yesLiquidity} : undefined}
-        noPool={noPool ? {...noPool, liquidity: noLiquidity} : undefined}
+        yesPool={yesPool ? {...yesPool, liquidity: yesLiquidity ?? yesPool.liquidity } : undefined}
+        noPool={noPool ? {...noPool, liquidity: noLiquidity ?? noPool.liquidity } : undefined}
         endTimestamp={market.endTimestamp}
         marketId={id}
+        chainId={chainId}
         mintCollateralButton={
           isConnected && marketWithPools?.collateralAddress ? (
             <div className="mt-6 pt-6 border-t">

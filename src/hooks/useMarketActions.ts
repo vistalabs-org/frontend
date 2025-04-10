@@ -2,9 +2,8 @@
 
 import { useCallback } from 'react';
 import { useAccount, useWriteContract, useReadContract } from 'wagmi';
-import { PredictionMarketHook_abi } from '@/contracts/PredictionMarketHook_abi';
+import PredictionMarketHook_abi from '@/contracts/PredictionMarketHook.json';
 import { usePredictionMarketHookAddress } from '@/config';
-import { wagmiConfig } from '@/app/providers'; // Ensure wagmiConfig is correctly imported if needed for client/simulation
 
 interface PoolKey {
   currency0: `0x${string}`

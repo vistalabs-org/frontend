@@ -1,17 +1,16 @@
 "use client"
 import React from 'react';
-import Image from 'next/image';
 import Link from 'next/link';
 import { format } from 'date-fns';
 import SwapFunction from '@/components/SwapFunction';
 import { useAccount } from 'wagmi';
-import { parseUnits, formatUnits } from 'viem';
-import { MockERC20Abi } from '@/contracts/MockERC20_abi';
-import { ROUTER } from '@/app/constants';
 import { useRouter } from 'next/navigation';
+import Token0AmountChart, { CombinedChartDataPoint } from '@/components/charts/LiquidityChart';
+import { usePoolsTvlAmounts } from '@/hooks/usePoolLiquidityHistory';
+import { usePoolSwapHistory, SwapDeltaDataPoint } from '@/hooks/usePoolSwapHistory';
 
 // --- Import Shadcn UI Components ---
-import { Button } from "@/components/ui/button";
+import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -47,8 +46,30 @@ const TokenBalances = ({ collateralBalance, yesBalance, noBalance }: {
   );
 };
 
+// Helper to format potentially large numbers
+const formatTvlAmount = (value: number | undefined | null) => {
+  if (value === null || value === undefined) return '0.00';
+  if (value >= 1e6) return `${(value / 1e6).toFixed(2)}M`;
+  if (value >= 1e3) return `${(value / 1e3).toFixed(2)}K`;
+  return value.toFixed(2);
+};
+
 // PriceDisplay Component using Shadcn structure
-const PriceDisplay = ({ yesPool, noPool, marketId }: { yesPool: any; noPool: any; marketId: string }) => {
+const PriceDisplay = ({ 
+  yesPool, 
+  noPool, 
+  marketId, 
+  poolsTvlData, 
+  isLoadingPoolsTvl, 
+  isErrorPoolsTvl 
+}: {
+  yesPool: any;
+  noPool: any;
+  marketId: string;
+  poolsTvlData: { yes?: { tvlToken0: number; tvlToken1: number; }, no?: { tvlToken0: number; tvlToken1: number; } } | null | undefined;
+  isLoadingPoolsTvl: boolean;
+  isErrorPoolsTvl: boolean;
+}) => {
   const formatPricePercent = (pool: any) => {
     if (pool?.price === undefined || pool?.price === null) return 'N/A';
     try {
@@ -64,7 +85,8 @@ const PriceDisplay = ({ yesPool, noPool, marketId }: { yesPool: any; noPool: any
   const formatLiquidity = (liquidity: any) => {
      if (liquidity === undefined || liquidity === null) return '0';
      try {
-       return BigInt(liquidity).toString();
+       // Format BigInt liquidity - adjust as needed (e.g., using formatUnits)
+       return BigInt(liquidity).toLocaleString(); 
      } catch {
        return '0';
      }
@@ -79,6 +101,25 @@ const PriceDisplay = ({ yesPool, noPool, marketId }: { yesPool: any; noPool: any
 
   const yesPriceFormatted = formatPricePercent(yesPool);
   const noPriceFormatted = formatPricePercent(noPool);
+
+  // Helper to display loading/error/data for TVL
+  const renderTvlInfo = (poolTvlData: { tvlToken0: number; tvlToken1: number; } | undefined) => {
+    if (isLoadingPoolsTvl) {
+      return <div className="text-xs text-muted-foreground mt-1">Loading amounts...</div>;
+    }
+    if (isErrorPoolsTvl) {
+      return <div className="text-xs text-red-500 mt-1">Error</div>;
+    }
+    if (poolTvlData) {
+      return (
+        <div className="text-xs text-muted-foreground space-y-0.5 mt-1">
+          <div>T0: <span className="font-medium text-foreground">{formatTvlAmount(poolTvlData.tvlToken0)}</span></div>
+          <div>T1: <span className="font-medium text-foreground">{formatTvlAmount(poolTvlData.tvlToken1)}</span></div>
+        </div>
+      );
+    }
+    return null;
+  };
 
   return (
     <>
@@ -102,27 +143,26 @@ const PriceDisplay = ({ yesPool, noPool, marketId }: { yesPool: any; noPool: any
 
       <div>
         <div className="mb-2 flex justify-center items-center gap-2">
-          <h4 className="text-sm font-medium text-center text-muted-foreground">Market Liquidity</h4>
+          <h4 className="text-sm font-medium text-center text-muted-foreground">Pool Liquidity & Token Amounts</h4>
           <Link href={`${marketId}/add-liquidity`} className="text-xs text-primary hover:underline">
             + Add Liquidity
           </Link>
         </div>
-        <div className="flex justify-around items-center text-center">
+        <div className="flex justify-around items-start text-center">
           <div className="flex-1">
             <div className="text-lg font-medium text-foreground">
               {formatLiquidity(yesPool?.liquidity)}
             </div>
-            <div className="text-xs text-muted-foreground">Yes Pool</div>
+            <div className="text-xs text-muted-foreground">Yes Pool Liquidity</div>
+            {renderTvlInfo(poolsTvlData?.yes)}
           </div>
           <div className="flex-1">
             <div className="text-lg font-medium text-foreground">
               {formatLiquidity(noPool?.liquidity)}
             </div>
-            <div className="text-xs text-muted-foreground">No Pool</div>
+            <div className="text-xs text-muted-foreground">No Pool Liquidity</div>
+            {renderTvlInfo(poolsTvlData?.no)}
           </div>
-        </div>
-        <div className="text-sm font-medium text-center text-muted-foreground mt-2">
-          Total: {totalLiquidity.toString()}
         </div>
       </div>
     </>
@@ -145,19 +185,140 @@ interface CommentData {
   content: string;
 }
 
+// Define props including chainId
+interface PredictionMarketPageProps {
+  marketData: any;
+  yesPool: any;
+  noPool: any;
+  endTimestamp: any;
+  marketId: string;
+  chainId?: number; // Add chainId prop
+  mintCollateralButton: React.ReactNode;
+}
+
+// --- Helper function to calculate history from deltas ---
+const calculateHistory = (
+  currentTvl: number | undefined,
+  deltas: SwapDeltaDataPoint[] | undefined
+): { timestamp: number; total: number }[] => {
+  if (currentTvl === undefined || !deltas) {
+    return [];
+  }
+  const history: { timestamp: number; total: number }[] = [];
+  let runningTotal = currentTvl;
+  history.push({ timestamp: Date.now(), total: runningTotal });
+  for (let i = deltas.length - 1; i >= 0; i--) {
+    const swap = deltas[i];
+    runningTotal -= swap.amount0Delta;
+    history.push({ timestamp: swap.timestamp, total: runningTotal });
+  }
+  return history.reverse();
+};
+// --- End Helper function ---
+
 const PredictionMarketPage = ({ 
   marketData, 
   yesPool, 
   noPool, 
   endTimestamp, 
   marketId,
+  chainId, // Destructure chainId
   mintCollateralButton
-}: any) => {
+}: PredictionMarketPageProps) => { // Use typed props
   const [selectedAction, setSelectedAction] = React.useState<'Buy' | 'Sell'>('Buy');
   const [selectedOption, setSelectedOption] = React.useState<'Yes' | 'No'>('Yes');
   const [amount, setAmount] = React.useState('');
   const { isConnected } = useAccount();
   const router = useRouter();
+
+  // --- Construct Prefixed Pool IDs ---
+  const prefixedYesPoolId = React.useMemo(() => {
+    if (chainId && yesPool?.id) {
+      return `${chainId}_${yesPool.id}`;
+    }
+    return undefined;
+  }, [chainId, yesPool?.id]);
+  const prefixedNoPoolId = React.useMemo(() => {
+    if (chainId && noPool?.id) {
+      return `${chainId}_${noPool.id}`;
+    }
+    return undefined;
+  }, [chainId, noPool?.id]);
+  console.log(`[PredictionMarketPage] Constructed Prefixed IDs - Yes: ${prefixedYesPoolId}, No: ${prefixedNoPoolId}`);
+  // --- End Construct Prefixed Pool IDs ---
+
+  // --- Fetch Pools TVL Amounts (for current state) ---
+  const { 
+    data: poolsTvlData,
+    isLoading: isLoadingPoolsTvl,
+    isError: isErrorPoolsTvl
+  } = usePoolsTvlAmounts(prefixedYesPoolId, prefixedNoPoolId); 
+  // --- End Fetch Pools TVL Amounts ---
+
+  // --- Fetch Swap History Deltas (for BOTH pools) ---
+  const { 
+    data: swapDeltasByPool, // Renamed
+    isLoading: isLoadingSwapDeltas, 
+    isError: isErrorSwapDeltas
+  } = usePoolSwapHistory(prefixedYesPoolId, prefixedNoPoolId); // Pass both IDs
+  // --- End Fetch Swap History Deltas ---
+
+  // --- Calculate Token0 History for BOTH pools ---
+  const yesToken0History = React.useMemo(() => {
+    return calculateHistory(poolsTvlData?.yes?.tvlToken0, swapDeltasByPool?.yes);
+  }, [poolsTvlData, swapDeltasByPool]);
+
+  const noToken0History = React.useMemo(() => {
+    // Assuming token0 is collateral (tUSDC) for NO pool too
+    return calculateHistory(poolsTvlData?.no?.tvlToken0, swapDeltasByPool?.no);
+  }, [poolsTvlData, swapDeltasByPool]);
+  // --- End Calculate Token0 History ---
+
+  // --- Merge Data for Chart ---
+  const chartData = React.useMemo(() => {
+    const merged: { [key: number]: CombinedChartDataPoint } = {};
+    const allPoints = [...yesToken0History, ...noToken0History];
+
+    // Collect all unique timestamps
+    const allTimestamps = Array.from(new Set(allPoints.map(p => p.timestamp))).sort((a, b) => a - b);
+
+    // Initialize merged data with nulls
+    allTimestamps.forEach(ts => {
+      merged[ts] = { timestamp: ts, yesAmount: null, noAmount: null };
+    });
+
+    // Fill in Yes amounts
+    yesToken0History.forEach(p => {
+      if (merged[p.timestamp]) {
+        merged[p.timestamp].yesAmount = p.total;
+      }
+    });
+
+    // Fill in No amounts
+    noToken0History.forEach(p => {
+      if (merged[p.timestamp]) {
+        merged[p.timestamp].noAmount = p.total;
+      }
+    });
+
+    // Forward fill null values for smoother chart lines
+    let lastYes: number | null = null;
+    let lastNo: number | null = null;
+    allTimestamps.forEach(ts => {
+        if (merged[ts].yesAmount === null) merged[ts].yesAmount = lastYes;
+        else lastYes = merged[ts].yesAmount;
+        
+        if (merged[ts].noAmount === null) merged[ts].noAmount = lastNo;
+        else lastNo = merged[ts].noAmount;
+    });
+
+    return Object.values(merged);
+  }, [yesToken0History, noToken0History]);
+  // --- End Merge Data ---
+
+  // Combined loading/error states for the chart
+  const isLoadingChart = isLoadingPoolsTvl || isLoadingSwapDeltas;
+  const isErrorChart = isErrorPoolsTvl || isErrorSwapDeltas;
 
   // --- Calculate Total Liquidity ---
   let totalLiquidity = BigInt(0);
@@ -285,11 +446,27 @@ const PredictionMarketPage = ({
 
         <Card>
           <CardHeader>
-             <CardTitle>Market Price</CardTitle>
-             <CardDescription>Current probability based on pool prices.</CardDescription>
+             <CardTitle>Market Details</CardTitle>
+             <CardDescription>Current probability, pool amounts, and tUSDC amount chart.</CardDescription>
           </CardHeader>
-          <CardContent>
-             <PriceDisplay yesPool={yesPool} noPool={noPool} marketId={marketId} />
+          <CardContent className="space-y-6">
+              <div>
+                <h4 className="text-sm font-medium text-center text-muted-foreground mb-3">tUSDC Amount in Pools</h4>
+                 <Token0AmountChart 
+                     data={chartData} // Pass merged data
+                     isLoading={isLoadingChart} 
+                     isError={isErrorChart}
+                   />
+             </div>
+             <Separator className="my-4" />
+             <PriceDisplay 
+                yesPool={yesPool} 
+                noPool={noPool} 
+                marketId={marketId} 
+                poolsTvlData={poolsTvlData}
+                isLoadingPoolsTvl={isLoadingPoolsTvl}
+                isErrorPoolsTvl={isErrorPoolsTvl}
+             />             
           </CardContent>
         </Card>
 

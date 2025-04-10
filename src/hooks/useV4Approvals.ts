@@ -3,7 +3,7 @@ import { useAccount, useReadContract, useWriteContract, useWaitForTransactionRec
 import { parseUnits } from 'viem';
 import { getPublicClient } from '@wagmi/core';
 import { wagmiConfig } from '@/app/providers'; // Assuming wagmiConfig is here
-import { MockERC20Abi } from '@/contracts/MockERC20_abi';
+import MockERC20Abi from '@/contracts/MockERC20.json';
 
 const MAX_UINT256 = BigInt('115792089237316195423570985008687907853269984665640564039457584007913129639935');
 
