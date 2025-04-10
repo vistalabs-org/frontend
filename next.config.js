@@ -1,5 +1,6 @@
 /** @type {import('next').NextConfig} */
 const FsModulePlugin = require('./webpack-fs-plugin');
+const webpack = require('webpack');
 
 const nextConfig = {
   reactStrictMode: true,
@@ -27,7 +28,7 @@ const nextConfig = {
 
       // Add polyfills
       config.plugins.push(
-        new config.webpack.ProvidePlugin({
+        new webpack.ProvidePlugin({
           Buffer: ['buffer', 'Buffer'],
           process: 'process/browser',
         })
