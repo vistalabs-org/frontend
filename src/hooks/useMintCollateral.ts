@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback } from 'react';
-import { useAccount, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
+import { useAccount, useWriteContract, UseWriteContractReturnType } from 'wagmi';
 import { parseUnits, formatUnits, Log } from 'viem';
 import MockERC20Abi from '@/contracts/MockERC20.json';
 import { wagmiConfig } from '@/app/providers';
@@ -9,7 +9,7 @@ import { getPublicClient } from '@wagmi/core';
 
 export function useMintCollateral() {
   const { address, isConnected } = useAccount();
-  const { writeContract, isPending } = useWriteContract();
+  const { writeContractAsync, isPending } = useWriteContract();
   
   const mint = useCallback(async (
     collateralAddress: `0x${string}`,
@@ -25,23 +25,27 @@ export function useMintCollateral() {
     }
 
     try {
-      // Convert amount to proper units based on decimals
       const parsedAmount = parseUnits(amount, decimals);
       
-      // Call the mint function directly using wagmi's writeContract
-      const hash = await writeContract({
+      console.log(`%c[${new Date().toISOString()}] useMintCollateral - Calling writeContractAsync`, 'color: purple;');
+
+      const hash = await writeContractAsync({
         abi: MockERC20Abi,
         address: collateralAddress,
         functionName: 'mint',
         args: [address, parsedAmount],
       });
       
+      console.log(`%c[${new Date().toISOString()}] useMintCollateral - writeContractAsync returned:`, 'color: purple;', hash);
+      console.log(`%c[${new Date().toISOString()}] useMintCollateral - typeof hash:`, 'color: purple;', typeof hash);
+
       return hash;
     } catch (error) {
+      console.error(`%c[${new Date().toISOString()}] useMintCollateral - Error during writeContractAsync:`, 'color: purple; font-weight: bold;', error);
       console.error('Error minting collateral:', error);
       throw error;
     }
-  }, [address, isConnected, writeContract]);
+  }, [address, isConnected, writeContractAsync]);
 
   return {
     mint,

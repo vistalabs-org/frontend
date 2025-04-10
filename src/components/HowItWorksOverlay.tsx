@@ -1,13 +1,14 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { ExternalLink, HelpCircle, CheckCircle } from 'lucide-react';
 import { MintCollateralButton } from './MintCollateralButton';
-import { useAccount } from 'wagmi';
+import { useAccount, useWaitForTransactionReceipt } from 'wagmi';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { useMintCollateral } from '@/hooks/useMintCollateral';
 import { Loader2 } from 'lucide-react';
 import { Alert, AlertTitle, AlertDescription } from './ui/alert';
-
+import { getPublicClient } from 'wagmi/actions';
+import { wagmiConfig } from '@/app/providers';
 // Using the same test USDC address used in the application
 const TEST_USDC_ADDRESS = "0xA5a2250b0170bdb9bd0904C0440717f00A506023";
 
@@ -18,9 +19,9 @@ export default function HowItWorksOverlay() {
 
   // Function to handle mint success
   const handleMintSuccess = () => {
+    console.log(`%c[${new Date().toISOString()}] handleMintSuccess CALLED`, 'color: green; font-weight: bold;');
     setMintSuccess(true);
     
-    // Reset success message after 5 seconds
     setTimeout(() => {
       setMintSuccess(false);
     }, 5000);
@@ -141,25 +142,99 @@ function CustomMintButton({ collateralAddress, onSuccess }: {
   const [amount, setAmount] = useState('');
   const { mint, isMinting, isClientReady } = useMintCollateral();
   const [error, setError] = useState<string | null>(null);
+  const [userConfirming, setUserConfirming] = useState(false);
+  const [txPending, setTxPending] = useState(false);
+  
+  // Track transaction state
+  const [txHash, setTxHash] = useState<`0x${string}` | undefined>(undefined);
+  const [waitingForTx, setWaitingForTx] = useState(false);
+  
+  // Use wagmi's hook to track the transaction
+  const { 
+    isLoading: isConfirming,
+    isSuccess: isConfirmed,
+    isError: txFailed,
+    data: receipt
+  } = useWaitForTransactionReceipt({
+    hash: txHash,
+    confirmations: 1, // Wait for at least 1 confirmation
+  });
+
+  // Handle transaction confirmation with useEffect
+  useEffect(() => {
+    console.log(`%c[${new Date().toISOString()}] useEffect[isConfirmed] CHECK: isConfirmed=${isConfirmed}, receipt exists=${!!receipt}`, 'color: blue;');
+    if (isConfirmed && receipt) {
+      console.log(`%c[${new Date().toISOString()}] useEffect[isConfirmed] SUCCESS TRIGGERED`, 'color: green;');
+      console.log("Transaction confirmed with receipt:", receipt);
+      onSuccess();
+      setAmount('');
+      setTxHash(undefined);
+      setWaitingForTx(false);
+      setUserConfirming(false);
+      setTxPending(false);
+    }
+  }, [isConfirmed, receipt, onSuccess]);
+  
+  // For when we don't have a txHash, manually check for completion
+  useEffect(() => {
+    console.log(`%c[${new Date().toISOString()}] useEffect[waitingForTx] CHECK: waitingForTx=${waitingForTx}, txHash exists=${!!txHash}`, 'color: orange;');
+    if (waitingForTx && !txHash) {
+      console.log("No txHash, starting 2s timeout...");
+      const timer = setTimeout(() => {
+        console.log(`%c[${new Date().toISOString()}] useEffect[waitingForTx] TIMEOUT SUCCESS TRIGGERED`, 'color: green;');
+        onSuccess();
+        setAmount('');
+        setWaitingForTx(false);
+        setUserConfirming(false);
+        setTxPending(false);
+      }, 2000); 
+      
+      return () => clearTimeout(timer);
+    }
+  }, [waitingForTx, txHash, onSuccess]);
 
   const handleMint = async () => {
+    console.log(`%c[${new Date().toISOString()}] handleMint START`, 'color: red;');
     try {
       setError(null);
+      setTxHash(undefined);
+      setWaitingForTx(false);
+      setUserConfirming(true);
+      setTxPending(false);
+      console.log(`%c[${new Date().toISOString()}] handleMint - Set userConfirming=true`, 'color: red;');
+      
       if (!isClientReady) {
         setError("Smart account client not ready. Please try again.");
+        setUserConfirming(false);
         return;
       }
       
-      // Wait for the transaction to be mined
-      const hash = await mint(collateralAddress, amount);
+      console.log("Starting mint process with address:", collateralAddress, "amount:", amount);
+      console.log(`%c[${new Date().toISOString()}] handleMint - Calling await mint()`, 'color: red;');
+      const result = await mint(collateralAddress, amount);
+      console.log(`%c[${new Date().toISOString()}] handleMint - await mint() RESOLVED`, 'color: red;');
+      console.log("Mint result:", result, "type:", typeof result); 
       
-      // Clear input and trigger success callback
-      setAmount(''); 
-      onSuccess();
+      setUserConfirming(false);
+      setTxPending(true);
+      console.log(`%c[${new Date().toISOString()}] handleMint - Set txPending=true`, 'color: red;');
+      
+      if (typeof result === 'string') {
+        console.log("Setting txHash to:", result);
+        setTxHash(result as `0x${string}`);
+        console.log("Waiting for blockchain confirmation...");
+      } else {
+        console.log("Result is not a string, setting waitingForTx=true");
+        setWaitingForTx(true);
+      }
+      
     } catch (error) {
       console.error('Failed to mint:', error);
       setError(error instanceof Error ? error.message : "Failed to mint tokens");
+      setUserConfirming(false);
+      setTxPending(false);
     }
+    console.log(`%c[${new Date().toISOString()}] handleMint END`, 'color: red;');
   };
 
   return (
@@ -177,14 +252,18 @@ function CustomMintButton({ collateralAddress, onSuccess }: {
           }}
           placeholder="Amount to mint"
           className="flex-1"
-          disabled={isMinting}
+          disabled={isMinting || isConfirming || waitingForTx || userConfirming || txPending}
         />
         <Button
           onClick={handleMint}
-          disabled={isMinting || !amount || !isClientReady}
+          disabled={isMinting || isConfirming || waitingForTx || !amount || !isClientReady || userConfirming || txPending}
         >
           {isMinting ? (
             <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Minting...</>
+          ) : userConfirming ? (
+            <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Check Wallet...</>
+          ) : isConfirming || waitingForTx || txPending ? (
+            <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Confirming...</>
           ) : (
             'Mint'
           )}
@@ -193,6 +272,24 @@ function CustomMintButton({ collateralAddress, onSuccess }: {
       
       {error && (
         <p className="mt-2 text-sm text-destructive">{error}</p>
+      )}
+      
+      {txFailed && (
+        <p className="mt-2 text-sm text-destructive">
+          Transaction failed. Please try again.
+        </p>
+      )}
+      
+      {userConfirming && (
+        <p className="mt-2 text-sm text-amber-600">
+          Please confirm the transaction in your wallet...
+        </p>
+      )}
+      
+      {(isConfirming || waitingForTx || txPending) && !userConfirming && (
+        <p className="mt-2 text-sm text-amber-600">
+          Transaction sent! Waiting for blockchain confirmation...
+        </p>
       )}
       
       {!isClientReady && (
