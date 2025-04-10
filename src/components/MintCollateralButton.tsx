@@ -2,6 +2,9 @@
 
 import React, { useState } from 'react';
 import { useMintCollateral } from '@/hooks/useMintCollateral';
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Loader2 } from 'lucide-react';
 
 interface MintCollateralButtonProps {
   collateralAddress: `0x${string}`;
@@ -31,44 +34,38 @@ export function MintCollateralButton({ collateralAddress }: MintCollateralButton
   return (
     <div className="flex flex-col">
       <div className="flex items-center space-x-2">
-        <div className="relative rounded-md flex-1">
-          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-            <span className="text-secondary sm:text-sm">$</span>
-          </div>
-          <input
-            type="text"
-            value={amount}
-            onChange={(e) => {
-              setError(null);
-              const value = e.target.value.replace(/[^0-9.]/g, '');
+        <Input
+          type="number"
+          value={amount}
+          onChange={(e) => {
+            setError(null);
+            const value = e.target.value.replace(/[^0-9.]/g, '');
+            if (/^\d*\.?\d*$/.test(value)) {
               setAmount(value);
-            }}
-            placeholder="0.00"
-            className="block w-full pl-7 pr-12 sm:text-sm border-border-color rounded-md bg-card-background text-primary"
-            style={{ 
-              backgroundColor: 'var(--card-background)', 
-              borderColor: 'var(--border-color)',
-              color: 'var(--text-primary)'
-            }}
-            disabled={isMinting}
-          />
-        </div>
-        <button
+            }
+          }}
+          placeholder="Amount to mint"
+          className="flex-1"
+          disabled={isMinting}
+        />
+        <Button
           onClick={handleMint}
           disabled={isMinting || !amount || !isClientReady}
-          className="banner-button px-4 py-2 rounded-md text-sm font-medium disabled:opacity-50"
-          style={{ backgroundColor: 'var(--primary-color)' }}
         >
-          {isMinting ? 'Minting...' : 'Mint'}
-        </button>
+          {isMinting ? (
+            <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Minting...</>
+          ) : (
+            'Mint'
+          )}
+        </Button>
       </div>
       
       {error && (
-        <p className="mt-2 text-red text-sm">{error}</p>
+        <p className="mt-2 text-sm text-destructive">{error}</p>
       )}
       
       {!isClientReady && (
-        <p className="mt-2 text-secondary text-sm">
+        <p className="mt-2 text-sm text-muted-foreground">
           Initializing wallet connection...
         </p>
       )}

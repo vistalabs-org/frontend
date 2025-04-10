@@ -2,615 +2,528 @@
 
 export const runtime = 'edge';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import Link from 'next/link';
-import { useAccount, useBalance, useWriteContract, useReadContract, useWaitForTransactionReceipt } from 'wagmi';
+import { useAccount, useBalance, useChainId } from 'wagmi';
 import { useMarketWithPoolData } from '@/hooks/usePoolData';
-import { formatUnits, parseUnits } from 'ethers';
-import { PoolModifyLiquidityTest_abi } from '@/contracts/PoolModifyLiquidityTest_abi';
-import { POOL_MODIFY_LIQUIDITY_ROUTER } from '@/app/constants';
-import JSBI from 'jsbi';
-import { MockERC20Abi } from '@/contracts/MockERC20_abi';
-import { getPublicClient } from '@wagmi/core';
-import { wagmiConfig } from '@/lib/wagmi';
+import { formatUnits, zeroAddress } from 'viem';
+import { useChainConfig } from '@/config';
+import { Token } from '@uniswap/sdk-core'; // Import Token
 
-// Constants from Uniswap
-const Q96 = JSBI.exponentiate(JSBI.BigInt(2), JSBI.BigInt(96));
-const MAX_UINT256 = '115792089237316195423570985008687907853269984665640564039457584007913129639935';
+// Import UI components
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { Separator } from "@/components/ui/separator";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Loader2, Info, ArrowLeft, HelpCircle } from 'lucide-react';
+
+// Import custom hooks
+import { useLiquidityCalculations } from '@/hooks/useLiquidityCalculations';
+import { useV4Approvals } from '@/hooks/useV4Approvals';
+import { useAddV4Liquidity } from '@/hooks/useAddV4Liquidity';
+import { PoolKey } from '@uniswap/v4-sdk'; // Keep type for PoolKey structure
+
+// --- Helper Functions ---
+const formatBalance = (balance: any, decimals: number | undefined) => {
+  // Ensure decimals is a number before proceeding
+  if (decimals === undefined || !balance?.data?.value) {
+    return '0.00';
+  }
+  try {
+    // Handle potential bigint using toString before formatting
+    return parseFloat(formatUnits(BigInt(balance.data.value.toString()), decimals)).toFixed(2);
+  } catch (e) {
+    console.error("[formatBalance] Error formatting:", e, { balance_data: balance?.data, decimals });
+    return '0.00';
+  }
+};
+
+// Simplified price formatting for display
+const formatDisplayPrice = (pool: any) => {
+    if (!pool?.price) return 'N/A';
+    try {
+        // Assuming pool.price is the price of YES/NO token in USDC (e.g., 0.6 for 60%)
+        return `${(Number(pool.price) * 100).toFixed(1)}%`;
+    } catch {
+        return 'N/A';
+    }
+};
+// --- End Helper Functions ---\
 
 export default function AddLiquidityPage() {
   const params = useParams();
   const router = useRouter();
   const marketId = params.id as string;
   const { address: userAddress } = useAccount();
-  
-  // Contract address for PoolModifyLiquidityTest
-  const poolModifyLiquidityTestAddress = POOL_MODIFY_LIQUIDITY_ROUTER;
-  
-  // Set YES as default selected pool
+  const chainId = useChainId(); // Get current chain ID
+  // Get config for the current chain
+  const config = useChainConfig();
+  const positionManagerAddress = config.POSITION_MANAGER_ADDRESS; // Get address from config
+
+  // Core state for pool selection
   const [selectedPool, setSelectedPool] = useState<'YES' | 'NO'>('YES');
-  const [amount0, setAmount0] = useState<string>('');
-  const [amount1, setAmount1] = useState<string>('');
-  const [liquidityAmount, setLiquidityAmount] = useState<string>('0');
-  const [needsApproval, setNeedsApproval] = useState<boolean>(false);
-  const [isApproving, setIsApproving] = useState<boolean>(false);
-  const [isAddingLiquidity, setIsAddingLiquidity] = useState<boolean>(false);
-  const [txError, setTxError] = useState<string | null>(null);
+  // Overall transaction error state (can be set by either hook)
+  const [displayError, setDisplayError] = useState<string | null>(null);
 
-  // Fetch market data to get token addresses
-  const { market: marketWithPools, yesPool, noPool } = useMarketWithPoolData(marketId);
+  // Fetch market and pool data (including decimals)
+  const { market: marketWithPools, yesPool, noPool, isLoading: marketLoading } = useMarketWithPoolData(marketId);
 
-  // Get token addresses
-  const usdcAddress = marketWithPools?.collateralAddress as `0x${string}`;
-  const outcomeTokenAddress = selectedPool === 'YES' 
-    ? marketWithPools?.yesToken as `0x${string}`
-    : marketWithPools?.noToken as `0x${string}`;
+  // Determine current pool data based on selection
+  const currentPoolDetails = useMemo(() => {
+      // Now assuming yesPool/noPool include liquidity from the updated hook
+      return selectedPool === 'YES' ? yesPool : noPool;
+  }, [selectedPool, yesPool, noPool]);
 
-  // Get USDC balance
-  const { data: usdcBalance } = useBalance({
-    address: userAddress,
-    token: usdcAddress,
+  // Get token addresses and hook address
+  const token0Address = marketWithPools?.collateralAddress as `0x${string}` | undefined;
+  const token1Address = selectedPool === 'YES'
+      ? marketWithPools?.yesToken as `0x${string}` | undefined
+      : marketWithPools?.noToken as `0x${string}` | undefined;
+  const hookAddress = marketWithPools?.yesPoolKey?.hooks as `0x${string}` | undefined;
+  const token0Decimals = marketWithPools?.collateralDecimals;
+  const token1Decimals = selectedPool === 'YES' ? marketWithPools?.yesTokenDecimals : marketWithPools?.noTokenDecimals;
+
+  // --- Balances ---
+  const usdcBalance = useBalance({
+      address: userAddress,
+      token: token0Address,
+      query: { enabled: !!userAddress && !!token0Address }
+  });
+  const outcomeTokenBalance = useBalance({
+      address: userAddress,
+      token: token1Address,
+      query: { enabled: !!userAddress && !!token1Address }
   });
 
-  // Get YES/NO token balance
-  const { data: outcomeTokenBalance } = useBalance({
-    address: userAddress,
-    token: outcomeTokenAddress,
+  // --- Create Token Objects ---
+  const currentToken0 = useMemo((): Token | null => {
+      if (!chainId || !token0Address || token0Decimals === undefined) return null;
+      try {
+          // Using generic names for now, replace if specific symbols/names are available
+          return new Token(chainId, token0Address, token0Decimals, 'USDC', 'USD Coin');
+      } catch (e) { console.error("Error creating Token0:", e); return null; }
+  }, [chainId, token0Address, token0Decimals]);
+
+  const currentToken1 = useMemo((): Token | null => {
+      if (!chainId) return null;
+      const address = selectedPool === 'YES' ? marketWithPools?.yesToken : marketWithPools?.noToken;
+      const decimals = selectedPool === 'YES' ? marketWithPools?.yesTokenDecimals : marketWithPools?.noTokenDecimals;
+      const symbol = selectedPool === 'YES' ? 'YES' : 'NO';
+      const name = selectedPool === 'YES' ? 'YES Token' : 'NO Token';
+
+      if (!address || decimals === undefined) return null;
+      try {
+         return new Token(chainId, address as `0x${string}`, decimals, symbol, name);
+      } catch (e) { console.error("Error creating Token1:", e); return null; }
+  }, [chainId, selectedPool, marketWithPools?.yesToken, marketWithPools?.yesTokenDecimals, marketWithPools?.noToken, marketWithPools?.noTokenDecimals]);
+
+  // --- Custom Hook Instantiation ---
+
+  // 1. Liquidity Calculations Hook
+  const {
+    amount0,
+    amount1,
+    estimatedLiquidity,
+    handleAmount0Change,
+    setAmount0, // Get setter to reset on success if desired
+  } = useLiquidityCalculations({
+      poolData: currentPoolDetails ? {
+        sqrtPriceX96: currentPoolDetails.sqrtPriceX96,
+        decimals0: currentPoolDetails.decimals0,
+        decimals1: currentPoolDetails.decimals1
+      } : null,
   });
 
-  // Check USDC allowance
-  const { data: usdcAllowance, refetch: refetchUsdcAllowance } = useReadContract({
-    address: usdcAddress,
-    abi: MockERC20Abi,
-    functionName: 'allowance',
-    args: [userAddress as `0x${string}`, poolModifyLiquidityTestAddress as `0x${string}`],
-    query: {
-      enabled: !!userAddress && !!usdcAddress && !!poolModifyLiquidityTestAddress,
-    }
+  // 2. Approvals Hook
+  const {
+    needsApproval,
+    isApproving,
+    isConfirming: isConfirmingApproval,
+    approvalError,
+    approve,
+    approvalTxHash,
+  } = useV4Approvals({
+      token0Address,
+      token1Address,
+      token0Decimals,
+      token1Decimals,
+      amount0,
+      amount1,
+      hookAddress,
+      positionManagerAddress: positionManagerAddress
   });
 
-  // Check outcome token allowance
-  const { data: outcomeTokenAllowance, refetch: refetchOutcomeTokenAllowance } = useReadContract({
-    address: outcomeTokenAddress,
-    abi: MockERC20Abi,
-    functionName: 'allowance',
-    args: [userAddress as `0x${string}`, poolModifyLiquidityTestAddress as `0x${string}`],
-    query: {
-      enabled: !!userAddress && !!outcomeTokenAddress && !!poolModifyLiquidityTestAddress,
-    }
+  // Callback for when adding liquidity succeeds
+  const handleAddLiquiditySuccess = useCallback((finalTxHash: `0x${string}`) => {
+      console.log(`Add liquidity successful callback triggered! Tx: ${finalTxHash}`);
+      setAmount0(''); // Reset input using setter from calculation hook
+      usdcBalance.refetch();
+      outcomeTokenBalance.refetch();
+      setDisplayError(null);
+  }, [setAmount0, usdcBalance, outcomeTokenBalance]);
+
+   // Prepare PoolKey for the add liquidity hook
+   const currentPoolKey = useMemo((): PoolKey | null => {
+       if (!marketWithPools || !chainId) return null; 
+       const pkData = selectedPool === 'YES' ? marketWithPools.yesPoolKey : marketWithPools.noPoolKey;
+       const collateralData = marketWithPools;
+
+       // Check essential properties are present
+       if (!pkData || !pkData.currency0 || !pkData.currency1 || pkData.hooks === undefined || pkData.hooks === null || pkData.fee === undefined || pkData.tickSpacing === undefined ||
+           !collateralData.collateralAddress || collateralData.collateralDecimals === undefined ||
+           (selectedPool === 'YES' && (!collateralData.yesToken || collateralData.yesTokenDecimals === undefined)) ||
+           (selectedPool === 'NO' && (!collateralData.noToken || collateralData.noTokenDecimals === undefined)) ) {
+            console.error("[currentPoolKey useMemo] Missing pkData or required properties for PoolKey/Token validation", { pkData, collateralData, selectedPool });
+            return null;
+       }
+
+       const hooksRaw = pkData.hooks as string;
+       if (!/^0x[a-fA-F0-9]{40}$/.test(hooksRaw)) {
+           console.error("[currentPoolKey useMemo] pkData.hooks invalid format:", hooksRaw);
+           return null;
+       }
+       const hooks = hooksRaw as `0x${string}`;
+
+       try {
+           // --- Internal Validation Step (Create temporary Token objects) --- 
+           const collateralAddress = collateralData.collateralAddress as `0x${string}`;
+           // Address check
+           if (pkData.currency0.toLowerCase() !== collateralAddress.toLowerCase() && pkData.currency1.toLowerCase() !== collateralAddress.toLowerCase()) {
+                console.error("[currentPoolKey useMemo] Collateral address mismatch", { marketCollateral: collateralAddress, pkCurrency0: pkData.currency0, pkCurrency1: pkData.currency1 });
+                return null;
+           }
+           // Attempt Token creation (will throw if decimals are wrong)
+           new Token(
+               chainId,
+               collateralAddress,
+               collateralData.collateralDecimals, // Already checked for undefined above
+               'CLTRL', // Placeholder symbol
+               'Collateral' // Placeholder name
+           );
+
+           const token1Address = (selectedPool === 'YES' ? collateralData.yesToken : collateralData.noToken) as `0x${string}`;
+           const token1Decimals = selectedPool === 'YES' ? collateralData.yesTokenDecimals : collateralData.noTokenDecimals;
+           // Explicit undefined check for outcome decimals BEFORE using it
+           if (token1Decimals === undefined) { 
+               console.error("[currentPoolKey useMemo] Outcome token decimals are undefined.");
+               return null;
+           }
+            // Address check
+           if (pkData.currency0.toLowerCase() !== token1Address.toLowerCase() && pkData.currency1.toLowerCase() !== token1Address.toLowerCase()) {
+                console.error("[currentPoolKey useMemo] Selected outcome token address mismatch", { selectedToken: token1Address, pkCurrency0: pkData.currency0, pkCurrency1: pkData.currency1 });
+                return null;
+           }
+           // Attempt Token creation (will throw if decimals are wrong)
+           new Token(
+               chainId,
+               token1Address,
+               token1Decimals, // Checked above
+               selectedPool === 'YES' ? 'YES' : 'NO', 
+               selectedPool === 'YES' ? 'YES Token' : 'NO Token'
+           );
+           // --- End Internal Validation --- 
+
+           console.log("[currentPoolKey useMemo] Internal token validation successful.");
+           console.log("[currentPoolKey useMemo] Using hook address:", hooks);
+           console.log("[currentPoolKey useMemo] Returning PoolKey with ADDRESS STRINGS:", { currency0: pkData.currency0, currency1: pkData.currency1, fee: pkData.fee, tickSpacing: pkData.tickSpacing, hooks });
+
+           // Return PoolKey with ADDRESS STRINGS as required by consumer hook
+           return {
+               currency0: pkData.currency0 as `0x${string}`, // Use address string from pkData
+               currency1: pkData.currency1 as `0x${string}`, // Use address string from pkData
+               fee: pkData.fee,
+               tickSpacing: pkData.tickSpacing,
+               hooks: hooks,
+           };
+       } catch (error) {
+            // Catch errors from new Token() constructor if chainId/address/decimals are invalid
+            console.error("[currentPoolKey useMemo] Error during internal token validation (new Token creation failed):", error);
+            return null;
+       }
+   }, [marketWithPools, selectedPool, chainId]); 
+
+   // Prepare PoolState for the add liquidity hook (REINSTATED)
+   const currentPoolState = useMemo(() => {
+       // Check required fields are present and valid
+       if (!currentPoolDetails || 
+           currentPoolDetails.sqrtPriceX96 === undefined || 
+           currentPoolDetails.tick === undefined || 
+           currentPoolDetails.liquidity === undefined) { // Liquidity is now expected
+           console.log("currentPoolState: Missing required details", { currentPoolDetails });
+           return null;
+       }
+       // Ensure liquidity is bigint (it should be from useReadContract)
+       if (typeof currentPoolDetails.liquidity !== 'bigint') {
+            console.error("Pool liquidity is not a bigint:", currentPoolDetails.liquidity);
+            return null; // Or attempt conversion if it might be a string/number
+       }
+        // Ensure sqrtPriceX96 is bigint
+        if (typeof currentPoolDetails.sqrtPriceX96 !== 'bigint') {
+            console.error("Pool sqrtPriceX96 is not a bigint:", currentPoolDetails.sqrtPriceX96);
+            return null; 
+        }
+        // Ensure tick is number
+        if (typeof currentPoolDetails.tick !== 'number') {
+            console.error("Pool tick is not a number:", currentPoolDetails.tick);
+            return null; 
+        }
+
+       console.log("currentPoolState: Preparing state object", currentPoolDetails);
+       return {
+           sqrtPriceX96: currentPoolDetails.sqrtPriceX96, 
+           tick: currentPoolDetails.tick,                 
+           liquidity: currentPoolDetails.liquidity // Directly use bigint from hook          
+       };
+   }, [currentPoolDetails]);
+
+  // 3. Add Liquidity Hook - Pass poolState again
+  const {
+    addLiquidity,
+    isAdding,
+    isConfirming: isConfirmingAdd,
+    addError,
+    txHash: addLiquidityFinalTxHash
+  } = useAddV4Liquidity({
+      poolKey: currentPoolKey,
+      poolState: currentPoolState,
+      token0: currentToken0, // Pass Token object
+      token1: currentToken1, // Pass Token object
+      estimatedLiquidity,
+      onSuccess: handleAddLiquiditySuccess,
   });
 
-  // Write contract hooks
-  const { writeContract, data: writeData, isPending: isWritePending, error: writeError } = useWriteContract();
-
-  // Wait for transaction receipt
-  const { isLoading: isWaitingForTransaction, isSuccess: isTransactionSuccess } = useWaitForTransactionReceipt({
-    hash: writeData,
-  });
-
-  // Handle successful transaction
+  // --- Combined Error Handling & State Update ---
   useEffect(() => {
-    if (isTransactionSuccess) {
-      refetchUsdcAllowance();
-      refetchOutcomeTokenAllowance();
-      checkApprovalStatus();
-      setIsApproving(false);
-      setIsAddingLiquidity(false);
-      
-      // If this was a successful liquidity addition, redirect to the market page
-      if (isAddingLiquidity) {
-        router.push(`/${marketId}`);
+      // Prioritize showing add error, then approval error
+      if (addError) {
+          setDisplayError(addError);
+      } else if (approvalError) {
+          setDisplayError(approvalError);
+      } else {
+          setDisplayError(null); // Clear if neither hook has an error
       }
-    }
-  }, [isTransactionSuccess, isAddingLiquidity]);
+  }, [approvalError, addError]);
 
-  // Format balance for display
-  const formatBalance = (balance: any) => {
-    if (!balance) return '0';
-    return parseFloat(formatUnits(balance.value, balance.decimals)).toFixed(2);
-  };
-
-  // Format price for display
-  const formatPrice = (pool: any) => {
-    if (!pool?.price) return '0.00';
-    try {
-      // Convert the price to token0/token1 by taking reciprocal
-      const priceAsNumber = Number(pool.price);
-      const token0Price = 1 / priceAsNumber;
-      return (token0Price * 100).toFixed(2);
-    } catch (error) {
-      console.error('Error formatting price:', error);
-      return '0.00';
-    }
-  };
-
-  // Get current price based on selected pool
-  const getCurrentPrice = () => {
-    const pool = selectedPool === 'YES' ? yesPool : noPool;
-    return formatPrice(pool);
-  };
-
-  // Get current price as a number
-  const getCurrentPriceAsNumber = (): number => {
-    const pool = selectedPool === 'YES' ? yesPool : noPool;
-    if (!pool?.price) return 0;
-    try {
-      const priceAsNumber = Number(pool.price);
-      const token0Price = 1 / priceAsNumber;
-      return token0Price;
-    } catch (error) {
-      console.error('Error getting price as number:', error);
-      return 0;
-    }
-  };
-
-  // Uniswap V3 liquidity calculation functions
-  // Based on https://github.com/Uniswap/sdks/blob/main/sdks/v3-sdk/src/utils/maxLiquidityForAmounts.ts
-  
-  function maxLiquidityForAmount0Precise(sqrtRatioAX96: JSBI, sqrtRatioBX96: JSBI, amount0: string): JSBI {
-    if (JSBI.greaterThan(sqrtRatioAX96, sqrtRatioBX96)) {
-      [sqrtRatioAX96, sqrtRatioBX96] = [sqrtRatioBX96, sqrtRatioAX96];
-    }
-    
-    const numerator = JSBI.multiply(
-      JSBI.multiply(JSBI.BigInt(amount0), sqrtRatioAX96), 
-      sqrtRatioBX96
-    );
-    const denominator = JSBI.multiply(Q96, JSBI.subtract(sqrtRatioBX96, sqrtRatioAX96));
-    
-    return JSBI.divide(numerator, denominator);
-  }
-  
-  function maxLiquidityForAmount1(sqrtRatioAX96: JSBI, sqrtRatioBX96: JSBI, amount1: string): JSBI {
-    if (JSBI.greaterThan(sqrtRatioAX96, sqrtRatioBX96)) {
-      [sqrtRatioAX96, sqrtRatioBX96] = [sqrtRatioBX96, sqrtRatioAX96];
-    }
-    
-    return JSBI.divide(
-      JSBI.multiply(JSBI.BigInt(amount1), Q96), 
-      JSBI.subtract(sqrtRatioBX96, sqrtRatioAX96)
-    );
-  }
-  
-  function maxLiquidityForAmounts(
-    sqrtRatioCurrentX96: JSBI,
-    sqrtRatioAX96: JSBI,
-    sqrtRatioBX96: JSBI,
-    amount0: string,
-    amount1: string
-  ): JSBI {
-    if (JSBI.greaterThan(sqrtRatioAX96, sqrtRatioBX96)) {
-      [sqrtRatioAX96, sqrtRatioBX96] = [sqrtRatioBX96, sqrtRatioAX96];
-    }
-    
-    if (JSBI.lessThanOrEqual(sqrtRatioCurrentX96, sqrtRatioAX96)) {
-      return maxLiquidityForAmount0Precise(sqrtRatioAX96, sqrtRatioBX96, amount0);
-    } else if (JSBI.lessThan(sqrtRatioCurrentX96, sqrtRatioBX96)) {
-      const liquidity0 = maxLiquidityForAmount0Precise(sqrtRatioCurrentX96, sqrtRatioBX96, amount0);
-      const liquidity1 = maxLiquidityForAmount1(sqrtRatioAX96, sqrtRatioCurrentX96, amount1);
-      return JSBI.lessThan(liquidity0, liquidity1) ? liquidity0 : liquidity1;
-    } else {
-      return maxLiquidityForAmount1(sqrtRatioAX96, sqrtRatioBX96, amount1);
-    }
-  }
-
-  // Calculate liquidity using Uniswap V3 algorithm
-  const calculateLiquidity = (amount0: string, amount1: string): string => {
-    if (!amount0 || !amount1) return '0';
-    
-    try {
-      // For full range (min to max ticks), we use the minimum and maximum sqrt prices
-      // Min tick corresponds to price of 0, max tick to price of infinity
-      // In practice, we use very small and very large numbers
-      const minSqrtPrice = JSBI.BigInt(1); // Close to 0
-      const maxSqrtPrice = JSBI.exponentiate(JSBI.BigInt(2), JSBI.BigInt(128)); // Very large
-      
-      // Current price in sqrt Q96 format
-      const price = getCurrentPriceAsNumber();
-      if (price <= 0) return '0';
-      
-      // Convert price to sqrt price in Q96 format
-      const sqrtPrice = JSBI.BigInt(Math.floor(Math.sqrt(price) * 2**96));
-      
-      // Convert amounts to BigInt (assuming 18 decimals for simplicity)
-      // In a real implementation, you'd use the actual token decimals
-      const amt0 = parseFloat(amount0) * 10**18;
-      const amt1 = parseFloat(amount1) * 10**18;
-      
-      // Calculate liquidity
-      const liquidity = maxLiquidityForAmounts(
-        sqrtPrice,
-        minSqrtPrice,
-        maxSqrtPrice,
-        amt0.toString(),
-        amt1.toString()
-      );
-      
-      // Convert back to a readable format
-      return (Number(liquidity.toString()) / 10**18).toFixed(6);
-    } catch (error) {
-      console.error('Error calculating liquidity:', error);
-      return '0';
-    }
-  };
-
-  // Update liquidity amount when inputs change
-  useEffect(() => {
-    if (amount0 && amount1) {
-      const liquidity = calculateLiquidity(amount0, amount1);
-      setLiquidityAmount(liquidity);
-    }
-  }, [amount0, amount1, selectedPool]);
-
-  // Handle input changes
-  const handleAmount0Change = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setAmount0(e.target.value);
-    // Optionally calculate amount1 based on price
-    if (e.target.value) {
-      const price = getCurrentPriceAsNumber();
-      const calculatedAmount1 = (parseFloat(e.target.value) * price).toString();
-      setAmount1(calculatedAmount1);
-    }
-  };
-
-  const handleAmount1Change = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setAmount1(e.target.value);
-    // Optionally calculate amount0 based on price
-    if (e.target.value) {
-      const price = getCurrentPriceAsNumber();
-      const calculatedAmount0 = (parseFloat(e.target.value) / price).toString();
-      setAmount0(calculatedAmount0);
-    }
-  };
-
-  // Check approval status when inputs change
-  useEffect(() => {
-    checkApprovalStatus();
-  }, [amount0, amount1, usdcAllowance, outcomeTokenAllowance, usdcAddress, outcomeTokenAddress]);
-
-  // Update approval status when token addresses change
-  useEffect(() => {
-    refetchUsdcAllowance();
-    refetchOutcomeTokenAllowance();
-  }, [usdcAddress, outcomeTokenAddress, userAddress]);
-
-  // Check if approvals are needed
-  const checkApprovalStatus = () => {
-    if (!amount0 || !amount1) {
-      setNeedsApproval(false);
-      return;
-    }
-
-    try {
-      const amt0 = parseUnits(amount0, 6); // USDC has 6 decimals
-      const amt1 = parseUnits(amount1, 18); // Outcome tokens have 18 decimals
-      
-      const needsUsdcApproval = !usdcAllowance || BigInt(usdcAllowance.toString()) < BigInt(amt0.toString());
-      const needsOutcomeTokenApproval = !outcomeTokenAllowance || BigInt(outcomeTokenAllowance.toString()) < BigInt(amt1.toString());
-      
-      setNeedsApproval(needsUsdcApproval || needsOutcomeTokenApproval);
-      console.log('Approval status:', { needsUsdcApproval, needsOutcomeTokenApproval, usdcAllowance, outcomeTokenAllowance });
-    } catch (error) {
-      console.error('Error checking approval status:', error);
-      setNeedsApproval(true);
-    }
-  };
-
-  // Handle token approval
-  const handleApprove = async () => {
-    setIsApproving(true);
-    setTxError(null);
-    
-    try {
-      // Check which tokens need approval
-      const amt0 = parseUnits(amount0, 6); // USDC has 6 decimals
-      const amt1 = parseUnits(amount1, 18); // Outcome tokens have 18 decimals
-      
-      const needsUsdcApproval = BigInt(usdcAllowance?.toString() || '0') < BigInt(amt0.toString());
-      const needsOutcomeTokenApproval = BigInt(outcomeTokenAllowance?.toString() || '0') < BigInt(amt1.toString());
-      
-      // Approve USDC if needed
-      if (needsUsdcApproval) {
-        console.log('Approving USDC...');
-        
-        const { request } = await getPublicClient(wagmiConfig).simulateContract({
-          account: userAddress,
-          address: usdcAddress,
-          abi: MockERC20Abi,
-          functionName: 'approve',
-          args: [poolModifyLiquidityTestAddress, MAX_UINT256]
-        });
-        
-        writeContract(request);
-      } 
-      // Approve outcome token if needed
-      else if (needsOutcomeTokenApproval) {
-        console.log('Approving outcome token...');
-        
-        const { request } = await getPublicClient(wagmiConfig).simulateContract({
-          account: userAddress,
-          address: outcomeTokenAddress,
-          abi: MockERC20Abi,
-          functionName: 'approve',
-          args: [poolModifyLiquidityTestAddress, MAX_UINT256]
-        });
-        
-        writeContract(request);
-      }
-    } catch (error) {
-      console.error('Error approving tokens:', error);
-      setIsApproving(false);
-      setTxError(`Failed to approve tokens: ${error instanceof Error ? error.message : String(error)}`);
-    }
-  };
-
-  // Handle adding liquidity
-  const handleAddLiquidity = async () => {
-    if (!marketWithPools) {
-      setTxError('Market data not available');
-      return;
-    }
-    
-    setIsAddingLiquidity(true);
-    setTxError(null);
-    
-    try {
-      // Get the pool key directly from market data
-      const poolKey = selectedPool === 'YES' 
-        ? marketWithPools.yesPoolKey 
-        : marketWithPools.noPoolKey;
-      
-      if (!poolKey) {
-        setTxError(`${selectedPool} pool key not available`);
-        setIsAddingLiquidity(false);
-        return;
-      }
-      
-      console.log("marketWithPools", marketWithPools)
-      console.log("Using pool key:", poolKey);
-      
-      // Use the tick range from PredictionMarketHook
-      // These ticks constrain the price between 0.01 and 0.99 USDC
-      const tickLower = -9200; // Slightly above 0.01 USDC
-      const tickUpper = -100;  // Slightly below 0.99 USDC
-      
-      // Get the modify liquidity params
-      const saltBytes = new Uint8Array(32);
-      crypto.getRandomValues(saltBytes);
-      const saltHex = Array.from(saltBytes).map(b => b.toString(16).padStart(2, '0')).join('');
-      
-      const modifyLiquidityParams = {
-        tickLower: tickLower,
-        tickUpper: tickUpper,
-        liquidityDelta: BigInt(parseUnits(liquidityAmount, 18).toString()), // Convert to bigint
-        salt: `0x${saltHex}` as `0x${string}` // Use Web Crypto API for salt
-      };
-      
-      console.log('Adding liquidity with params:', {
-        poolKey,
-        modifyLiquidityParams,
-        liquidityAmount
-      });
-      
-      // Ensure poolKey structure matches ABI
-      const abiCompatiblePoolKey = {
-        currency0: poolKey.currency0,
-        currency1: poolKey.currency1,
-        fee: poolKey.fee,
-        tickSpacing: poolKey.tickSpacing,
-        hooks: poolKey.hooks
-      };
-
-      // Simulate transaction
-      const { request } = await getPublicClient(wagmiConfig).simulateContract({
-        account: userAddress,
-        address: poolModifyLiquidityTestAddress,
-        abi: PoolModifyLiquidityTest_abi,
-        functionName: 'modifyLiquidity',
-        args: [
-          abiCompatiblePoolKey, // Pass the structured poolKey
-          modifyLiquidityParams,
-          '0x', // No hook data
-          false, // Don't settle using burn
-          false  // Don't take claims
-        ],
-      });
-      
-      console.log('Simulation successful, sending transaction');
-      
-      // Call modifyLiquidity
-      writeContract(request);
-    } catch (error) {
-      console.error('Error adding liquidity:', error);
-      setIsAddingLiquidity(false);
-      setTxError(`Failed to add liquidity: ${error instanceof Error ? error.message : String(error)}`);
-    }
-  };
-
-  // Get button state
-  const getButtonState = () => {
-    // Check if inputs are valid
-    const isInputValid = amount0 && amount1 && parseFloat(amount0) > 0 && parseFloat(amount1) > 0;
-    
-    // If waiting for transaction
-    if (isWaitingForTransaction) {
-      return {
-        text: isApproving ? 'Approving...' : 'Adding Liquidity...',
-        disabled: true,
-        onClick: () => {}
-      };
-    }
-    
-    // If approving
-    if (isWritePending) {
-      return {
-        text: 'Confirming...',
-        disabled: true,
-        onClick: () => {}
-      };
-    }
-    
-    // If needs approval
-    if (needsApproval) {
-      return {
-        text: 'Approve Tokens',
-        disabled: !isInputValid,
-        onClick: handleApprove
-      };
-    }
-    
-    // Default state - ready to add liquidity
-    return {
-      text: 'Add Liquidity',
-      disabled: !isInputValid,
-      onClick: handleAddLiquidity
-    };
-  };
-
-  const buttonState = getButtonState();
+  // --- Derived States for UI ---
+  const isProcessing = isApproving || isConfirmingApproval || isAdding || isConfirmingAdd;
+  const areAmountsValid = amount0 && parseFloat(amount0) > 0 && amount1 && parseFloat(amount1) > 0;
 
   return (
-    <div className="max-w-screen-xl mx-auto py-8 px-4">
-      <div className="mb-6">
-        <Link 
-          href={`/${marketId}`}
-          className="text-blue-600 hover:text-blue-700 hover:underline flex items-center"
-        >
-          <svg className="w-4 h-4 mr-1" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/>
-          </svg>
-          Back to Market
-        </Link>
-      </div>
-      
-      <h1 className="text-2xl font-bold text-gray-900 mb-6">Add Liquidity</h1>
-      
-      <div className="bg-white rounded-lg shadow p-6 border border-gray-200">
-        <p className="text-gray-600 mb-4">
-          Add liquidity to this prediction market to earn fees from trades.
-        </p>
-        
-        {txError && (
-          <div className="mb-4 p-3 bg-red-50 border border-red-400 rounded-md text-red-700">
-            <p className="font-medium">Transaction Error</p>
-            <p className="text-sm">{txError}</p>
-          </div>
-        )}
-        
-        <div className="mb-6">
-          <label className="block text-gray-700 font-medium mb-2">
-            Pool Selection
-          </label>
-          <div className="grid grid-cols-2 gap-4">
-            <div 
-              className={`border rounded-md p-3 cursor-pointer hover:bg-gray-50 ${
-                selectedPool === 'YES' ? 'bg-gray-50 border-blue-500' : 'border-gray-300'
-              }`}
-              onClick={() => setSelectedPool('YES')}
-            >
-              <div className="font-medium text-gray-900">Yes Pool</div>
-              <div className="text-sm text-gray-600">Add liquidity to the Yes outcome</div>
+        <div className="max-w-screen-xl mx-auto py-6 px-4">
+            <div className="mb-6">
+                <Button variant="ghost" className="gap-2" onClick={() => router.push(`/${marketId}`)}>
+                    <ArrowLeft className="h-4 w-4" />
+                    Back to Market
+                </Button>
             </div>
-            <div 
-              className={`border rounded-md p-3 cursor-pointer hover:bg-gray-50 ${
-                selectedPool === 'NO' ? 'bg-gray-50 border-blue-500' : 'border-gray-300'
-              }`}
-              onClick={() => setSelectedPool('NO')}
-            >
-              <div className="font-medium text-gray-900">No Pool</div>
-              <div className="text-sm text-gray-600">Add liquidity to the No outcome</div>
-            </div>
-          </div>
-        </div>
-        
-        <div className="space-y-4 mb-6">
-          <div>
-            <div className="flex justify-between items-center mb-2">
-              <label className="text-gray-700 font-medium">
-                USDC Amount to Add
-              </label>
-              <div className="text-sm text-gray-600">
-                Balance: {formatBalance(usdcBalance)} USDC
-              </div>
-            </div>
-            <div className="flex">
-              <input 
-                type="number" 
-                className="flex-grow p-2 bg-white border border-gray-300 rounded-l-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-                placeholder="0.0"
-                value={amount0}
-                onChange={handleAmount0Change}
-              />
-              <div className="bg-gray-50 border border-l-0 border-gray-300 rounded-r-md p-2 flex items-center text-gray-700">
-                USDC
-              </div>
-            </div>
-          </div>
 
-          <div>
-            <div className="flex justify-between items-center mb-2">
-              <label className="text-gray-700 font-medium">
-                {selectedPool} Token Amount to Add
-              </label>
-              <div className="text-sm text-gray-600">
-                Balance: {formatBalance(outcomeTokenBalance)} {selectedPool}
-              </div>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div className="lg:col-span-2 flex flex-col gap-6">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="text-2xl mb-1">Add Liquidity</CardTitle>
+                            <CardDescription>
+                                Provide liquidity to earn fees. Enter the USDC amount.
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            {/* Display Combined Error */}
+                            {displayError && (
+                                <Alert variant="destructive" className="mb-6">
+                                    <AlertTitle>Transaction Error</AlertTitle>
+                                    <AlertDescription>{displayError}</AlertDescription>
+                                </Alert>
+                            )}
+
+                            {/* Display Confirmation Hashes/Success */}
+                            {approvalTxHash && isConfirmingApproval && (
+                                <Alert variant="default" className="mb-4">
+                                    <AlertTitle>Approval Sent</AlertTitle>
+                                    <AlertDescription>Tx: {approvalTxHash.slice(0,10)}...{approvalTxHash.slice(-6)}. Waiting for confirmation...</AlertDescription>
+                                </Alert>
+                            )}
+                            {addLiquidityFinalTxHash && (
+                                 <Alert variant="default" className="mb-4">
+                                    <AlertTitle>Liquidity Added!</AlertTitle>
+                                    <AlertDescription>Tx: {addLiquidityFinalTxHash.slice(0,10)}...{addLiquidityFinalTxHash.slice(-6)}.</AlertDescription>
+                                </Alert>
+                            )}
+
+                            <div className="space-y-4">
+                                {/* Pool Selector */}
+                                <div className="space-y-2">
+                                    <Label>Select Pool</Label>
+                                    <ToggleGroup
+                                        type="single"
+                                        value={selectedPool}
+                                        onValueChange={(value) => {
+                                            if (value) setSelectedPool(value as 'YES' | 'NO');
+                                        }}
+                                        className="grid grid-cols-2"
+                                        disabled={marketLoading || isProcessing}
+                                    >
+                                        <ToggleGroupItem value="YES" aria-label="Select Yes Pool" className="data-[state=on]:bg-green-600 data-[state=on]:text-white" disabled={!yesPool}>
+                                            Yes Pool
+                                        </ToggleGroupItem>
+                                        <ToggleGroupItem value="NO" aria-label="Select No Pool" className="data-[state=on]:bg-red-600 data-[state=on]:text-white" disabled={!noPool}>
+                                            No Pool
+                                        </ToggleGroupItem>
+                                    </ToggleGroup>
+                                </div>
+
+                                <Separator />
+
+                                <div className="space-y-4">
+                                    {/* Amount 0 Input */}
+                                    <div className="space-y-2">
+                                        <div className="flex items-center justify-between">
+                                            <Label htmlFor="amount0">USDC Amount</Label>
+                                            <span className="text-sm text-muted-foreground">
+                                                Balance: {formatBalance(usdcBalance, marketWithPools?.collateralDecimals)} USDC
+                                            </span>
+                                        </div>
+                                        <div className="relative">
+                                            <Input
+                                                id="amount0" type="text" inputMode="decimal"
+                                                value={amount0}
+                                                onChange={(e) => handleAmount0Change(e.target.value)} // Use handler from hook
+                                                placeholder="0.0"
+                                                className="pr-12"
+                                                disabled={isProcessing || marketLoading}
+                                            />
+                                            <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                                                <span className="text-muted-foreground">USDC</span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Amount 1 Display (Derived) */}
+                                    <div className="space-y-2">
+                                        <div className="flex items-center justify-between">
+                                            <Label htmlFor="amount1">{selectedPool} Token Amount (Estimated)</Label>
+                                            <span className="text-sm text-muted-foreground">
+                                                Balance: {formatBalance(outcomeTokenBalance, selectedPool === 'YES' ? marketWithPools?.yesTokenDecimals : marketWithPools?.noTokenDecimals)} {selectedPool}
+                                            </span>
+                                        </div>
+                                        <div className="relative">
+                                            <Input
+                                                id="amount1" type="text" inputMode="decimal"
+                                                value={amount1} // Display value from hook
+                                                readOnly placeholder="0.0"
+                                                className="pr-12 bg-muted/50" // Indicate read-only
+                                                disabled={isProcessing || marketLoading}
+                                            />
+                                            <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                                                <span className="text-muted-foreground">{selectedPool}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Estimated LP Tokens */}
+                                    <div className="space-y-2">
+                                        <div className="flex items-center gap-2">
+                                            <Label htmlFor="liquidityAmount">Estimated LP Tokens Received</Label>
+                                            <TooltipProvider>
+                                                <Tooltip>
+                                                    <TooltipTrigger>
+                                                        <HelpCircle className="h-4 w-4 text-muted-foreground" />
+                                                    </TooltipTrigger>
+                                                    <TooltipContent>
+                                                        <p>Approximate LP tokens based on current amounts and pool price. Assumes full range.</p>
+                                                    </TooltipContent>
+                                                </Tooltip>
+                                            </TooltipProvider>
+                                        </div>
+                                        <div className="relative">
+                                            <Input
+                                                id="liquidityAmount" type="text"
+                                                value={estimatedLiquidity} // Display value from hook
+                                                readOnly className="pr-12"
+                                            />
+                                            <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                                                <span className="text-muted-foreground">LP</span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Current Price Display */}
+                                    <div className="p-4 bg-muted rounded-lg">
+                                        <div className="flex justify-between items-center mb-2">
+                                            <span className="text-sm text-muted-foreground">Current Pool Price ({selectedPool})</span>
+                                            <span className="font-medium">{formatDisplayPrice(currentPoolDetails)}</span>
+                                        </div>
+                                        <div className="text-xs text-muted-foreground">
+                                            Approximate rate based on current pool state.
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </CardContent>
+                        <CardFooter>
+                            {/* SIMPLIFIED Button Logic: Show Approve ONLY if needsApproval is true */}
+                            {needsApproval ? (
+                                <Button
+                                    className="w-full"
+                                    onClick={approve}
+                                    disabled={!areAmountsValid || isApproving || isConfirmingApproval || marketLoading}
+                                >
+                                    {(isApproving || isConfirmingApproval) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                    {isConfirmingApproval ? "Confirming Approval..." : isApproving ? "Approving..." : "Approve Tokens"}
+                                </Button>
+                            ) : (
+                                // Show Add Liquidity Button if needsApproval is false
+                                <Button
+                                    className="w-full"
+                                    onClick={() => {
+                                        console.log("Add Liquidity button clicked! (needsApproval=false)");
+                                        addLiquidity();
+                                    }}
+                                    disabled={!areAmountsValid || isAdding || isConfirmingAdd || marketLoading || needsApproval /* Double check needsApproval */}
+                                >
+                                    {(isAdding || isConfirmingAdd) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                    {isConfirmingAdd ? "Confirming Liquidity..." : isAdding ? "Adding Liquidity..." : "Add Liquidity"}
+                                </Button>
+                            )}
+                        </CardFooter>
+                    </Card>
+                </div>
+
+                {/* Side Panel */}
+                <div className="lg:col-span-1">
+                    <div className="sticky top-20 space-y-6">
+                        {/* Balances Card */}
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="text-sm font-medium">Your Balances</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <div className="space-y-2 text-sm">
+                                    <div className="flex justify-between">
+                                        <span className="text-muted-foreground">USDC:</span>
+                                        <span>{formatBalance(usdcBalance, marketWithPools?.collateralDecimals)}</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span className="text-muted-foreground">{selectedPool} Tokens:</span>
+                                        <span>{formatBalance(outcomeTokenBalance, selectedPool === 'YES' ? marketWithPools?.yesTokenDecimals : marketWithPools?.noTokenDecimals)}</span>
+                                    </div>
+                                </div>
+                            </CardContent>
+                        </Card>
+                        {/* Info Alert */}
+                        <Alert>
+                            <Info className="h-4 w-4" />
+                            <AlertTitle>Adding Liquidity</AlertTitle>
+                            <AlertDescription>
+                                You receive LP tokens representing your position. Ensure amounts respect the price to provide active liquidity.
+                            </AlertDescription>
+                        </Alert>
+                    </div>
+                </div>
             </div>
-            <div className="flex">
-              <input 
-                type="number" 
-                className="flex-grow p-2 bg-white border border-gray-300 rounded-l-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-                placeholder="0.0"
-                value={amount1}
-                onChange={handleAmount1Change}
-              />
-              <div className="bg-gray-50 border border-l-0 border-gray-300 rounded-r-md p-2 flex items-center text-gray-700">
-                {selectedPool}
-              </div>
-            </div>
-          </div>
-          
-          <div className="mt-3 p-3 bg-gray-50 rounded-md border border-gray-300">
-            <div className="flex justify-between items-center">
-              <span className="text-gray-700">Current Price:</span>
-              <span className="font-medium text-gray-900">{getCurrentPrice()}%</span>
-            </div>
-            <div className="mt-1 text-sm text-gray-600">
-              {selectedPool === 'YES' 
-                ? `1 USDC = ${getCurrentPrice()} YES tokens` 
-                : `1 USDC = ${getCurrentPrice()} NO tokens`}
-            </div>
-          </div>
-          
-          <div className="mt-3 p-3 bg-gray-50 rounded-md border border-gray-300">
-            <div className="flex justify-between items-center">
-              <span className="text-gray-700">Liquidity Amount:</span>
-              <span className="font-medium text-gray-900">{liquidityAmount}</span>
-            </div>
-            <div className="mt-1 text-sm text-gray-600">
-              Estimated liquidity based on your input amounts and current price
-            </div>
-          </div>
         </div>
-        
-        <button 
-          className={`w-full px-6 py-4 font-semibold rounded-lg transition-colors ${
-            buttonState.disabled
-              ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
-              : 'bg-blue-600 text-white hover:bg-blue-700'
-          }`}
-          disabled={buttonState.disabled}
-          onClick={buttonState.onClick}
-        >
-          {buttonState.text}
-        </button>
-        
-        <div className="mt-4 text-sm text-gray-600">
-          <p>Note: Adding liquidity will require approving USDC and outcome tokens.</p>
-          <p>You will receive LP tokens representing your position in the pool.</p>
-        </div>
-      </div>
-    </div>
-  );
+    );
 }

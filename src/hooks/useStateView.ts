@@ -1,7 +1,7 @@
 import { useReadContract } from 'wagmi';
 import { useState, useEffect } from 'react';
-import { StateViewAbi } from '@/contracts/StateView';
-import { STATE_VIEW_ADDRESS } from '@/app/constants';
+import StateViewAbi from '@/contracts/StateView.json';
+import { useStateViewAddress } from '@/config';
 
 interface Slot0Data {
   sqrtPriceX96: bigint;
@@ -18,11 +18,16 @@ interface Slot0Data {
  * @returns Liquidity data for the pool
  */
 export function useLiquidity(poolId?: string) {
+  const stateViewAddress = useStateViewAddress();
+
   const { data, isLoading, isError, error } = useReadContract({
-    address: STATE_VIEW_ADDRESS as `0x${string}`,
+    address: stateViewAddress as `0x${string}`,
     abi: StateViewAbi,
     functionName: 'getLiquidity',
     args: poolId ? [poolId] : undefined,
+    query: {
+      enabled: !!poolId && !!stateViewAddress,
+    }
   });
 
   if (isError) {
@@ -97,54 +102,49 @@ export function useMultipleLiquidity(poolIds: string[]) {
  * @param poolId The ID of the pool to query
  * @returns Slot0 data including price information
  */
-export function useSlot0(poolId?: string) {
-  console.log('useSlot0 - STATE_VIEW_ADDRESS:', STATE_VIEW_ADDRESS);
-  
+export function useSlot0(poolId?: string) {  
+  const stateViewAddress = useStateViewAddress();
+
   const { data, isLoading, isError, error } = useReadContract({
-    address: STATE_VIEW_ADDRESS as `0x${string}`,
+    address: stateViewAddress as `0x${string}`,
     abi: StateViewAbi,
     functionName: 'getSlot0',
     args: poolId ? [poolId] : undefined,
+    query: {
+      enabled: !!poolId && !!stateViewAddress,
+    }
   });
 
   if (isError) {
     console.error('useSlot0 - Contract call error:', error);
   }
-  
-  console.log('useSlot0 - raw data:', data);
-  console.log('useSlot0 - isLoading:', isLoading);
-  console.log('useSlot0 - isError:', isError);
-  console.log('useSlot0 - error:', error);
 
   // Process the data to include calculated price
   const [processedData, setProcessedData] = useState<Slot0Data | null>(null);
 
   useEffect(() => {
-    console.log('useSlot0 - useEffect for processedData triggered');
-    
     if (data) {
-      console.log('useSlot0 - processing data:', data);
-      
       const [sqrtPriceX96, tick, protocolFee, lpFee] = data as [bigint, number, number, number];
-      
-      // Calculate price from sqrtPriceX96
-      // For a prediction market, price is typically between 0-1
+
+      // Calculate the original price of Yes in USDC
       const sqrtPrice = Number(sqrtPriceX96) / 2**96;
-      const price = sqrtPrice * sqrtPrice;
-      
-      console.log('useSlot0 - calculated sqrtPrice:', sqrtPrice);
-      console.log('useSlot0 - calculated price:', price);
-      
+      const priceOfYesInUsdc = sqrtPrice * sqrtPrice;
+
+      // Calculate the INVERTED price (USDC per YES, intended for display)
+      let invertedPrice = 0;
+      if (priceOfYesInUsdc > 0) {
+          invertedPrice = 1 / priceOfYesInUsdc;
+      }
+
       const newProcessedData = {
         sqrtPriceX96,
         tick,
         protocolFee,
         lpFee,
-        price,
-        formattedPrice: `${(price * 100).toFixed(2)}%`
+        price: invertedPrice,
+        formattedPrice: `${(invertedPrice * 100).toFixed(2)}%`
       };
-      
-      console.log('useSlot0 - setting processedData:', newProcessedData);
+
       setProcessedData(newProcessedData);
     } else {
       console.log('useSlot0 - no data available, setting processedData to null');
@@ -159,7 +159,7 @@ export function useSlot0(poolId?: string) {
     error,
   };
   
-  console.log('useSlot0 - final result:', result);
+  console.log('useSlot0 - final result (with inverted price display logic):', result);
   return result;
 }
 

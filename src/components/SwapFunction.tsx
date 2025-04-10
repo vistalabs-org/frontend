@@ -1,13 +1,12 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from 'react';
-import { useAccount, useBalance, useWriteContract, useContractRead, useReadContract } from 'wagmi';
-import { parseUnits, formatUnits } from 'viem';
-import { PREDICTION_MARKET_HOOK_ADDRESS, ROUTER } from '@/app/constants';
-import { PoolSwapTestAbi } from '@/contracts/PoolSwapTest_abi';
-import { MockERC20Abi } from '@/contracts/MockERC20_abi';
-import { simulateContract } from '@wagmi/core';
-import { wagmiConfig } from '@/lib/wagmi';
+import { useState, useEffect, useMemo } from 'react';
+import { useAccount, useBalance, useWriteContract, useReadContract, useWaitForTransactionReceipt } from 'wagmi';
+import { parseUnits, formatUnits, Log, Address, encodeFunctionData } from 'viem';
+import { ROUTER } from '@/app/constants';
+import PoolSwapTestAbi from '@/contracts/PoolSwapTest.json';
+import MockERC20Abi from '@/contracts/MockERC20.json';
+import { wagmiConfig } from '@/app/providers';
 import { getPublicClient } from '@wagmi/core';
 
 type SwapFunctionProps = {
@@ -324,6 +323,11 @@ export default function SwapFunction({
     return success;
   }, [needsApproval, collateralAllowance, amount]);
 
+  // Helper function to safely format balances
+  const formatBalance = (balanceData: ReturnType<typeof useBalance>['data']) => {
+    return balanceData ? formatUnits(balanceData.value, balanceData.decimals) : '0.00';
+  };
+
   // At the end of the component, right before the return:
   console.log('FINAL VALUES before return:', { 
     needsApproval, 
@@ -337,12 +341,15 @@ export default function SwapFunction({
     handleSwap,
     isSwapping: isSwapping || isExecutingSwap,
     expectedOutput,
-    tokenBalance: getSelectedTokenBalance(),
+    tokenBalance: {
+      collateral: formatBalance(collateralBalance),
+      yes: formatBalance(yesTokenBalance),
+      no: formatBalance(noTokenBalance),
+    },
     needsApproval,
     handleApprove,
     isApproving: isApproving || isApprovingOutcome,
     isApproved,
-    // Add debug values 
     debug: {
       collateralAllowance: collateralAllowance?.toString(),
       outcomeTokenAllowance: outcomeTokenAllowance?.toString(),

@@ -2,13 +2,14 @@ import { useState, useEffect } from 'react';
 // Use the newer import style
 import { useReadContract, useWriteContract, useConfig } from 'wagmi';
 import { readContract } from '@wagmi/core'; // Import readContract for non-hook usage
-import { AIOracleServiceManagerABI } from '@/contracts/AIOracleServiceManagerABI';
-import { AIAgentRegistryABI } from '@/contracts/AIAgentRegistryABI';
+import AIOracleServiceManagerABI from '@/contracts/AIOracleServiceManager.json';
+import AIAgentRegistryABI from '@/contracts/AIAgentRegistry.json';
 // Remove AIAgentABI import if unused
 // import { AIAgentABI } from '@/contracts/AIAgentABI'; 
 import { ORACLE_SERVICE_MANAGER_ADDRESS, AGENT_REGISTRY_ADDRESS } from '@/app/constants';
 // Import Address type
 import { type Address } from 'viem'; 
+
 
 // Define interfaces for better type safety
 interface TaskData {
@@ -85,7 +86,7 @@ export function useOracleTask(taskId: number | undefined) {
 
     useEffect(() => {
         setLoading(true); 
-        setError(null); 
+        setError(null);
 
         if (statusError || respondentsError || consensusError) {
             setError(statusError || respondentsError || consensusError || new Error("Failed to fetch task data"));

@@ -3,6 +3,10 @@
 import React from 'react';
 import { useRouter } from 'next/navigation';
 import { LoomVideoExplanation } from '@/components/LoomVideoExplanation';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { TrendingUp, BarChartHorizontal } from 'lucide-react';
+import { toast } from "sonner";
 
 export default function CreateProposalSelection() {
   const router = useRouter();
@@ -12,63 +16,68 @@ export default function CreateProposalSelection() {
     
     if (type === 'protocol-kpi') {
       console.log('Navigating to KPI market page');
-      // Use a more direct approach to navigation
-      window.location.href = '/create-proposal/kpi-market';
+      router.push('/create-proposal/kpi-market');
     } else {
-      alert('Token price markets are coming soon!');
+      toast("Coming Soon", {
+        description: "Token price markets are currently under development.",
+      });
     }
   };
 
   return (
-    <div className="max-w-2xl mx-auto p-6">
+    <div className="max-w-4xl mx-auto p-4 md:p-6">
       <div className="space-y-8">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 mb-6">Create New Prediction Market</h1>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-2xl text-center">Create New Prediction Market</CardTitle>
+            <CardDescription className="text-center">
+              Choose the type of market you want to create based on your proposal.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Token Price Market Card */}
-            <div 
-              className="bg-white border border-gray-300 rounded-lg p-6 cursor-pointer hover:bg-gray-50 transition-colors"
+            <Card
+              className="cursor-pointer hover:border-primary transition-colors flex flex-col items-center justify-center text-center p-6 group"
               onClick={() => handleMarketTypeSelect('token-price')}
             >
-              <div className="flex items-center justify-center mb-4 text-blue-500">
-                <svg className="w-12 h-12" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M3.5 18.49l6-6.01 4 4L22 6.92l-1.41-1.41-7.09 7.97-4-4L2 16.99z"/>
-                </svg>
-              </div>
-              <h3 className="text-lg font-medium text-gray-900 text-center mb-2">
-                Proposal based on token price
+              <TrendingUp className="w-12 h-12 mb-4 text-muted-foreground group-hover:text-primary transition-colors" />
+              <h3 className="text-lg font-semibold text-foreground mb-2 group-hover:text-primary transition-colors">
+                Token Price Market
               </h3>
-              <p className="text-sm text-gray-600 text-center">
-                Decide based on the expected impact of the proposal on the token price
+              <p className="text-sm text-muted-foreground mb-4">
+                Predict the future price of a specific token.
               </p>
-              <div className="mt-4 text-xs text-center text-gray-500">Coming soon</div>
-            </div>
+              <span className="text-xs text-muted-foreground font-medium px-2 py-1 rounded bg-muted">
+                Coming soon
+              </span>
+            </Card>
             
             {/* Protocol KPI Market Card */}
-            <div 
-              className="bg-white border border-gray-300 rounded-lg p-6 cursor-pointer hover:bg-gray-50 transition-colors"
+            <Card
+              className="cursor-pointer hover:border-primary transition-colors flex flex-col items-center justify-center text-center p-6 group"
               onClick={() => handleMarketTypeSelect('protocol-kpi')}
             >
-              <div className="flex items-center justify-center mb-4 text-green-500">
-                <svg className="w-12 h-12" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V5h14v14z"/>
-                  <path d="M7 12h2v5H7zm4-7h2v12h-2zm4 4h2v8h-2z"/>
-                </svg>
-              </div>
-              <h3 className="text-lg font-medium text-gray-900 text-center mb-2">
-                Proposal based on KPIs
+              <BarChartHorizontal className="w-12 h-12 mb-4 text-muted-foreground group-hover:text-primary transition-colors" />
+              <h3 className="text-lg font-semibold text-foreground mb-2 group-hover:text-primary transition-colors">
+                KPI-Based Market
               </h3>
-              <p className="text-sm text-gray-600 text-center">
-                Decide based on the expected impact of the proposal on the KPIs (e.g. TVL, volume, liquidity, etc.)
+              <p className="text-sm text-muted-foreground">
+                Predict the outcome based on specific protocol Key Performance Indicators (e.g., TVL, Volume).
               </p>
-            </div>
-          </div>
-        </div>
+            </Card>
+          </CardContent>
+        </Card>
         
-        {/* Video explanation */}
-        <div className="border-t border-gray-200 pt-8">
-          <LoomVideoExplanation />
-        </div>
+        {/* Video explanation in its own card */}
+        <Card>
+          <CardHeader>
+            <CardTitle>How It Works</CardTitle>
+            <CardDescription>Watch this short video to understand the process.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <LoomVideoExplanation />
+          </CardContent>
+        </Card>
       </div>
     </div>
   );

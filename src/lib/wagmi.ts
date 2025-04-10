@@ -1,8 +1,6 @@
 import { defineChain } from 'viem';
-import { http, createConfig } from 'wagmi'
-//import { unichainSepolia } from 'wagmi/chains';
 
-// Define unichainSepolia chain
+// Define Unichain Sepolia chain
 export const unichainSepolia = defineChain({
     id: 1301,
     name: 'Unichain Sepolia',
@@ -20,12 +18,20 @@ export const unichainSepolia = defineChain({
     testnet: true,
   })
 
-// Create your wagmi config
-export const wagmiConfig = createConfig({
-    chains: [unichainSepolia],
-    transports: {
-        // Use http transport for each chain
-        // [mainnet.id]: http(),
-        [unichainSepolia.id]: http(),
-    }
+// Define Unichain Mainnet
+export const unichain = defineChain({
+  id: 130,
+  name: 'Unichain',
+  nativeCurrency: {
+    decimals: 18,
+    name: 'Ether',
+    symbol: 'ETH',
+  },
+  rpcUrls: {
+    default: { http: ['https://unichain-rpc.publicnode.com'] },
+  },
+  blockExplorers: {
+    default: { name: 'Explorer', url: 'https://explorer.unichain.world' },
+  },
+  testnet: false,
 });
