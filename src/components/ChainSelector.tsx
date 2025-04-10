@@ -1,13 +1,13 @@
 'use client';
 
 import { useChainId, useSwitchChain } from 'wagmi';
-import { unichain, unichainSepolia } from '@/lib/wagmi';
+import { arbitrum } from '@/lib/wagmi';
 
 export function ChainSelector() {
   const chainId = useChainId();
   const { switchChain } = useSwitchChain();
   
-  const supportedChains = [unichain, unichainSepolia];
+  const supportedChains = [arbitrum];
   
   return (
     <div className="flex items-center">

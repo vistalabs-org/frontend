@@ -8,7 +8,7 @@ import {
   RainbowKitProvider,
   lightTheme
 } from '@rainbow-me/rainbowkit';
-import { unichain, unichainSepolia, arbitrum } from '@/lib/wagmi';
+import { arbitrum } from '@/lib/wagmi';
 import '@rainbow-me/rainbowkit/styles.css';
 
 // Import Account Kit config and provider
@@ -23,7 +23,7 @@ const queryClient = new QueryClient();
 export const wagmiConfig = getDefaultConfig({
   appName: 'Vista Markets',
   projectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || 'YOUR_WALLET_CONNECT_PROJECT_ID',
-  chains: [unichain, unichainSepolia, arbitrum],
+  chains: [arbitrum],
   ssr: true
 });
 
