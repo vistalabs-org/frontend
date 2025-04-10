@@ -34,6 +34,12 @@ export default function CreateMarket() {
   const [mintAmount, setMintAmount] = useState<string>('');
   const [isMintingCollateral, setIsMintingCollateral] = useState(false);
   const [mintSuccess, setMintSuccess] = useState(false);
+  
+  // Market owner address
+  const MARKET_OWNER_ADDRESS = "0x6786B1148E0377BEFe86fF46cc073dE96B987FE4";
+  
+  // Check if current user is the market owner
+  const isMarketOwner = address?.toLowerCase() === MARKET_OWNER_ADDRESS.toLowerCase();
 
   // Load form data from localStorage
   useEffect(() => {
@@ -214,7 +220,11 @@ export default function CreateMarket() {
     let text = '...';
     let disabled = !isReady || !formData || tokenDecimals === null || isLocalSubmitting || isSimulating || isSubmitting || isConfirming;
 
-    if (step === 'approve') {
+    // Add check for market owner
+    if (!isMarketOwner) {
+      text = 'Only Market Owner Can Deploy';
+      disabled = true;
+    } else if (step === 'approve') {
       if (isConfirming) text = 'Confirming Approval...';
       else if (isSubmitting) text = 'Approving (Check Wallet)...';
       else if (isApproving) text = 'Preparing Approval...';
@@ -244,6 +254,20 @@ export default function CreateMarket() {
       {error && (
         <div className="bg-red-50 border border-red-400 text-red-700 p-3 rounded mb-4">
           {error}
+        </div>
+      )}
+
+      {!isMarketOwner && (
+        <div className="bg-yellow-50 border border-yellow-400 text-yellow-700 p-3 rounded mb-4">
+          <p className="mb-3">Only the market owner (0x6786...7FE4) can deploy markets. Current account is not authorized.</p>
+          <a 
+            href="https://t.me/silviobusonero" 
+            target="_blank" 
+            rel="noopener noreferrer" 
+            className="inline-block bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded transition-colors"
+          >
+            Contact us if you'd like to deploy
+          </a>
         </div>
       )}
 
