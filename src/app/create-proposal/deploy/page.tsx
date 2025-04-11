@@ -34,6 +34,12 @@ export default function CreateMarket() {
   const [mintAmount, setMintAmount] = useState<string>('');
   const [isMintingCollateral, setIsMintingCollateral] = useState(false);
   const [mintSuccess, setMintSuccess] = useState(false);
+  
+  // Market owner address
+  const MARKET_OWNER_ADDRESS = "0x6786B1148E0377BEFe86fF46cc073dE96B987FE4";
+  
+  // Check if current user is the market owner
+  const isMarketOwner = address?.toLowerCase() === MARKET_OWNER_ADDRESS.toLowerCase();
 
   // Load form data from localStorage
   useEffect(() => {
@@ -214,7 +220,11 @@ export default function CreateMarket() {
     let text = '...';
     let disabled = !isReady || !formData || tokenDecimals === null || isLocalSubmitting || isSimulating || isSubmitting || isConfirming;
 
-    if (step === 'approve') {
+    // Add check for market owner
+    if (!isMarketOwner) {
+      text = 'Only Market Owner Can Deploy';
+      disabled = true;
+    } else if (step === 'approve') {
       if (isConfirming) text = 'Confirming Approval...';
       else if (isSubmitting) text = 'Approving (Check Wallet)...';
       else if (isApproving) text = 'Preparing Approval...';
@@ -237,35 +247,49 @@ export default function CreateMarket() {
 
   return (
     <div className="max-w-2xl mx-auto p-6">
-      <h1 className="text-2xl font-bold text-gray-900 mb-6">
+      <h1 className="text-2xl font-bold text-foreground mb-6">
         {step === 'approve' ? 'Approve Tokens' : 'Create Market'}
       </h1>
       
       {error && (
-        <div className="bg-red-50 border border-red-400 text-red-700 p-3 rounded mb-4">
+        <div className="bg-red-50 border border-red-400 text-red-700 p-3 rounded mb-4 dark:bg-red-900/20 dark:border-red-800 dark:text-red-400">
           {error}
         </div>
       )}
 
+      {!isMarketOwner && (
+        <div className="bg-yellow-50 border border-yellow-400 text-yellow-700 p-3 rounded mb-4 dark:bg-yellow-900/20 dark:border-yellow-800 dark:text-yellow-400">
+          <p className="mb-3">Only the market owner (0x6786...7FE4) can deploy markets. Current account is not authorized.</p>
+          <a 
+            href="https://t.me/silviobusonero" 
+            target="_blank" 
+            rel="noopener noreferrer" 
+            className="inline-block bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded transition-colors dark:bg-blue-600 dark:hover:bg-blue-700"
+          >
+            Contact us if you'd like to deploy
+          </a>
+        </div>
+      )}
+
       {mintSuccess && (
-        <div className="bg-green-50 border border-green-400 text-green-700 p-3 rounded mb-4">
+        <div className="bg-green-50 border border-green-400 text-green-700 p-3 rounded mb-4 dark:bg-green-900/20 dark:border-green-800 dark:text-green-400">
           Tokens minted successfully!
         </div>
       )}
       
       {/* Mint Collateral Form */}
       {formData && tokenDecimals !== null && (
-        <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200 mb-6">
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">Mint Collateral Tokens</h2>
+        <div className="bg-card rounded-lg p-6 shadow-sm border border-border mb-6">
+          <h2 className="text-xl font-semibold text-foreground mb-4">Mint Collateral Tokens</h2>
           
           <div className="mb-3">
-            <p className="text-gray-600 mb-1">Current Balance:</p>
-            <p className="text-gray-900 font-medium">{formattedBalance} tokens</p>
+            <p className="text-muted-foreground mb-1">Current Balance:</p>
+            <p className="text-foreground font-medium">{formattedBalance} tokens</p>
           </div>
           
           <div className="flex items-end gap-3">
             <div className="flex-1">
-              <label htmlFor="mintAmount" className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="mintAmount" className="block text-sm font-medium text-foreground mb-1">
                 Amount to Mint
               </label>
               <input
@@ -274,19 +298,19 @@ export default function CreateMarket() {
                 value={mintAmount}
                 onChange={(e) => setMintAmount(e.target.value)}
                 placeholder="Enter amount"
-                className="w-full p-2 border border-gray-300 rounded focus:ring-blue-500 focus:border-blue-500"
+                className="w-full p-2 border border-input bg-background rounded focus:ring-ring focus:border-ring"
               />
             </div>
-            <button
+            <Button
               onClick={handleMintCollateral}
               disabled={isMintingCollateral || !isClientReady || !mintAmount}
-              className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded transition-colors disabled:bg-gray-300 disabled:text-gray-500 disabled:cursor-not-allowed"
+              variant="secondary"
             >
               {isMintingCollateral ? 'Minting...' : 'Mint Tokens'}
-            </button>
+            </Button>
           </div>
           
-          <p className="mt-2 text-sm text-gray-500">
+          <p className="mt-2 text-sm text-muted-foreground">
             Mint test tokens to use for creating your market.
           </p>
         </div>
@@ -294,37 +318,37 @@ export default function CreateMarket() {
       
       {/* Market summary */}
       {formData && (
-        <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
-          <h2 className="text-2xl font-semibold text-gray-900 mb-6">Market Summary</h2>
+        <div className="bg-card rounded-lg p-6 shadow-sm border border-border">
+          <h2 className="text-2xl font-semibold text-foreground mb-6">Market Summary</h2>
           
           <div className="space-y-4">
             <div>
-              <span className="text-gray-600">Title:</span>
-              <span className="text-gray-900 ml-2">{formData.title}</span>
+              <span className="text-muted-foreground">Title:</span>
+              <span className="text-foreground ml-2">{formData.title}</span>
             </div>
             
             <div>
-              <span className="text-gray-600">Description:</span>
-              <span className="text-gray-900 ml-2">{formData.description}</span>
+              <span className="text-muted-foreground">Description:</span>
+              <span className="text-foreground ml-2">{formData.description}</span>
             </div>
             
             <div>
-              <span className="text-gray-600">Duration:</span>
-              <span className="text-gray-900 ml-2">{formData.duration} days</span>
+              <span className="text-muted-foreground">Duration:</span>
+              <span className="text-foreground ml-2">{formData.duration} days</span>
             </div>
             
             <div>
-              <span className="text-gray-600">Collateral:</span>
-              <span className="text-gray-900 ml-2">{formData.collateralAmount} tokens ({tokenDecimals} decimals)</span>
+              <span className="text-muted-foreground">Collateral:</span>
+              <span className="text-foreground ml-2">{formData.collateralAmount} tokens ({tokenDecimals} decimals)</span>
             </div>
           </div>
           
-          <div className="mt-8 border-t border-gray-200 pt-6">
-            <p className="text-gray-900 mb-4">
+          <div className="mt-8 border-t border-border pt-6">
+            <p className="text-foreground mb-4">
               You will receive <span className="font-semibold">{formData.collateralAmount} YES tokens</span> and 
               <span className="font-semibold"> {formData.collateralAmount} NO tokens</span> after market creation.
             </p>
-            <p className="text-gray-600">
+            <p className="text-muted-foreground">
               These tokens represent your position in this prediction market. You can use them to add liquidity to the market or trade them.
             </p>
           </div>
@@ -333,17 +357,18 @@ export default function CreateMarket() {
       
       {/* Main Action Button */}
       <div className="mt-8 text-center">
-        <button
+        <Button
           onClick={buttonState.onClick}
           disabled={buttonState.disabled}
-          className="w-full max-w-xs px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
+          className="w-full max-w-xs"
+          size="lg"
         >
           {buttonState.text}
-        </button>
+        </Button>
       </div>
       
       {tokenDecimals === null && formData && (
-        <p className="mt-2 text-yellow-600 text-sm">
+        <p className="mt-2 text-yellow-600 dark:text-yellow-400 text-sm">
           Loading token information...
         </p>
       )}

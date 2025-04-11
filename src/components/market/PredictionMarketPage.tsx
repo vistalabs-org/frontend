@@ -193,7 +193,7 @@ interface PredictionMarketPageProps {
   endTimestamp: any;
   marketId: string;
   chainId?: number; // Add chainId prop
-  mintCollateralButton: React.ReactNode;
+  mintCollateralButton?: React.ReactNode; // Make optional
 }
 
 // --- Helper function to calculate history from deltas ---
@@ -223,7 +223,6 @@ const PredictionMarketPage = ({
   endTimestamp, 
   marketId,
   chainId, // Destructure chainId
-  mintCollateralButton
 }: PredictionMarketPageProps) => { // Use typed props
   const [selectedAction, setSelectedAction] = React.useState<'Buy' | 'Sell'>('Buy');
   const [selectedOption, setSelectedOption] = React.useState<'Yes' | 'No'>('Yes');
@@ -701,8 +700,6 @@ const PredictionMarketPage = ({
               )}
             </CardFooter>
           </Card>
-
-          {mintCollateralButton}
 
           {isConnected && (
             <Card>
